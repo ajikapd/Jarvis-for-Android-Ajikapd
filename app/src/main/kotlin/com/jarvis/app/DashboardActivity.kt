@@ -2214,7 +2214,18 @@ class DashboardActivity : AppCompatActivity() {
                 setOnClickListener {
                     uiTimerHandler.postDelayed({
                         val vibrator = getSystemService(VIBRATOR_SERVICE) as? android.os.Vibrator
-                        vibrator?.vibrate(android.os.VibrationEffect.createOneShot(700, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+                        try {
+                            vibrator?.vibrate(
+                                android.os.VibrationEffect.createOneShot(
+                                    700,
+                                    android.os.VibrationEffect.DEFAULT_AMPLITUDE,
+                                ),
+                            )
+                        } catch (e: SecurityException) {
+                            Log.w("Jarvis.Dashboard", "vibrate: нет разрешения VIBRATE", e)
+                        } catch (e: Exception) {
+                            Log.w("Jarvis.Dashboard", "vibrate failed: ${e.message}", e)
+                        }
                         android.widget.Toast.makeText(this@DashboardActivity, "Таймер $minutes мин истёк", android.widget.Toast.LENGTH_LONG).show()
                     }, minutes * 60_000L)
                     android.widget.Toast.makeText(this@DashboardActivity, "Таймер на $minutes мин", android.widget.Toast.LENGTH_SHORT).show()

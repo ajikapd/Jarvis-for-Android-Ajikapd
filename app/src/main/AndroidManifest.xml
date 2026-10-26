@@ -51,6 +51,9 @@
     <!-- ── Wake lock for sustained background processing ───────────────── -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
+    <!-- ── Таймеры/уведомления: вибро-сигнал ──────────────────────────── -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
     <!-- ── Best-effort kill background processes (force_stop) ──────────── -->
     <uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES" />
 
