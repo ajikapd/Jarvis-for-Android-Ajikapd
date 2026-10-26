@@ -1,0 +1,48 @@
+=== Tools (class files) ===
+tools/src/main/kotlin/com/jarvis/tools/BrightnessTool.kt
+tools/src/main/kotlin/com/jarvis/tools/CalendarTool.kt
+tools/src/main/kotlin/com/jarvis/tools/CallTool.kt
+tools/src/main/kotlin/com/jarvis/tools/ClipboardTool.kt
+tools/src/main/kotlin/com/jarvis/tools/ContactsTool.kt
+tools/src/main/kotlin/com/jarvis/tools/FilesTool.kt
+tools/src/main/kotlin/com/jarvis/tools/FlashlightTool.kt
+tools/src/main/kotlin/com/jarvis/tools/KnowledgeTool.kt
+tools/src/main/kotlin/com/jarvis/tools/LauncherTool.kt
+tools/src/main/kotlin/com/jarvis/tools/MusicTool.kt
+tools/src/main/kotlin/com/jarvis/tools/NotificationTool.kt
+tools/src/main/kotlin/com/jarvis/tools/ScreenshotTool.kt
+tools/src/main/kotlin/com/jarvis/tools/SmsTool.kt
+tools/src/main/kotlin/com/jarvis/tools/SystemSettingTool.kt
+tools/src/main/kotlin/com/jarvis/tools/TelegramSendTool.kt
+tools/src/main/kotlin/com/jarvis/tools/TimerTool.kt
+tools/src/main/kotlin/com/jarvis/tools/UiTools.kt
+tools/src/main/kotlin/com/jarvis/tools/VolumeTool.kt
+tools/src/main/kotlin/com/jarvis/tools/WeatherTool.kt
+
+=== Tool ids from definitions ===
+tools/src/main/kotlin/com/jarvis/tools/WeatherTool.kt:26:        id = "weather",
+tools/src/main/kotlin/com/jarvis/tools/MusicTool.kt:45:        id = "music",
+tools/src/main/kotlin/com/jarvis/tools/MusicTool.kt:553:        val id = item.mediaId ?: return null
+tools/src/main/kotlin/com/jarvis/tools/SystemSettingTool.kt:29:        id = "system.setting",
+tools/src/main/kotlin/com/jarvis/tools/TimerTool.kt:30:        id = "timer",
+tools/src/main/kotlin/com/jarvis/tools/UiTools.kt:19:        id = "ui.click",
+tools/src/main/kotlin/com/jarvis/tools/UiTools.kt:74:        id = "ui.type",
+tools/src/main/kotlin/com/jarvis/tools/UiTools.kt:102:        id = "ui.swipe",
+tools/src/main/kotlin/com/jarvis/tools/UiTools.kt:145:        id = "ui.global",
+tools/src/main/kotlin/com/jarvis/tools/UiTools.kt:180:        id = "ui.read",
+tools/src/main/kotlin/com/jarvis/tools/UiTools.kt:208:        id = "ui.wait",
+tools/src/main/kotlin/com/jarvis/tools/VolumeTool.kt:25:        id = "volume",
+tools/src/main/kotlin/com/jarvis/tools/TelegramSendTool.kt:27:        id = "telegram.send",
+tools/src/main/kotlin/com/jarvis/tools/ContactsTool.kt:21:        id = "contacts.search",
+tools/src/main/kotlin/com/jarvis/tools/NotificationTool.kt:17:        id = "notifications.list",
+tools/src/main/kotlin/com/jarvis/tools/CalendarTool.kt:27:        id = "calendar",
+tools/src/main/kotlin/com/jarvis/tools/FlashlightTool.kt:28:        id = "flashlight",
+tools/src/main/kotlin/com/jarvis/tools/LauncherTool.kt:32:        id = "launcher",
+tools/src/main/kotlin/com/jarvis/tools/KnowledgeTool.kt:23:        id = "knowledge",
+tools/src/main/kotlin/com/jarvis/tools/SmsTool.kt:26:        id = "sms",
+tools/src/main/kotlin/com/jarvis/tools/CallTool.kt:25:        id = "phone.call",
+tools/src/main/kotlin/com/jarvis/tools/BrightnessTool.kt:23:        id = "brightness",
+tools/src/main/kotlin/com/jarvis/tools/ClipboardTool.kt:19:        id = "clipboard",
+tools/src/main/kotlin/com/jarvis/tools/FilesTool.kt:20:        id = "files.search",
+tools/src/main/kotlin/com/jarvis/tools/FilesTool.kt:91:                    val id = it.getLong(0)
+tools/src/main/kotlin/com/jarvis/tools/ScreenshotTool.kt:22:        id = "screenshot",

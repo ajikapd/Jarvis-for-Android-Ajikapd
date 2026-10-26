@@ -1,0 +1,16 @@
+Jarvis_full_info package contents:
+111
+bytes:
+941K	/mnt/D/Jarvis_for_android/Jarvis_full_info
+
+/mnt/D/Jarvis_for_android/Jarvis_full_info
+/mnt/D/Jarvis_for_android/Jarvis_full_info/copies
+/mnt/D/Jarvis_for_android/Jarvis_full_info/copies/md_files
+/mnt/D/Jarvis_for_android/Jarvis_full_info/copies/Ui интерфейс
+/mnt/D/Jarvis_for_android/Jarvis_full_info/copies/Ui интерфейс Редизайн
+/mnt/D/Jarvis_for_android/Jarvis_full_info/copies/Ui интерфейс Редизайн/assets
+/mnt/D/Jarvis_for_android/Jarvis_full_info/copies/Ui интерфейс Редизайн/html
+/mnt/D/Jarvis_for_android/Jarvis_full_info/copies/Ui интерфейс/assets
+/mnt/D/Jarvis_for_android/Jarvis_full_info/copies/Ui интерфейс/html
+/mnt/D/Jarvis_for_android/Jarvis_full_info/inventory
+/mnt/D/Jarvis_for_android/Jarvis_full_info/synthesis

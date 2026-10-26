@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Companion</title>
+  <link rel="stylesheet" href="../assets/jarvis-ui.css" />
+</head>
+<body>
+  <div class="page">
+    <p><a href="index.html">← Index</a></p>
+    <h1>Ещё → Companion</h1>
+    <p class="lead"><code>screen_companion_panel.xml</code> · <span class="badge partial">PARTIAL</span> diagnostics UI</p>
+    <div class="phone">
+      <div class="shell-top">JARVIS · LOCAL <span class="logo"></span></div>
+      <div class="shell-body pad">
+        <div class="h-title">Настройки</div>
+        <div class="tabs">
+          <span>Основные</span>
+          <span class="on">Companion</span>
+          <span>Модели</span>
+        </div>
+        <div class="section">Companion · Diagnostics</div>
+        <p class="muted" style="font-size:12px">Stage 7: ProactiveDecision suggest/question/confirm only. Нет autonomy / ToolCall.</p>
+        <div class="section">System presence</div>
+        <pre class="panel mono" style="font-size:12px;white-space:pre-wrap;margin:0">● NLS
+○ UsageStats
+○ Assistant role</pre>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <div class="btn-neutral" style="flex:1">NLS</div>
+          <div class="btn-neutral" style="flex:1">UsageStats</div>
+        </div>
+        <div class="btn-neutral" style="margin-top:8px">Цифровой помощник (выбрать Jarvis)</div>
+        <div class="section">Context / Events / Memory / Behavior</div>
+        <div class="panel mono" style="font-size:11px;color:var(--muted)">Live context dump · event buffer · durable memory · suggestions</div>
+        <div class="section">Proactive</div>
+        <div class="panel muted" style="font-size:12px">Suggest / Question / Confirm buttons when decision present</div>
+      </div>
+      <div class="shell-nav">
+        <button>ГЛАВНАЯ</button><button>LIVE</button><button>ПАМЯТЬ</button><button>КОМАНДЫ</button><button class="active">ЕЩЁ</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

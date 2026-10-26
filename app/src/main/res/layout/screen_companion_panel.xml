@@ -1,0 +1,378 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/companionPanel"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:visibility="gone">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ПОВЕДЕНИЕ ОРБА"
+        android:textColor="@color/jarvis_cyan"
+        android:textSize="11sp"
+        android:fontFamily="monospace"
+        android:letterSpacing="0.08"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/bg_hud_panel"
+        android:padding="12dp"
+        android:layout_marginBottom="6dp">
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Проактивность" android:textColor="@color/jarvis_text" android:textSize="13sp" />
+        <com.jarvis.app.JarvisToggle android:id="@+id/toggleCompanionProactive" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+    </LinearLayout>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/bg_hud_panel"
+        android:padding="12dp"
+        android:layout_marginBottom="6dp">
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Фоновые уведомления" android:textColor="@color/jarvis_text" android:textSize="13sp" />
+        <com.jarvis.app.JarvisToggle android:id="@+id/toggleCompanionNotify" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+    </LinearLayout>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/bg_hud_panel"
+        android:padding="12dp"
+        android:layout_marginBottom="6dp">
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Тихие часы 23:00–07:00" android:textColor="@color/jarvis_text" android:textSize="13sp" />
+        <com.jarvis.app.JarvisToggle android:id="@+id/toggleQuietHours" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+    </LinearLayout>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/bg_hud_panel"
+        android:padding="12dp"
+        android:layout_marginBottom="14dp">
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Орб липнет к краю" android:textColor="@color/jarvis_text" android:textSize="13sp" />
+        <com.jarvis.app.JarvisToggle android:id="@+id/toggleOrbSnap" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="COMPANION · DIAGNOSTICS"
+        android:textColor="#626B76"
+        android:textSize="11sp"
+        android:letterSpacing="0.06"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="9dp" />
+
+    <TextView
+        android:id="@+id/companionStageHint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Stage 7: ProactiveDecision suggest/question/confirm only. Нет autonomy / ToolCall."
+        android:textColor="#9DA5AE"
+        android:textSize="12sp"
+        android:layout_marginBottom="12dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="SYSTEM PRESENCE"
+        android:textColor="#626B76"
+        android:textSize="11sp"
+        android:letterSpacing="0.06"
+        android:layout_marginBottom="6dp" />
+
+    <TextView
+        android:id="@+id/companionSourcesText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#F4F0E7"
+        android:textSize="13sp"
+        android:lineSpacingExtra="3dp"
+        android:fontFamily="monospace"
+        android:text="—"
+        android:layout_marginBottom="8dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btnCompanionNls"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="6dp"
+            android:text="NLS"
+            android:textAllCaps="false" />
+
+        <Button
+            android:id="@+id/btnCompanionUsage"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="6dp"
+            android:text="UsageStats"
+            android:textAllCaps="false" />
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/btnCompanionAssistant"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Цифровой помощник (выбрать Jarvis)"
+        android:textAllCaps="false" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ТЕКУЩИЙ КОНТЕКСТ"
+        android:textColor="#626B76"
+        android:textSize="11sp"
+        android:letterSpacing="0.06"
+        android:layout_marginTop="18dp"
+        android:layout_marginBottom="6dp" />
+
+    <TextView
+        android:id="@+id/companionContextText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#F4F0E7"
+        android:textSize="13sp"
+        android:lineSpacingExtra="3dp"
+        android:fontFamily="monospace"
+        android:text="—" />
+
+    <Button
+        android:id="@+id/btnCompanionRefresh"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="Обновить"
+        android:textAllCaps="false" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="MEMORY CANDIDATES"
+        android:textColor="#626B76"
+        android:textSize="11sp"
+        android:letterSpacing="0.06"
+        android:layout_marginTop="18dp"
+        android:layout_marginBottom="6dp" />
+
+    <TextView
+        android:id="@+id/companionMemoryText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#C8CDD3"
+        android:textSize="12sp"
+        android:lineSpacingExtra="3dp"
+        android:fontFamily="monospace"
+        android:text="—" />
+
+    <Button
+        android:id="@+id/btnCompanionRemember"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Запомнить тест (USER_STATED)"
+        android:textAllCaps="false" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="DURABLE MEMORY"
+        android:textColor="#626B76"
+        android:textSize="11sp"
+        android:letterSpacing="0.06"
+        android:layout_marginTop="18dp"
+        android:layout_marginBottom="6dp" />
+
+    <TextView
+        android:id="@+id/companionDurableMemoryText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#C8CDD3"
+        android:textSize="12sp"
+        android:lineSpacingExtra="3dp"
+        android:fontFamily="monospace"
+        android:text="—" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="BEHAVIOR · SUGGEST ONLY"
+        android:textColor="#626B76"
+        android:textSize="11sp"
+        android:letterSpacing="0.06"
+        android:layout_marginTop="18dp"
+        android:layout_marginBottom="6dp" />
+
+    <TextView
+        android:id="@+id/companionBehaviorText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#C8CDD3"
+        android:textSize="12sp"
+        android:lineSpacingExtra="3dp"
+        android:fontFamily="monospace"
+        android:text="—" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="8dp">
+
+        <Button
+            android:id="@+id/btnBehaviorAccept"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="4dp"
+            android:text="Запомнить"
+            android:textAllCaps="false" />
+
+        <Button
+            android:id="@+id/btnBehaviorIgnore"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginHorizontal="4dp"
+            android:text="Не сейчас"
+            android:textAllCaps="false" />
+
+        <Button
+            android:id="@+id/btnBehaviorDisable"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:text="Не предлагать"
+            android:textAllCaps="false" />
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/btnBehaviorSimulate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Симуляция: наушники→Music ×5"
+        android:textAllCaps="false" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="PROACTIVE · DECISION ONLY"
+        android:textColor="#626B76"
+        android:textSize="11sp"
+        android:letterSpacing="0.06"
+        android:layout_marginTop="18dp"
+        android:layout_marginBottom="6dp" />
+
+    <TextView
+        android:id="@+id/companionProactiveText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#C8CDD3"
+        android:textSize="12sp"
+        android:lineSpacingExtra="3dp"
+        android:fontFamily="monospace"
+        android:visibility="gone"
+        android:text="" />
+
+    <LinearLayout
+        android:id="@+id/companionProactiveButtons"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="8dp"
+        android:visibility="gone">
+
+        <Button
+            android:id="@+id/btnProactiveAccept"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="4dp"
+            android:text="Да"
+            android:textAllCaps="false" />
+
+        <Button
+            android:id="@+id/btnProactiveIgnore"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginHorizontal="4dp"
+            android:text="Не сейчас"
+            android:textAllCaps="false" />
+
+        <Button
+            android:id="@+id/btnProactiveDisable"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:text="Не предлагать"
+            android:textAllCaps="false" />
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/btnProactiveHeadphonesNow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Контекст: наушники сейчас (без Music)"
+        android:textAllCaps="false" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ПОСЛЕДНИЕ СОБЫТИЯ"
+        android:textColor="#626B76"
+        android:textSize="11sp"
+        android:letterSpacing="0.06"
+        android:layout_marginTop="18dp"
+        android:layout_marginBottom="6dp" />
+
+    <TextView
+        android:id="@+id/companionEventsText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#C8CDD3"
+        android:textSize="12sp"
+        android:lineSpacingExtra="4dp"
+        android:fontFamily="monospace"
+        android:text="Пока нет событий." />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="DIAGNOSTICS · STAGE 27"
+        android:textColor="#626B76"
+        android:textSize="11sp"
+        android:letterSpacing="0.06"
+        android:layout_marginTop="18dp"
+        android:layout_marginBottom="6dp" />
+
+    <TextView
+        android:id="@+id/companionDiagnosticsText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#9DA5AE"
+        android:textSize="11sp"
+        android:lineSpacingExtra="3dp"
+        android:fontFamily="monospace"
+        android:text="…" />
+</LinearLayout>

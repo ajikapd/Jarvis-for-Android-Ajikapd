@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Главная</title>
+  <link rel="stylesheet" href="../assets/jarvis-ui.css" />
+</head>
+<body>
+  <div class="page">
+    <p><a href="index.html">← Index</a></p>
+    <h1>Главная</h1>
+    <p class="lead"><code>screen_home.xml</code> · tab 0 · <span class="badge ok">WORKING</span></p>
+    <div class="phone live-bg">
+      <div class="shell-top">JARVIS · LOCAL <span class="logo"></span></div>
+      <div class="shell-body">
+        <div class="pad" style="text-align:center">
+          <div class="orb lg"></div>
+          <div class="status-line">ГОТОВ · СКАЖИ «ДЖАРВИС»</div>
+          <div class="glyph"></div>
+          <div class="panel" style="text-align:left;margin-top:22px">
+            <div class="mono faint" style="font-size:10px;letter-spacing:.08em">Вы сказали</div>
+            <div style="margin-top:6px;font-size:15px;color:var(--text2)">Ожидание голосовой команды…</div>
+            <div class="mono faint" style="font-size:10px;letter-spacing:.08em;margin-top:14px">Ответ JARVIS</div>
+            <div class="muted" style="margin-top:6px;font-size:13px">После обработки команды здесь появится ответ и начнётся озвучивание.</div>
+          </div>
+          <div class="chips">
+            <span><span class="chip-label">модель</span><span class="chip-val">локальная</span></span>
+            <span><span class="chip-label">слух</span><span class="chip-val">вейк-ворд</span></span>
+            <span><span class="chip-label">сеть</span><span class="chip-val">только инструменты</span></span>
+          </div>
+          <div class="panel-alt muted" style="font-size:11px;text-align:left;margin-top:14px">
+            Подсказка: вкладка КОМАНДЫ — все фразы. ЕЩЁ → Модели — скачать голос и LLM.
+          </div>
+          <div class="btn-gold" style="margin-top:20px">Активировать JARVIS</div>
+          <p class="muted" style="font-size:12px;margin-top:10px">Фоновый сервис не запущен.</p>
+        </div>
+      </div>
+      <div class="shell-nav">
+        <button class="active">ГЛАВНАЯ</button>
+        <button>LIVE</button>
+        <button>ПАМЯТЬ</button>
+        <button>КОМАНДЫ</button>
+        <button>ЕЩЁ</button>
+      </div>
+    </div>
+    <p class="meta">IDs: <code>homeOrb</code>, <code>activateAssistant</code>, <code>currentTranscript</code>, <code>currentResponse</code></p>
+  </div>
+</body>
+</html>

@@ -1,0 +1,96 @@
+=== Layouts ===
+app/src/main/res/layout/activity_dashboard_shell.xml
+app/src/main/res/layout/activity_dashboard.xml
+app/src/main/res/layout/activity_onboarding.xml
+app/src/main/res/layout/activity_test_console.xml
+app/src/main/res/layout/activity_usage_guide.xml
+app/src/main/res/layout/item_model_card.xml
+app/src/main/res/layout/screen_activity.xml
+app/src/main/res/layout/screen_assistant.xml
+app/src/main/res/layout/screen_automations.xml
+app/src/main/res/layout/screen_companion_panel.xml
+app/src/main/res/layout/screen_control_center.xml
+app/src/main/res/layout/screen_home.xml
+app/src/main/res/layout/screen_live.xml
+app/src/main/res/layout/screen_memory.xml
+app/src/main/res/layout/screen_models_panel.xml
+app/src/main/res/layout/screen_not_implemented.xml
+app/src/main/res/layout/screen_settings.xml
+app/src/main/res/layout/screen_skills.xml
+
+=== Activities / Services (manifest) ===
+app/src/debug/AndroidManifest.xml:8:            android:name="com.jarvis.app.TestConsoleActivity"
+app/src/debug/AndroidManifest.xml:14:            android:name="com.jarvis.app.DebugCommandReceiver"
+app/src/debug/AndroidManifest.xml:17:                <action android:name="com.jarvis.assistant.DEBUG_COMMAND" />
+app/src/debug/AndroidManifest.xml:20:                <action android:name="com.jarvis.assistant.DEBUG_VOICE" />
+app/src/debug/AndroidManifest.xml:23:                <action android:name="com.jarvis.assistant.ASR_TEST" />
+app/src/debug/AndroidManifest.xml:26:                <action android:name="com.jarvis.assistant.DEBUG_AUTONOMY" />
+app/src/debug/AndroidManifest.xml:29:                <action android:name="com.jarvis.assistant.DEBUG_SETTINGS" />
+app/src/main/AndroidManifest.xml:5:    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+app/src/main/AndroidManifest.xml:6:    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+app/src/main/AndroidManifest.xml:7:    <uses-permission android:name="android.permission.SEND_SMS" />
+app/src/main/AndroidManifest.xml:8:    <uses-permission android:name="android.permission.READ_SMS" />
+app/src/main/AndroidManifest.xml:9:    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+app/src/main/AndroidManifest.xml:10:    <uses-permission android:name="android.permission.READ_CALENDAR" />
+app/src/main/AndroidManifest.xml:11:    <uses-permission android:name="android.permission.READ_CONTACTS" />
+app/src/main/AndroidManifest.xml:12:    <uses-permission android:name="android.permission.CALL_PHONE" />
+app/src/main/AndroidManifest.xml:13:    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+app/src/main/AndroidManifest.xml:14:    <uses-permission android:name="android.permission.READ_CALL_LOG" />
+app/src/main/AndroidManifest.xml:15:    <uses-permission android:name="android.permission.WRITE_SETTINGS"
+app/src/main/AndroidManifest.xml:17:    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+app/src/main/AndroidManifest.xml:18:    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+app/src/main/AndroidManifest.xml:19:    <uses-permission android:name="android.permission.BLUETOOTH" />
+app/src/main/AndroidManifest.xml:20:    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+app/src/main/AndroidManifest.xml:21:    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
+app/src/main/AndroidManifest.xml:23:    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+app/src/main/AndroidManifest.xml:24:    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+app/src/main/AndroidManifest.xml:25:    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+app/src/main/AndroidManifest.xml:26:    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+app/src/main/AndroidManifest.xml:29:    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+app/src/main/AndroidManifest.xml:30:    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+app/src/main/AndroidManifest.xml:33:    <uses-permission android:name="android.permission.INTERNET" />
+app/src/main/AndroidManifest.xml:36:    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+app/src/main/AndroidManifest.xml:37:    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+app/src/main/AndroidManifest.xml:40:    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+app/src/main/AndroidManifest.xml:43:    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+app/src/main/AndroidManifest.xml:46:    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+app/src/main/AndroidManifest.xml:49:    <uses-permission android:name="android.permission.WAKE_LOCK" />
+app/src/main/AndroidManifest.xml:52:    <uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES" />
+app/src/main/AndroidManifest.xml:56:        android:name="android.permission.PACKAGE_USAGE_STATS"
+app/src/main/AndroidManifest.xml:62:            <action android:name="android.intent.action.MAIN" />
+app/src/main/AndroidManifest.xml:63:            <category android:name="android.intent.category.LAUNCHER" />
+app/src/main/AndroidManifest.xml:66:            <action android:name="android.intent.action.VIEW" />
+app/src/main/AndroidManifest.xml:69:            <action android:name="android.intent.action.DIAL" />
+app/src/main/AndroidManifest.xml:72:            <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
+app/src/main/AndroidManifest.xml:75:            <action android:name="android.media.browse.MediaBrowserService" />
+app/src/main/AndroidManifest.xml:78:            <action android:name="android.settings.WIFI_SETTINGS" />
+app/src/main/AndroidManifest.xml:80:        <package android:name="ru.mts.music.android" />
+app/src/main/AndroidManifest.xml:81:        <package android:name="com.uma.musicvk" />
+app/src/main/AndroidManifest.xml:82:        <package android:name="com.spotify.music" />
+app/src/main/AndroidManifest.xml:83:        <package android:name="ru.yandex.music" />
+app/src/main/AndroidManifest.xml:84:        <package android:name="com.google.android.apps.youtube.music" />
+app/src/main/AndroidManifest.xml:85:        <package android:name="com.soundcloud.android" />
+app/src/main/AndroidManifest.xml:86:        <package android:name="ua.itaysonlab.vkx" />
+app/src/main/AndroidManifest.xml:87:        <package android:name="com.vkontakte.android" />
+app/src/main/AndroidManifest.xml:88:        <package android:name="com.google.android.youtube" />
+app/src/main/AndroidManifest.xml:92:        android:name=".JarvisApplication"
+app/src/main/AndroidManifest.xml:102:        <uses-native-library android:name="libvndksupport.so" android:required="false"/>
+app/src/main/AndroidManifest.xml:103:        <uses-native-library android:name="libOpenCL.so" android:required="false"/>
+app/src/main/AndroidManifest.xml:106:            android:name=".OnboardingActivity"
+app/src/main/AndroidManifest.xml:111:            android:name=".UsageGuideActivity"
+app/src/main/AndroidManifest.xml:116:            android:name=".DashboardActivity"
+app/src/main/AndroidManifest.xml:121:                <action android:name="android.intent.action.MAIN" />
+app/src/main/AndroidManifest.xml:122:                <category android:name="android.intent.category.LAUNCHER" />
+app/src/main/AndroidManifest.xml:126:                <action android:name="android.intent.action.ASSIST" />
+app/src/main/AndroidManifest.xml:127:                <category android:name="android.intent.category.DEFAULT" />
+app/src/main/AndroidManifest.xml:132:            android:name=".VoiceService"
+app/src/main/AndroidManifest.xml:138:            android:name=".assist.JarvisVoiceInteractionService"
+app/src/main/AndroidManifest.xml:143:                <action android:name="android.service.voice.VoiceInteractionService" />
+app/src/main/AndroidManifest.xml:146:                android:name="android.voice_interaction"
+app/src/main/AndroidManifest.xml:151:            android:name=".assist.JarvisVoiceInteractionSessionService"
+app/src/main/AndroidManifest.xml:156:            android:name=".assist.JarvisRecognitionService"
+app/src/main/AndroidManifest.xml:160:                <action android:name="android.speech.RecognitionService" />
+app/src/main/AndroidManifest.xml:163:                android:name="android.speech"
+app/src/main/AndroidManifest.xml:168:            android:name=".TestConsoleActivity"
+app/src/main/AndroidManifest.xml:173:            android:name="com.jarvis.backgroundservice.JarvisService"
+app/src/main/AndroidManifest.xml:177:            android:name="com.jarvis.backgroundservice.BootReceiver"

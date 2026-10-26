@@ -1,0 +1,108 @@
+=== MODULES ===
+pluginManagement {
+    repositories {
+        google {
+            content {
+                includeGroupByRegex("com\\.android.*")
+                includeGroupByRegex("com\\.google.*")
+                includeGroupByRegex("androidx.*")
+            }
+        }
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        mavenLocal()
+        maven { url = uri("$rootDir/libs/local") }
+        google()
+        mavenCentral()
+        maven { url = uri("https://jitpack.io") }
+    }
+}
+
+rootProject.name = "jarvis"
+include(":app")
+include(":core")
+include(":wakeword-engine")
+include(":audio-engine")
+include(":asr-engine")
+include(":tts-engine")
+include(":brain")
+include(":tools")
+include(":screen-control")
+include(":overlay-ui")
+include(":background-service")
+include(":connectivity-router")
+include(":permissions-onboarding")
+=== APP build.gradle.kts (deps excerpt) ===
+
+plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+}
+
+android {
+    namespace = "com.jarvis.app"
+    compileSdk = 34
+
+    defaultConfig {
+        applicationId = "com.jarvis.assistant"
+        minSdk = 29
+        targetSdk = 34
+        versionCode = 1
+        versionName = "0.1.0-dev"
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
+    }
+
+    androidResources {
+        noCompress += listOf("onnx", "tflite", "bin")
+    }
+
+    packaging {
+        jniLibs {
+            pickFirsts += setOf(
+                "**/libonnxruntime.so",
+                "**/libc++_shared.so",
+            )
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+    buildFeatures {
+        buildConfig = true
+    }
+}
+
+dependencies {
+    implementation(project(":core"))
+    implementation(project(":background-service"))
+    implementation(project(":permissions-onboarding"))
+    implementation(project(":brain"))
+    implementation(project(":tools"))
+    implementation(project(":screen-control"))
+    implementation(project(":audio-engine"))
+    implementation(project(":asr-engine"))
+    implementation(project(":wakeword-engine"))
+    implementation(project(":tts-engine"))
+
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.material)
+    implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.preference.ktx)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.commons.compress)
+    implementation(libs.llama.android)
+}

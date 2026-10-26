@@ -1,0 +1,29 @@
+=== Kotlin source trees ===
+./app/src/main/kotlin
+./asr-engine/src/main/kotlin
+./audio-engine/src/main/kotlin
+./background-service/src/main/kotlin
+./brain/src/main/kotlin
+./connectivity-router/src/main/kotlin
+./core/src/main/kotlin
+./overlay-ui/src/main/kotlin
+./permissions-onboarding/src/main/kotlin
+./screen-control/src/main/kotlin
+./tools/src/main/kotlin
+./tts-engine/src/main/kotlin
+./wakeword-engine/src/main/kotlin
+
+=== File counts per module ===
+app: 40 kt files
+core: 213 kt files
+brain: 41 kt files
+tools: 21 kt files
+asr-engine: 8 kt files
+tts-engine: 3 kt files
+wakeword-engine: 4 kt files
+audio-engine: 1 kt files
+screen-control: 6 kt files
+background-service: 2 kt files
+permissions-onboarding: 1 kt files
+overlay-ui: 0 kt files
+connectivity-router: 0 kt files

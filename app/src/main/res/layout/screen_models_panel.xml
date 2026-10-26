@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/modelsPanel"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:visibility="gone">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Скачай модели один раз — потом можно скопировать папку models на другое устройство вместе с APK."
+        android:textColor="#9DA5AE"
+        android:textSize="11sp"
+        android:layout_marginBottom="12dp" />
+
+    <LinearLayout
+        android:id="@+id/modelsList"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical" />
+
+    <TextView
+        android:id="@+id/modelsPathHint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:textColor="#626B76"
+        android:textSize="10sp"
+        android:fontFamily="monospace"
+        android:text="…/files/models/" />
+</LinearLayout>

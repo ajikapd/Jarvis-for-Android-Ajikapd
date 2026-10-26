@@ -1,0 +1,77 @@
+# ── OS / IDE ──────────────────────────────────────────────────────
+*.iml
+.idea/
+.DS_Store
+Thumbs.db
+
+# ── Gradle / build outputs ────────────────────────────────────────
+.gradle/
+**/build/
+/build/
+.kotlin/
+.cache/
+captures/
+**/captures/
+.externalNativeBuild/
+.cxx/
+local.properties
+**/local.properties
+*.apk
+*.aab
+*.apks
+*.xapk
+output-metadata.json
+**/output-metadata.json
+lint-results-*.xml
+lint-results-*.html
+
+# ── Models / large local data ──────────────────────────────────────
+models-extra/
+
+# ── Archives / dumps ───────────────────────────────────────────────
+*.zip
+*.7z
+*.rar
+*.tar
+*.tar.gz
+*.tgz
+*.tar.bz2
+*.tbz2
+/ui*.xml
+
+# ── Temporary files, logs, device dumps ────────────────────────────
+.tmp*
+*.log
+logcat*.txt
+device_test_output.txt
+*.hprof
+*.bak
+*.orig
+*~
+
+# ── Local agent/cursor state ───────────────────────────────────────
+.cursor_extract_*
+.kilo/
+
+# ── Local audit artifacts ──────────────────────────────────────────
+# Дерево проекта содержит строку, похожую на ключ (sk-...) — в git не кладём.
+Jarvis_full_info/inventory/project_tree.txt
+Audit_for_jarvis.md
+
+# ── Secrets / signing material ─────────────────────────────────────
+.env
+.env.*
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+*.bks
+keystore.properties
+secrets.properties
+secrets.xml
+api_keys*
+google-services.json
+service-account*.json
+/sk-*

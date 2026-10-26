@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/jarvis_bg"
+    android:paddingStart="14dp"
+    android:paddingEnd="14dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="LOCAL EVENT LOG"
+            android:textColor="@color/jarvis_green"
+            android:textSize="9sp"
+            android:fontFamily="monospace" />
+
+        <TextView
+            android:id="@+id/btnClearThread"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ОЧИСТИТЬ"
+            android:textColor="@color/jarvis_cyan"
+            android:textSize="9sp"
+            android:fontFamily="monospace"
+            android:padding="6dp" />
+    </LinearLayout>
+
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none"
+        android:layout_marginTop="6dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView android:id="@+id/chipThreadToday" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="ВСЕ" android:textColor="@color/jarvis_cyan" android:textSize="9sp" android:fontFamily="monospace" android:background="@drawable/bg_hud_panel" android:padding="8dp" android:layout_marginEnd="6dp" />
+            <TextView android:id="@+id/chipThreadWeek" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="НЕДЕЛЯ" android:textColor="@color/jarvis_muted" android:textSize="9sp" android:fontFamily="monospace" android:background="@drawable/bg_hud_panel" android:padding="8dp" android:layout_marginEnd="6dp" />
+            <TextView android:id="@+id/chipThreadFav" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="ИЗБРАННОЕ" android:textColor="@color/jarvis_muted" android:textSize="9sp" android:fontFamily="monospace" android:background="@drawable/bg_hud_panel" android:padding="8dp" />
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <ScrollView
+        android:id="@+id/assistantThreadScroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:scrollbars="none"
+        android:layout_marginTop="8dp">
+
+        <LinearLayout
+            android:id="@+id/assistantThread"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+    </ScrollView>
+
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none"
+        android:paddingBottom="4dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingEnd="8dp">
+
+            <TextView
+                android:id="@+id/suggestPlan"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:gravity="center"
+                android:text="ПРИОРИТЕТЫ НА СЕГОДНЯ"
+                android:textColor="@color/jarvis_cyan"
+                android:textSize="9sp"
+                android:fontFamily="monospace"
+                android:background="@drawable/bg_hud_panel"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:layout_marginEnd="8dp" />
+
+            <TextView
+                android:id="@+id/suggestIdea"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:gravity="center"
+                android:text="РАЗОБРАТЬ ИДЕЮ"
+                android:textColor="@color/jarvis_cyan"
+                android:textSize="9sp"
+                android:fontFamily="monospace"
+                android:background="@drawable/bg_hud_panel"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp" />
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/bg_hud_panel"
+        android:padding="6dp">
+
+        <ImageView
+            android:id="@+id/assistantMic"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_fui_mic"
+            android:scaleType="center"
+            android:contentDescription="Голос"
+            android:background="@drawable/bg_mic_glow" />
+
+        <EditText
+            android:id="@+id/assistantComposer"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:minHeight="40dp"
+            android:background="@android:color/transparent"
+            android:hint="Введите команду..."
+            android:textColor="@color/jarvis_text"
+            android:textColorHint="@color/jarvis_faint"
+            android:textSize="13sp"
+            android:fontFamily="monospace"
+            android:imeOptions="actionSend"
+            android:inputType="textCapSentences"
+            android:maxLines="4"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp" />
+
+        <TextView
+            android:id="@+id/assistantSend"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:gravity="center"
+            android:text="SEND ↗"
+            android:textColor="@color/jarvis_cyan"
+            android:textSize="10sp"
+            android:fontFamily="monospace"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp" />
+    </LinearLayout>
+</LinearLayout>

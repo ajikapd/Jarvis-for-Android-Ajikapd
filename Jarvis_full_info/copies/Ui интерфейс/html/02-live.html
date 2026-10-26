@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Live</title>
+  <link rel="stylesheet" href="../assets/jarvis-ui.css" />
+</head>
+<body>
+  <div class="page">
+    <p><a href="index.html">← Index</a></p>
+    <h1>Live</h1>
+    <p class="lead"><code>screen_live.xml</code> · tab 1 · <span class="badge partial">PARTIAL</span> — голос WORKING; cam/screen STUB</p>
+    <div class="phone live-bg">
+      <div class="shell-top">JARVIS · LOCAL <span class="logo"></span></div>
+      <div class="shell-body" style="display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;padding:8px 18px">
+          <div class="ctl" style="width:38px;height:38px">⌄</div>
+          <div style="flex:1"></div>
+          <div class="mono" style="background:#1a1822;padding:7px 13px;border-radius:999px;font-size:11px;color:var(--muted)"><span style="color:#D9634A">●</span> 01:24</div>
+          <div style="flex:1"></div>
+          <div class="ctl" style="width:38px;height:38px">⋯</div>
+        </div>
+        <div style="flex:1;text-align:center;padding:0 22px">
+          <div class="orb"></div>
+          <div class="status-line">● LISTENING</div>
+          <div class="glyph"></div>
+          <p style="color:var(--text2);font-size:15px;margin:14px auto;max-width:280px">открой Telegram и найди Ивана</p>
+          <p class="muted" style="font-size:13px;max-width:280px;margin:0 auto">Вы сказали · partial → final</p>
+        </div>
+        <div style="padding:4px 22px 22px">
+          <div class="chips">
+            <span><span class="chip-label">персона</span><span class="chip-val">Джарвис</span></span>
+            <span><span class="chip-label">модель</span><span class="chip-val">локальная</span></span>
+            <span><span class="chip-label">сеть</span><span class="chip-val">только инструменты</span></span>
+          </div>
+          <div class="ctl-bar">
+            <div class="ctl" title="mic WORKING visual">🎙</div>
+            <div class="ctl" title="cam STUB" style="opacity:.55">🎥</div>
+            <div class="ctl" title="screen STUB UI-only" style="opacity:.55">🖥</div>
+            <div class="ctl" title="captions visual">💬</div>
+            <div class="ctl end">✕</div>
+          </div>
+          <div class="btn-gold" style="margin-top:12px">Начать Live-разговор</div>
+          <div style="display:flex;margin-top:10px;font-family:var(--mono);font-size:10px;color:#635D71">
+            <div style="flex:1;text-align:center">intent: open_app</div>
+            <div style="flex:1;text-align:center">tool: —</div>
+          </div>
+        </div>
+      </div>
+      <div class="shell-nav">
+        <button>ГЛАВНАЯ</button>
+        <button class="active">LIVE</button>
+        <button>ПАМЯТЬ</button>
+        <button>КОМАНДЫ</button>
+        <button>ЕЩЁ</button>
+      </div>
+    </div>
+    <div class="meta">
+      <div class="note">Cam: Toast «Vision пока в разработке». Screen: только показ share-card, без MediaProjection.</div>
+    </div>
+  </div>
+</body>
+</html>

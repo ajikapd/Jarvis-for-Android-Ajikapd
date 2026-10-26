@@ -1,0 +1,212 @@
+package com.jarvis.brain
+
+import com.jarvis.core.common.model.IntentType
+import com.jarvis.core.common.model.UserRequest
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class RuleBasedBrainTest {
+
+    private val brain = RuleBasedBrain()
+
+    private fun call(text: String): BrainResult {
+        val top = emptyList<BrainRouter.SkillInfo>()
+        return brain.route(UserRequest(text), emptyList(), top)
+    }
+
+    private fun asSkill(result: BrainResult): BrainResult.SkillCall =
+        result as BrainResult.SkillCall
+
+    // ── flashlight ───────────────────────────────────────────────
+
+    @Test
+    fun `flashlight on`() {
+        val c = asSkill(call("включи фонарик"))
+        assertEquals(IntentType.FLASHLIGHT, c.intent.type)
+        assertEquals("on", c.intent.slots["action"]?.value)
+    }
+
+    @Test
+    fun `flashlight off`() {
+        val c = asSkill(call("выключи свет"))
+        assertEquals(IntentType.FLASHLIGHT, c.intent.type)
+        assertEquals("off", c.intent.slots["action"]?.value)
+    }
+
+    // ── volume / brightness ──────────────────────────────────────
+
+    @Test
+    fun `volume up`() {
+        val c = asSkill(call("сделай громче"))
+        assertEquals(IntentType.VOLUME, c.intent.type)
+        assertEquals("up", c.intent.slots["direction"]?.value)
+    }
+
+    @Test
+    fun `volume mute`() {
+        val c = asSkill(call("выключи звук"))
+        assertEquals(IntentType.VOLUME, c.intent.type)
+        assertEquals("mute", c.intent.slots["direction"]?.value)
+    }
+
+    @Test
+    fun `brightness down`() {
+        val c = asSkill(call("сделай экран темнее"))
+        assertEquals(IntentType.BRIGHTNESS, c.intent.type)
+        assertEquals("down", c.intent.slots["direction"]?.value)
+    }
+
+    // ── timer ────────────────────────────────────────────────────
+
+    @Test
+    fun `timer - 5 minutes`() {
+        val c = asSkill(call("поставь таймер на 5 минут"))
+        assertEquals(IntentType.TIMER, c.intent.type)
+        assertEquals(5, c.intent.slots["minutes"]?.value)
+    }
+
+    @Test
+    fun `timer - reminder via minyut`() {
+        val c = asSkill(call("напомни через 10 минут"))
+        assertEquals(IntentType.TIMER, c.intent.type)
+        assertEquals(10, c.intent.slots["minutes"]?.value)
+    }
+
+    @Test
+    fun `timer - one hour becomes 60 minutes`() {
+        val c = asSkill(call("поставь таймер на час"))
+        assertEquals(IntentType.TIMER, c.intent.type)
+        assertEquals(60, c.intent.slots["minutes"]?.value)
+    }
+
+    @Test
+    fun `timer - seconds`() {
+        val c = asSkill(call("таймер на 30 секунд"))
+        assertEquals(IntentType.TIMER, c.intent.type)
+        assertEquals(30, c.intent.slots["seconds"]?.value)
+    }
+
+    @Test
+    fun `timer - no duration clarifies`() {
+        val r = call("поставь таймер")
+        assertTrue(r is BrainResult.Clarify)
+    }
+
+    // ── send SMS ─────────────────────────────────────────────────
+
+    @Test
+    fun `send sms`() {
+        val c = asSkill(call("отправь маме сообщение куплю хлеб"))
+        assertEquals(IntentType.SEND_SMS, c.intent.type)
+        val text = c.intent.slots["text"]?.value as? String
+        assertNotNull(text)
+        assertTrue(text?.contains("куплю хлеб") == true)
+        assertEquals("маме", c.intent.slots["recipient"]?.value)
+    }
+
+    @Test
+    fun `напиши routes to sms not call`() {
+        val c = asSkill(call("напиши маме привет"))
+        assertEquals(IntentType.SEND_SMS, c.intent.type)
+        assertEquals("маме", c.intent.slots["recipient"]?.value)
+        assertEquals("привет", c.intent.slots["text"]?.value)
+        assertTrue(c.confidence >= 0.85f)
+    }
+
+    @Test
+    fun `напиши в телеграмме asks for contact`() {
+        val c = asSkill(call("напиши в телеграмме"))
+        assertEquals(IntentType.SEND_TELEGRAM, c.intent.type)
+        assertTrue(c.intent.slots["chat"] == null)
+        assertTrue(c.intent.slots["text"] == null)
+    }
+
+    @Test
+    fun `напиши любимой жене в телеграмме`() {
+        val c = asSkill(call("напиши любимой жене в телеграмме"))
+        assertEquals(IntentType.SEND_TELEGRAM, c.intent.type)
+        assertEquals("жена", c.intent.slots["chat"]?.value)
+        assertTrue(c.intent.slots["text"] == null)
+    }
+
+    @Test
+    fun `напиши избранное в телеграмме`() {
+        val c = asSkill(call("напиши избранное в телеграмме"))
+        assertEquals(IntentType.SEND_TELEGRAM, c.intent.type)
+        assertEquals("Избранное", c.intent.slots["chat"]?.value)
+        assertTrue(c.intent.slots["text"] == null)
+    }
+
+    @Test
+    fun `напиши контакту в телеграмме с текстом`() {
+        val c = asSkill(call("напиши маме в телеграмме я скоро буду дома"))
+        assertEquals(IntentType.SEND_TELEGRAM, c.intent.type)
+        assertEquals("мама", c.intent.slots["chat"]?.value)
+        assertEquals("я скоро буду дома", c.intent.slots["text"]?.value)
+    }
+
+    @Test
+    fun `напиши в telegram только текст без контакта`() {
+        val c = asSkill(call("напиши в telegram я скоро буду дома"))
+        assertEquals(IntentType.SEND_TELEGRAM, c.intent.type)
+        assertTrue(c.intent.slots["chat"] == null)
+        assertEquals("я скоро буду дома", c.intent.slots["text"]?.value)
+    }
+
+    // ── launch app ───────────────────────────────────────────────
+
+    @Test
+    fun `launch app`() {
+        val c = asSkill(call("открой Telegram"))
+        assertEquals(IntentType.LAUNCH_APP, c.intent.type)
+        assertEquals("telegram", c.intent.slots["app"]?.value)
+    }
+
+    // ── calendar event ───────────────────────────────────────────
+
+    @Test
+    fun `create event`() {
+        val c = asSkill(call("создай событие встреча с Иваном"))
+        assertEquals(IntentType.CREATE_EVENT, c.intent.type)
+        assertEquals("встреча с иваном", c.intent.slots["title"]?.value)
+    }
+
+    @Test
+    fun `reminder with duration is a timer not an event`() {
+        val c = asSkill(call("напомни про встречу через час"))
+        assertEquals(IntentType.TIMER, c.intent.type)
+    }
+
+    // ── chat fallback ────────────────────────────────────────────
+
+    @Test
+    fun `free chat routes to Chat`() {
+        val r = call("расскажи анекдот")
+        assertTrue(r is BrainResult.Chat)
+    }
+
+    @Test
+    fun `non-command unclear phrase routes to Chat`() {
+        val r = call("просто разговор ни о чём")
+        assertTrue(r is BrainResult.Chat)
+    }
+
+    // ── weather ──────────────────────────────────────────────────
+
+    @Test
+    fun `weather tomorrow with city`() {
+        val c = asSkill(call("какая погода завтра в москве"))
+        assertEquals(IntentType.WEATHER, c.intent.type)
+        assertEquals(1, c.intent.slots["day"]?.value)
+        assertNotNull(c.intent.slots["city"]?.value)
+    }
+
+    @Test
+    fun `weather послезавтра`() {
+        val c = asSkill(call("погода на послезавтра"))
+        assertEquals(IntentType.WEATHER, c.intent.type)
+        assertEquals(2, c.intent.slots["day"]?.value)
+    }
+}

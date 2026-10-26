@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/jarvis_bg"
+    android:scrollbars="none">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="19dp"
+        android:paddingEnd="19dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="24dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Локально · управляется тобой · «джарвис, запомни…»"
+            android:textColor="@color/jarvis_muted"
+            android:textSize="12sp"
+            android:layout_marginTop="4dp" />
+
+        <TextView
+            android:id="@+id/memorySearch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Найти в памяти…"
+            android:textColor="#9DA5AE"
+            android:textSize="11sp"
+            android:background="@drawable/bg_search"
+            android:layout_marginTop="15dp" />
+
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none"
+            android:layout_marginTop="8dp">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingEnd="12dp">
+
+                <TextView android:id="@+id/memChipAll" android:layout_width="wrap_content" android:layout_height="32dp" android:gravity="center" android:text="ВСЕ" android:textColor="@color/jarvis_cyan" android:textSize="9sp" android:fontFamily="monospace" android:background="@drawable/bg_fui_active" android:paddingStart="10dp" android:paddingEnd="10dp" android:layout_marginEnd="6dp" />
+                <TextView android:id="@+id/memChipProfile" android:layout_width="wrap_content" android:layout_height="32dp" android:gravity="center" android:text="ПРОФИЛЬ" android:textColor="@color/jarvis_muted" android:textSize="9sp" android:fontFamily="monospace" android:background="@drawable/bg_hud_panel" android:paddingStart="10dp" android:paddingEnd="10dp" android:layout_marginEnd="6dp" />
+                <TextView android:id="@+id/memChipHabits" android:layout_width="wrap_content" android:layout_height="32dp" android:gravity="center" android:text="ПРИВЫЧКИ" android:textColor="@color/jarvis_muted" android:textSize="9sp" android:fontFamily="monospace" android:background="@drawable/bg_hud_panel" android:paddingStart="10dp" android:paddingEnd="10dp" android:layout_marginEnd="6dp" />
+                <TextView android:id="@+id/memChipProjects" android:layout_width="wrap_content" android:layout_height="32dp" android:gravity="center" android:text="ПРОЕКТЫ" android:textColor="@color/jarvis_muted" android:textSize="9sp" android:fontFamily="monospace" android:background="@drawable/bg_hud_panel" android:paddingStart="10dp" android:paddingEnd="10dp" android:layout_marginEnd="6dp" />
+                <TextView android:id="@+id/memChipNotes" android:layout_width="wrap_content" android:layout_height="32dp" android:gravity="center" android:text="ЗАМЕТКИ" android:textColor="@color/jarvis_muted" android:textSize="9sp" android:fontFamily="monospace" android:background="@drawable/bg_hud_panel" android:paddingStart="10dp" android:paddingEnd="10dp" />
+            </LinearLayout>
+        </HorizontalScrollView>
+
+        <TextView
+            android:id="@+id/memSlots"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="MEMORY SLOTS: 0 / 50 · CONTEXT WEIGHT: OK"
+            android:textColor="@color/jarvis_cyan"
+            android:textSize="9sp"
+            android:fontFamily="monospace"
+            android:layout_marginTop="8dp" />
+
+        <TextView
+            android:id="@+id/btnSeedMemory"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ЗАГРУЗИТЬ БАЗОВЫЙ ПРОФИЛЬ"
+            android:textColor="@color/jarvis_cyan"
+            android:textSize="9sp"
+            android:fontFamily="monospace"
+            android:layout_marginTop="6dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="СОХРАНЁННЫЕ ФАКТЫ"
+            android:textColor="#626B76"
+            android:textSize="11sp"
+            android:letterSpacing="0.06"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="9dp" />
+
+        <LinearLayout
+            android:id="@+id/factsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_hud_panel"
+            android:padding="15dp"
+            android:minHeight="48dp" />
+
+        <TextView
+            android:id="@+id/btnAddMemoryFact"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="+ Добавить факт вручную"
+            android:textColor="#F4F0E7"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:background="@drawable/bg_action_neutral"
+            android:padding="12dp"
+            android:gravity="center"
+            android:layout_marginTop="12dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="МОДЕЛИ ДЛЯ ОТВЕТОВ"
+            android:textColor="#626B76"
+            android:textSize="11sp"
+            android:letterSpacing="0.06"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="9dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_hud_panel"
+            android:padding="15dp">
+
+            <TextView
+                android:id="@+id/memoryModelsStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Проверка моделей…"
+                android:textColor="#F4F0E7"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/btnOpenModelsFromMemory"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Открыть каталог моделей"
+                android:textColor="@color/jarvis_cyan"
+                android:textSize="12sp"
+                android:fontFamily="monospace"
+                android:background="@drawable/bg_hud_panel"
+                android:padding="12dp"
+                android:gravity="center"
+                android:layout_marginTop="12dp" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ПРИВАТНОСТЬ"
+            android:textColor="#626B76"
+            android:textSize="11sp"
+            android:letterSpacing="0.06"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="9dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_hud_panel"
+            android:padding="15dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Удаление памяти необратимо. Факты хранятся только на устройстве."
+                android:textColor="#9DA5AE"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/clearMemoryButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Очистить всю память"
+                android:textColor="#E46B58"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:background="@drawable/bg_action_danger"
+                android:padding="12dp"
+                android:gravity="center"
+                android:layout_marginTop="12dp" />
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>

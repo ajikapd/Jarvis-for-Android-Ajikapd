@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_hud_panel"
+    android:padding="15dp"
+    android:layout_marginBottom="10dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/modelTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#F4F0E7"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:text="Model" />
+
+            <TextView
+                android:id="@+id/modelSubtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#9DA5AE"
+                android:textSize="10sp"
+                android:layout_marginTop="2dp"
+                android:text="subtitle" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/modelStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="MISSING"
+            android:textColor="@color/jarvis_cyan"
+            android:textSize="9sp"
+            android:fontFamily="monospace"
+            android:background="@drawable/bg_tag_cyan"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp" />
+    </LinearLayout>
+
+    <ProgressBar
+        android:id="@+id/modelProgress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:max="100"
+        android:progress="0"
+        android:progressTint="@color/jarvis_cyan"
+        android:progressBackgroundTint="#1A334455"
+        android:visibility="visible" />
+
+    <TextView
+        android:id="@+id/modelMessage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:textColor="#626B76"
+        android:textSize="10sp"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="10dp"
+        android:gravity="end">
+
+        <Button
+            android:id="@+id/btnModelDelete"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Удалить"
+            android:textSize="11sp"
+            android:textColor="@color/jarvis_cyan"
+            android:background="@drawable/bg_hud_panel"
+            android:backgroundTint="@null"
+            android:minWidth="0dp"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
+            android:layout_marginEnd="8dp"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/btnModelAction"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Скачать"
+            android:textSize="11sp"
+            android:textColor="@color/jarvis_cyan"
+            android:background="@drawable/bg_fui_active"
+            android:backgroundTint="@null"
+            android:minWidth="0dp"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp" />
+    </LinearLayout>
+</LinearLayout>

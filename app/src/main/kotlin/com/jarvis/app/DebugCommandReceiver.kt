@@ -1,0 +1,342 @@
+package com.jarvis.app
+
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.util.Log
+import com.jarvis.asr.SherpaAsrSession
+import com.jarvis.core.common.model.UserRequest
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import java.io.File
+
+/**
+ * Debug-приёмник: гоняет запросы через весь конвейер с ADB без UI.
+ *
+ * Текстовая команда:
+ *   adb shell am broadcast \
+ *     -a com.jarvis.assistant.DEBUG_COMMAND \
+ *     -n com.jarvis.assistant/com.jarvis.app.DebugCommandReceiver \
+ *     --es command "включи фонарик"
+ *
+ * Голос (wake word «джарвис»):
+ *   adb shell am broadcast \
+ *     -a com.jarvis.assistant.DEBUG_VOICE \
+ *     -n com.jarvis.assistant/com.jarvis.app.DebugCommandReceiver \
+ *     --es action start|stop
+ *
+ * Приёмник зарегистрирован только в DEBUG-манифесте (app/src/debug),
+ * отвечает структурированными строками в logcat (tag Jarvis.Debug).
+ */
+class DebugCommandReceiver : BroadcastReceiver() {
+
+    override fun onReceive(context: Context, intent: Intent) {
+        Log.d(TAG, "onReceive action=${intent.action} extras=${intent.extras?.keySet()}")
+        when (intent.action) {
+            ACTION_DEBUG_COMMAND -> handleCommand(context, intent)
+            ACTION_DEBUG_VOICE -> handleVoice(context, intent)
+            ACTION_ASR_TEST -> handleAsrTest(context, intent)
+            ACTION_DEBUG_AUTONOMY -> handleAutonomy(context, intent)
+            ACTION_DEBUG_SETTINGS -> handleSettings(context, intent)
+        }
+    }
+
+    private fun handleCommand(context: Context, intent: Intent) {
+        val text = intent.getStringExtra(EXTRA_COMMAND)?.trim().orEmpty()
+        Log.d(TAG, "command text=\"$text\"")
+        if (text.isEmpty()) {
+            Log.d(TAG, "ignored: empty command")
+            return
+        }
+
+        val app = context.applicationContext
+        CoroutineScope(Dispatchers.Default).launch {
+            try {
+                // Полный путь VoiceService → brain → TTS (логи slo1s / first-audio)
+                if (!VoiceController.isRunning) {
+                    VoiceController.start(app)
+                    var waited = 0
+                    while (!VoiceController.isRunning && waited < 50) {
+                        Thread.sleep(100)
+                        waited++
+                    }
+                }
+                if (VoiceController.isRunning) {
+                    Log.d(TAG, "inject via VoiceService e2e: \"$text\"")
+                    VoiceController.notifyRequest(UserRequest(text))
+                    return@launch
+                }
+                BrainGraph.warmLlmBrain(app)
+                val response = BrainGraph.build(app).process(UserRequest(text))
+                Log.d(
+                    TAG,
+                    "request=\"$text\" -> intent=${response.intent?.type} " +
+                        "tool=${response.toolResult?.toolId}/${response.toolResult?.status} " +
+                        "status=${response.status} durationMs=${response.durationMs} " +
+                        "reply=\"${response.replyText}\"",
+                )
+            } catch (e: Throwable) {
+                Log.e(TAG, "command processing failed: ${e.message}", e)
+            }
+        }
+    }
+
+    private fun handleVoice(context: Context, intent: Intent) {
+        when (intent.getStringExtra(EXTRA_ACTION)) {
+            "start" -> startVoice(context)
+            "stop" -> stopVoice(context)
+            else -> Log.d(TAG, "voice: known action expected (start|stop)")
+        }
+    }
+
+    private fun startVoice(context: Context) {
+        // Обработка команд и озвучивание — в VoiceService (coreListener),
+        // который живёт столько же, сколько foreground-сервис.
+        VoiceController.start(context)
+        Log.d(TAG, "voice: start requested")
+    }
+
+    private fun stopVoice(context: Context) {
+        VoiceController.stop(context)
+    }
+
+    /**
+     * Debug settings:
+     *   adb shell am broadcast -a com.jarvis.assistant.DEBUG_SETTINGS \
+     *     -n com.jarvis.assistant/com.jarvis.app.DebugCommandReceiver \
+     *     --es preferCloud true|false
+     */
+    private fun handleSettings(context: Context, intent: Intent) {
+        val preferCloud = intent.getStringExtra("preferCloud")?.trim()?.lowercase()
+        if (preferCloud != null) {
+            val enabled = preferCloud == "true" || preferCloud == "1" || preferCloud == "on"
+            JarvisSettings.setPreferCloudLlm(context, enabled)
+            Log.d(TAG, "settings preferCloud=$enabled cloudConfigured=${JarvisSettings.cloudConfigured(context)}")
+        } else {
+            Log.d(
+                TAG,
+                "settings preferCloud=${JarvisSettings.preferCloudLlm(context)} " +
+                    "cloudConfigured=${JarvisSettings.cloudConfigured(context)}",
+            )
+        }
+    }
+
+    /**
+     * Stage 8F debug: autonomous flashlight через policy+gate+SafeAutonomousExecutor.
+     *
+     *   adb shell am broadcast \
+     *     -a com.jarvis.assistant.DEBUG_AUTONOMY \
+     *     -n com.jarvis.assistant/com.jarvis.app.DebugCommandReceiver \
+     *     --es action flashlight_on --ez live true
+     *
+     * live=false (default) — только plan/dry-run, без torch.
+     */
+    private fun handleAutonomy(context: Context, intent: Intent) {
+        val action = intent.getStringExtra(EXTRA_ACTION)?.trim().orEmpty()
+        val live = intent.getBooleanExtra("live", false)
+        Log.d(TAG, "autonomy action=$action live=$live")
+        CoroutineScope(Dispatchers.Default).launch {
+            try {
+                BrainGraph.build(context.applicationContext)
+                val executor = BrainGraph.toolExecutor()
+                    ?: error("toolExecutor not ready")
+                com.jarvis.app.companion.CompanionProactive.attachSafeExecutor(
+                    toolExecutor = executor,
+                    live = live,
+                )
+                val proposed = when (action) {
+                    "flashlight_on" ->
+                        com.jarvis.core.autonomy.ProposedActionMapper.fromToolId(
+                            "flashlight",
+                            args = mapOf("action" to "on"),
+                        )
+                    "flashlight_off" ->
+                        com.jarvis.core.autonomy.ProposedActionMapper.fromToolId(
+                            "flashlight",
+                            args = mapOf("action" to "off"),
+                        )
+                    "volume_up" ->
+                        com.jarvis.core.autonomy.ProposedActionMapper.fromToolId(
+                            "volume",
+                            actionId = "volume_up",
+                            args = mapOf("action" to "up"),
+                        )
+                    else -> null
+                }
+                if (proposed == null) {
+                    Log.d(TAG, "autonomy: unknown action (flashlight_on|flashlight_off|volume_up)")
+                    return@launch
+                }
+                val decision = com.jarvis.core.proactive.ProactiveDecision(
+                    type = com.jarvis.core.proactive.ProactiveDecisionType.SUGGESTION,
+                    reasonCode = com.jarvis.core.proactive.ProactiveReasonCode.SELECTED,
+                    confidence = 0.9f,
+                    relevance = 0.9f,
+                    createdAtMillis = System.currentTimeMillis(),
+                    fingerprint = "debug-autonomy",
+                    behaviorPatternKey = "debug:$action",
+                    reason = "DEBUG_AUTONOMY",
+                )
+                if (!live) {
+                    val plan = com.jarvis.app.companion.CompanionProactive.planAutonomy(
+                        decision,
+                        proposed,
+                    )
+                    Log.d(
+                        TAG,
+                        "autonomy dry-run status=${plan.status} verdict=${plan.verdict.type} " +
+                            "tool=${plan.draftToolCall?.toolId} notes=${plan.notes.take(5)}",
+                    )
+                    return@launch
+                }
+                val result = com.jarvis.app.companion.CompanionProactive.trySafeExecute(
+                    decision,
+                    proposed,
+                )
+                Log.d(
+                    TAG,
+                    "autonomy exec executed=${result.executed} reason=${result.reason} " +
+                        "plan=${result.plan?.status} tool=${result.result?.toolId}/" +
+                        "${result.result?.status}",
+                )
+            } catch (e: Throwable) {
+                Log.e(TAG, "autonomy failed: ${e.message}", e)
+            }
+        }
+    }
+
+    /**
+     * Прогоняет WAV-файл (PCM16, 16 kHz) через ASR и логирует распознанный текст.
+     * Используется для проверки ASR-модели без реального голоса.
+     */
+    private fun handleAsrTest(context: Context, intent: Intent) {
+        val path = intent.getStringExtra("path") ?: run {
+            Log.d(TAG, "asrtest: --es path /path/to/file.wav required")
+            return
+        }
+        val app = context.applicationContext
+        val modelDir = File(app.getExternalFilesDir(null), "models/${SherpaAsrSession.MODEL_DIR}")
+        if (!modelDir.isDirectory) {
+            Log.d(TAG, "asrtest: model dir missing: ${modelDir.absolutePath}")
+            return
+        }
+        val wavFile = File(path)
+        if (!wavFile.isFile) {
+            Log.d(TAG, "asrtest: wav not found: $path")
+            return
+        }
+        CoroutineScope(Dispatchers.Default).launch {
+            try {
+                // Один asrtest за раз — иначе параллельные broadcast'ы портят логи
+                synchronized(asrTestLock) {
+                val session = SherpaAsrSession(modelDir.absolutePath)
+                val data = wavFile.readBytes()
+                require(data.size > 44) { "WAV too small (header corrupted?)" }
+                // Ищем data-chunk — у espeak/ffmpeg заголовок часто > 44 байт
+                var offset = findWavDataOffset(data)
+                var lastText = ""
+                var endpoint = false
+                val chunk = FloatArray(SherpaAsrSession.SAMPLE_RATE / 10)
+                val all = ArrayList<Float>()
+                while (offset + 1 < data.size) {
+                    val remain = (data.size - offset) / 2
+                    val n = minOf(chunk.size, remain)
+                    if (n <= 0) break
+                    for (i in 0 until n) {
+                        val b = offset + i * 2
+                        val s = (data[b].toInt() and 0xFF) or ((data[b + 1].toInt() and 0xFF) shl 8)
+                        chunk[i] = s.toShort() / 32768.0f
+                        all.add(chunk[i])
+                    }
+                    // хвост чанка нулями, если WAV короче step
+                    if (n < chunk.size) {
+                        for (i in n until chunk.size) chunk[i] = 0f
+                    }
+                    offset += n * 2
+                    val r = session.processChunk(if (n == chunk.size) chunk else chunk.copyOf(n))
+                    if (r.text.isNotBlank()) lastText = r.text
+                    if (r.isEndpoint) endpoint = true
+                    // не break — для offline/EN нужен весь PCM
+                }
+                session.release()
+                Log.d(TAG, "asrtest: streamingRU endpoint=$endpoint text=\"$lastText\" pcm=${all.size}")
+
+                val multiDir = File(
+                    app.getExternalFilesDir(null),
+                    "models/${com.jarvis.asr.OfflineMultilingualAsr.MODEL_DIR}",
+                )
+                if (multiDir.isDirectory && File(multiDir, "tokens.txt").isFile) {
+                    val off = com.jarvis.asr.OfflineMultilingualAsr(multiDir.absolutePath)
+                    val pcm = FloatArray(all.size) { all[it] }
+                    val multi = off.decode(pcm)
+                    val tail = com.jarvis.asr.CommandPcmRefiner.tailOf(pcm)
+                    val multiTail = if (tail.size < pcm.size) off.decode(tail) else ""
+                    off.close()
+                    val enDir = File(
+                        app.getExternalFilesDir(null),
+                        "models/${com.jarvis.asr.AsrModelSpec.EN_STREAMING.dirName}",
+                    )
+                    val enFull: String
+                    val enTail: String
+                    if (
+                        File(enDir, "encoder.int8.onnx").isFile && File(enDir, "tokens.txt").isFile
+                    ) {
+                        val en = com.jarvis.asr.BufferedEnAsr(enDir.absolutePath)
+                        enFull = en.decode(pcm)
+                        enTail = if (tail.size < pcm.size) en.decode(tail) else ""
+                        en.close()
+                    } else {
+                        enFull = ""
+                        enTail = ""
+                    }
+                    val enHint = com.jarvis.asr.CommandPcmRefiner.bestLatinHint(
+                        enFull, enTail, multiTail,
+                    )
+                    val selected = com.jarvis.core.nlp.CommandTextSelector.select(
+                        lastText, multi, enHint,
+                    )
+                    Log.d(
+                        TAG,
+                        "asrtest: offlineMulti=\"$multi\" multiTail=\"$multiTail\" " +
+                            "en=\"$enFull\" enTail=\"$enTail\" hint=\"$enHint\" selected=\"$selected\"",
+                    )
+                } else {
+                    Log.d(TAG, "asrtest: offline multilingual model missing")
+                }
+                } // synchronized
+            } catch (e: Exception) {
+                Log.d(TAG, "asrtest: failed: ${e.message}")
+            }
+        }
+    }
+
+    companion object {
+        private const val TAG = "Jarvis.Debug"
+        private val asrTestLock = Any()
+        const val ACTION_DEBUG_COMMAND = "com.jarvis.assistant.DEBUG_COMMAND"
+        const val ACTION_DEBUG_VOICE = "com.jarvis.assistant.DEBUG_VOICE"
+        const val ACTION_ASR_TEST = "com.jarvis.assistant.ASR_TEST"
+        const val ACTION_DEBUG_AUTONOMY = "com.jarvis.assistant.DEBUG_AUTONOMY"
+        const val ACTION_DEBUG_SETTINGS = "com.jarvis.assistant.DEBUG_SETTINGS"
+        private const val EXTRA_COMMAND = "command"
+        private const val EXTRA_ACTION = "action"
+
+        /** Смещение до PCM в RIFF/WAVE (ищем chunk `data`). */
+        private fun findWavDataOffset(data: ByteArray): Int {
+            if (data.size < 44) return 44
+            var pos = 12
+            while (pos + 8 <= data.size) {
+                val id = String(data, pos, 4, Charsets.US_ASCII)
+                val size = (data[pos + 4].toInt() and 0xFF) or
+                    ((data[pos + 5].toInt() and 0xFF) shl 8) or
+                    ((data[pos + 6].toInt() and 0xFF) shl 16) or
+                    ((data[pos + 7].toInt() and 0xFF) shl 24)
+                if (id == "data") return pos + 8
+                pos += 8 + size
+                if (size < 0) break
+            }
+            return 44
+        }
+    }
+}

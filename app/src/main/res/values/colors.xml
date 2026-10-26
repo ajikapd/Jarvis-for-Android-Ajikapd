@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="status_ok">#2E7D32</color>
+    <color name="status_pending">#B0BEC5</color>
+    <!-- Jarvis UI 3.0 cinematic -->
+    <color name="jarvis_bg">#03060B</color>
+    <color name="jarvis_bg2">#07101A</color>
+    <color name="jarvis_bg3">#0B1522</color>
+    <color name="jarvis_panel">#0A131F</color>
+    <color name="jarvis_panel_2">#0D1A28</color>
+    <color name="jarvis_panel_3">#050C14</color>
+    <color name="jarvis_primary">#F3BB58</color>
+    <color name="jarvis_primary_dark">#D99738</color>
+    <color name="jarvis_primary_alt">#FFD47B</color>
+    <color name="jarvis_cyan">#62E9F4</color>
+    <color name="jarvis_cyan2">#2FB9CA</color>
+    <color name="jarvis_danger">#F05D52</color>
+    <color name="jarvis_green">#61D89D</color>
+    <color name="jarvis_text">#F7F8FB</color>
+    <color name="jarvis_text2">#DCE4EE</color>
+    <color name="jarvis_muted">#8F9BAE</color>
+    <color name="jarvis_faint">#4D5A6D</color>
+    <color name="jarvis_border">#2A3A4C</color>
+    <color name="ic_launcher_background">#03060B</color>
+    <!-- Theme variants -->
+    <color name="theme_classic_bg">#03060B</color>
+    <color name="theme_arc_bg">#020B12</color>
+    <color name="theme_stealth_bg">#0A0A0C</color>
+    <color name="theme_light_bg">#F4F1EA</color>
+    <color name="theme_light_text">#1A1F28</color>
+</resources>

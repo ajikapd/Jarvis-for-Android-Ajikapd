@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/dashboardRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:background="@color/jarvis_bg">
+
+    <LinearLayout
+        android:layout_width="54dp"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:paddingTop="12dp"
+        android:paddingBottom="10dp"
+        android:background="#07141C">
+
+        <TextView
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:gravity="center"
+            android:text="J"
+            android:textColor="@color/jarvis_cyan"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:fontFamily="monospace"
+            android:background="@drawable/bg_icon_well" />
+
+        <LinearLayout
+            android:id="@+id/bottomNav"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:paddingTop="10dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="V2"
+            android:textColor="@color/jarvis_faint"
+            android:textSize="8sp"
+            android:fontFamily="monospace"
+            android:letterSpacing="0.2" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:id="@+id/shellTop"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="14dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="8dp">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/statusTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="ЯДРО"
+                    android:textColor="@color/jarvis_text"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.08"
+                    android:textAllCaps="true" />
+
+                <TextView
+                    android:id="@+id/topRuntimeState"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="ONLINE"
+                    android:textColor="@color/jarvis_green"
+                    android:textSize="10sp"
+                    android:fontFamily="monospace"
+                    android:layout_marginTop="2dp" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/shellClock"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="00:00"
+                android:textColor="@color/jarvis_cyan"
+                android:textSize="11sp"
+                android:fontFamily="monospace"
+                android:layout_marginEnd="8dp" />
+
+            <TextView
+                android:id="@+id/btnAccentCycle"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:gravity="center"
+                android:text="◐"
+                android:textColor="@color/jarvis_cyan"
+                android:textSize="14sp"
+                android:background="@drawable/bg_icon_well" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/jarvis_border" />
+
+        <FrameLayout
+            android:id="@+id/screenContainer"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+    </LinearLayout>
+</LinearLayout>

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Настройки · Основные</title>
+  <link rel="stylesheet" href="../assets/jarvis-ui.css" />
+</head>
+<body>
+  <div class="page">
+    <p><a href="index.html">← Index</a></p>
+    <h1>Ещё → Основные</h1>
+    <p class="lead"><code>screen_settings.xml</code> main · <span class="badge ok">WORKING</span></p>
+    <div class="phone">
+      <div class="shell-top">JARVIS · LOCAL <span class="logo"></span></div>
+      <div class="shell-body pad">
+        <div class="h-title">Настройки</div>
+        <div class="tabs">
+          <span class="on">Основные</span>
+          <span>Companion</span>
+          <span>Модели</span>
+        </div>
+        <div class="btn-gold" style="margin-top:8px">Как пользоваться JARVIS (гид)</div>
+
+        <div class="section">Тема</div>
+        <div class="panel">
+          <div class="toggle-row"><div><strong>Оформление</strong><div class="faint" style="font-size:11px">CLASSIC</div></div></div>
+          <div class="chips" style="justify-content:flex-start">
+            <span class="chip-val">JARVIS Classic</span>
+            <span class="chip-val" style="color:var(--muted)">Arc Reactor</span>
+            <span class="chip-val" style="color:var(--muted)">Stealth</span>
+            <span class="chip-val" style="color:var(--muted)">Light</span>
+          </div>
+        </div>
+
+        <div class="section">Личность</div>
+        <div class="panel">
+          <div class="chips" style="justify-content:flex-start">
+            <span class="chip-val">JARVIS Classic</span>
+            <span class="chip-val" style="color:var(--muted)">Friendly</span>
+            <span class="chip-val" style="color:var(--muted)">Minimal</span>
+            <span class="chip-val" style="color:var(--muted)">Developer</span>
+          </div>
+        </div>
+
+        <div class="section">Диалог · скорость / качество</div>
+        <div class="panel">
+          <div class="muted" style="font-size:11px;margin-bottom:8px">Профиль генерации</div>
+          <div class="chips" style="justify-content:flex-start">
+            <span class="chip-val" style="color:var(--muted)">Быстро</span>
+            <span class="chip-val">Баланс</span>
+            <span class="chip-val" style="color:var(--muted)">Качество</span>
+          </div>
+          <div class="muted" style="font-size:10px;margin-top:8px">Баланс: ~3–5 с, ясные ответы без воды.</div>
+        </div>
+
+        <div class="section">Облачный LLM · NaraRouter</div>
+        <div class="panel">
+          <div class="search" style="margin-top:0">API key (sk-nry-…)</div>
+          <div class="muted" style="font-size:10px;margin:8px 0">Ключ с router.bynara.id</div>
+          <div class="toggle-row">
+            <div><strong style="font-size:13px">Предпочитать облако</strong><div class="faint" style="font-size:11px">Online + ключ → Nara</div></div>
+            <div class="switch on"></div>
+          </div>
+          <div class="toggle-row">
+            <div><strong style="font-size:13px">Предзагрузка в RAM</strong><div class="faint" style="font-size:11px">Модель готова до фразы</div></div>
+            <div class="switch on"></div>
+          </div>
+        </div>
+
+        <div class="section">Распознавание речи (ASR) · V2-08</div>
+        <div class="panel">
+          <div class="search" style="margin-top:0">▼ Auto</div>
+          <div class="muted" style="font-size:10px;margin-top:6px">Режим: AUTO · provider: asr.cloud.android_speech/…</div>
+          <div class="search">Whisper base URL (опц.)</div>
+          <div class="search">Whisper API key (опц.)</div>
+        </div>
+
+        <div class="section">Синтез речи (TTS) · V2-09</div>
+        <div class="panel">
+          <div class="search" style="margin-top:0">▼ Auto</div>
+          <div class="muted" style="font-size:10px;margin-top:6px">Режим: AUTO · provider: tts.cloud.android_tts/…</div>
+          <div class="search">Speech base URL (опц.)</div>
+          <div class="search">Speech API key (опц.)</div>
+        </div>
+
+        <div class="section">Прослушивание</div>
+        <div class="panel">
+          <div class="toggle-row"><div><strong style="font-size:13px">Adaptive Listening</strong></div><div class="switch on"></div></div>
+          <div class="toggle-row"><div><strong style="font-size:13px">Low Power &lt;20%</strong></div><div class="switch"></div></div>
+        </div>
+
+        <div class="section">Безопасность / ИИ / Память / Система</div>
+        <div class="panel">
+          <div class="toggle-row"><div><strong style="font-size:13px">Confirm sensitive</strong></div><div class="switch on"></div></div>
+          <div class="toggle-row"><div><strong style="font-size:13px">Вейк-ворд</strong><div class="faint" style="font-size:11px">openWakeWord · Джарвис</div></div><div class="switch on"></div></div>
+          <div class="muted" style="font-size:11px;margin:8px 0">Чувствительность: Низкая / Средняя / Высокая</div>
+          <div class="toggle-row"><div><strong style="font-size:13px">Запоминать факты</strong></div><div class="switch on"></div></div>
+          <div class="toggle-row"><div><strong style="font-size:13px">Diagnostics</strong></div><span class="gold mono" style="font-size:11px">HEALTHY</span></div>
+          <div class="faint mono" style="font-size:10px">ASR · TTS · Wake · LLM · Tools</div>
+        </div>
+      </div>
+      <div class="shell-nav">
+        <button>ГЛАВНАЯ</button><button>LIVE</button><button>ПАМЯТЬ</button><button>КОМАНДЫ</button><button class="active">ЕЩЁ</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

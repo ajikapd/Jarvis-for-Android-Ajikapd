@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>ai.picovoice</groupId>
+  <artifactId>porcupine-android</artifactId>
+  <version>4.0.2</version>
+  <packaging>aar</packaging>
+  <name>porcupine-android</name>
+  <description>Android SDK for Picovoice's Porcupine Wake Word engine</description>
+  <url>https://github.com/picovoice/porcupine</url>
+  <licenses>
+    <license>
+      <name>Apache License - v2.0</name>
+      <url>https://github.com/Picovoice/porcupine/blob/master/LICENSE</url>
+    </license>
+  </licenses>
+  <developers>
+    <developer>
+      <id>kyeopicovoice</id>
+      <name>Kwangsoo Yeo</name>
+      <email>kyeo@picovoice.ai</email>
+    </developer>
+  </developers>
+  <scm>
+    <connection>scm:git:github.com/picovoice/porcupine.git</connection>
+    <developerConnection>scm:git:ssh://github.com/picovoice/porcupine.git</developerConnection>
+    <url>https://github.com/picovoice/porcupine/tree/master</url>
+  </scm>
+  <dependencies>
+    <dependency>
+      <groupId>ai.picovoice</groupId>
+      <artifactId>android-voice-processor</artifactId>
+      <version>1.0.2</version>
+    </dependency>
+    <dependency>
+      <groupId>com.squareup.okhttp3</groupId>
+      <artifactId>okhttp</artifactId>
+      <version>4.12.0</version>
+    </dependency>
+  </dependencies>
+</project>
