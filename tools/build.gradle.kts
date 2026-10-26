@@ -25,4 +25,5 @@ dependencies {
     implementation(project(":screen-control"))
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.media)
+    testImplementation(libs.junit)
 }
