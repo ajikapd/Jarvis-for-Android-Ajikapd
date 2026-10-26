@@ -14,6 +14,7 @@ import com.jarvis.core.event.JarvisEvents
 import com.jarvis.core.model.AssistantState
 import com.jarvis.core.nlp.AsrPhraseNormalizer
 import com.jarvis.core.nlp.Transliterator
+import com.jarvis.core.privacy.SensitivityClassifier
 import com.jarvis.core.runtime.traceLabel
 import com.jarvis.core.runtime.applyStructured
 import com.jarvis.core.runtime.applyLatency
@@ -181,7 +182,7 @@ class AssistantOrchestrator(
 
         if (streamResult.cancelled || isGenerationStale()) {
             latency.cancelled = true
-            context.addAssistant(streamResult.fullText.takeIf { it.isNotBlank() }?.let { "$it…" } ?: "…")
+            rememberReply(streamResult.fullText.takeIf { it.isNotBlank() }?.let { "$it…" } ?: "…")
             return finalizeTrace(
                 AssistantResponse(
                     requestId = request.requestId,
@@ -223,7 +224,7 @@ class AssistantOrchestrator(
             text,
             com.jarvis.core.llm.LlmContextBudget.BALANCED,
         )
-        context.addAssistant(policyText)
+        rememberReply(policyText)
         state(AssistantState.READY)
         trace.route = com.jarvis.core.runtime.RouteDecision.CHAT
         trace.routeReason = if (streamResult.streamed) "chat_stream" else "chat_stream_fallback"
@@ -1397,7 +1398,7 @@ class AssistantOrchestrator(
                     context.lastToolCall = enriched
                 }
                 val reply = ResponsePlanner.plan(result)
-                context.addAssistant(reply)
+                rememberReply(reply)
                 rememberIfFact(request)
                 state(AssistantState.READY)
                 return AssistantResponse(
@@ -1601,7 +1602,7 @@ class AssistantOrchestrator(
                     "replyLen=${detailed.text.length} user='${request.text.take(80)}'",
             )
         }
-        context.addAssistant(detailed.text)
+        rememberReply(detailed.text)
         rememberIfFact(request)
         state(AssistantState.READY)
         return AssistantResponse(
@@ -1614,6 +1615,16 @@ class AssistantOrchestrator(
             routeReason = detailed.reason,
             provider = trace?.provider,
         )
+    }
+
+    /**
+     * Пишем ответ в историю диалога только после mask(): одноразовые коды и номера
+     * карт не должны оседать в контексте LLM. Пользователь при этом получает полный
+     * текст — маскируется лишь сохраняемая копия ([AssistantResponse.replyText] не
+     * меняется).
+     */
+    private fun rememberReply(text: String) {
+        context.addAssistant(SensitivityClassifier.mask(text))
     }
 
     private fun rememberIfFact(request: UserRequest) {
@@ -1631,7 +1642,7 @@ class AssistantOrchestrator(
         route: String? = null,
         routeReason: String? = null,
     ): AssistantResponse {
-        context.addAssistant(text)
+        rememberReply(text)
         state(AssistantState.READY)
         return AssistantResponse(
             requestId = request.requestId,
