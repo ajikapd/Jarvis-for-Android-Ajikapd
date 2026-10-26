@@ -1,6 +1,7 @@
 package com.jarvis.core.runtime
 
 import com.jarvis.core.autonomy.ActionIntegrity
+import com.jarvis.core.autonomy.ActionRiskClass
 import com.jarvis.core.autonomy.ActionRiskClassifier
 import com.jarvis.core.autonomy.AutonomyActionPipeline
 import com.jarvis.core.autonomy.AutonomyLevel
@@ -11,6 +12,7 @@ import com.jarvis.core.common.ToolExecutor
 import com.jarvis.core.common.model.ToolCall
 import com.jarvis.core.common.model.ToolDefinition
 import com.jarvis.core.common.model.ToolResult
+import com.jarvis.core.common.model.RiskLevel
 import com.jarvis.core.proactive.ProactiveDecision
 import com.jarvis.core.proactive.ProactiveDecisionType
 import com.jarvis.core.proactive.ProactiveReasonCode
@@ -41,6 +43,15 @@ class ExecutionOrchestrator(
     private val bridge: LiveSkillRiskBridge = LiveSkillRiskBridge(),
     private val verifier: ResultVerifier = DefaultResultVerifier(),
     private val riskClassifier: ActionRiskClassifier = ActionRiskClassifier(),
+    /**
+     * Пользовательская настройка «подтверждать действия уровня CONFIRM»
+     * (`JarvisSettings.confirmSensitive`, по умолчанию true).
+     *
+     * core не зависит от Android: значение приходит лямбдой из app-слоя.
+     * false ослабляет подтверждение **только** для [RiskLevel.CONFIRM];
+     * SENSITIVE/BLOCKED и фактический риск выше MEDIUM не затрагиваются.
+     */
+    private val confirmLevelRequired: () -> Boolean = { true },
 ) {
 
     sealed class Outcome {
@@ -82,8 +93,20 @@ class ExecutionOrchestrator(
     ): Outcome {
         val bridged = bridge.bridge(toolCall, definition)
 
+        // confirm_sensitive=false снимает диалог ровно с уровня CONFIRM и только пока
+        // фактический риск не выше MEDIUM. Всё, что опаснее, идёт обычным путём.
+        val confirmBypass = definition.riskLevel == RiskLevel.CONFIRM &&
+            !confirmLevelRequired() &&
+            riskClassifier.classify(bridged.proposed).riskClass.ordinal <= ActionRiskClass.MEDIUM.ordinal
+        val legacyDecision =
+            if (confirmBypass && bridged.legacy is PolicyDecision.RequiresConfirmation) {
+                PolicyDecision.Allow
+            } else {
+                bridged.legacy
+            }
+
         // Legacy BLOCKED / DENY — fail closed до pipeline (и логируем classify).
-        when (val legacy = bridged.legacy) {
+        when (val legacy = legacyDecision) {
             is PolicyDecision.Deny -> {
                 riskClassifier.classify(bridged.proposed) // side-effect free; ensures risk path exists
                 return Outcome.Denied(
@@ -124,7 +147,7 @@ class ExecutionOrchestrator(
         // ActionConfirmation token требует стабильный ActionRequest.id, который
         // pipeline создаёт заново на каждый plan() — conversational confirm
         // остаётся на Orchestrator; Gate всё равно проходит Risk→Policy→PASS.
-        val proposed = if (userConfirmed) {
+        val proposed = if (userConfirmed || confirmBypass) {
             proposedBase.copy(
                 kind = when {
                     proposedBase.toolId in LiveSkillRiskBridge.READ_TOOL_IDS ||
@@ -149,12 +172,12 @@ class ExecutionOrchestrator(
             -> emptySet()
             else -> catalogRequired.ifEmpty { setOf("capability:LIVE_USER") }
         }
-        val granted = if (userConfirmed || bridged.legacy is PolicyDecision.Allow) {
+        val granted = if (userConfirmed || legacyDecision is PolicyDecision.Allow) {
             requiredOverride
         } else {
             emptySet()
         }
-        val allowlist = if (userConfirmed) emptySet() else bridged.allowlist
+        val allowlist = if (userConfirmed || confirmBypass) emptySet() else bridged.allowlist
 
         val plan = pipeline.plan(
             decision = userUtteranceDecision(toolCall.toolId, nowMillis),

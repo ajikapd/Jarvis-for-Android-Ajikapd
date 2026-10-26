@@ -439,6 +439,8 @@ object BrainGraph {
                 toolExecutor = toolExecutor,
                 pipeline = com.jarvis.core.autonomy.AutonomyActionPipeline(),
                 verifier = resultVerifier ?: com.jarvis.core.verification.DefaultResultVerifier(),
+                // core не знает про Android: настройка приходит лямбдой.
+                confirmLevelRequired = { JarvisSettings.confirmSensitive(ctx) },
             ),
             planPathCoordinator = com.jarvis.core.runtime.PlanPathCoordinator(
                 planner = aiPlanner ?: com.jarvis.core.planner.DeterministicAIPlanner(),

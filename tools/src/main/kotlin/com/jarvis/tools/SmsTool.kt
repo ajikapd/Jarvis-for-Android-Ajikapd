@@ -53,7 +53,7 @@ class SmsTool(private val context: Context) : Tool {
                 required = false,
             ),
         ),
-        riskLevel = RiskLevel.LOW,
+        riskLevel = RiskLevel.CONFIRM,
         onlineRequirement = OnlineRequirement.LOCAL_ONLY,
     )
 

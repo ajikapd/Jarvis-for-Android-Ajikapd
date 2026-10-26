@@ -31,7 +31,7 @@ class TelegramSendTool(private val context: Context) : Tool {
             ToolParameter("chat", "Имя чата или контакта", ParameterType.STRING, required = true),
             ToolParameter("text", "Текст сообщения", ParameterType.STRING, required = true),
         ),
-        riskLevel = RiskLevel.LOW,
+        riskLevel = RiskLevel.CONFIRM,
         onlineRequirement = OnlineRequirement.LOCAL_ONLY,
     )
 
