@@ -1,5 +1,7 @@
 package com.jarvis.brain.aiprovider
 
+import com.jarvis.core.privacy.SensitivityClassifier
+
 /**
  * NaraRouter (https://router.bynara.id) — OpenAI-compatible gateway.
  * Free tier ~7M tokens/day (условия могут меняться).
@@ -263,25 +265,34 @@ class OpenAiCompatibleCloudClient(
         }
     }
 
-    private fun buildMessages(
+    /**
+     * Собирает messages для облачного запроса.
+     *
+     * Последняя линия защиты приватности: перед отправкой каждая строка проходит
+     * [SensitivityClassifier.mask] — коды и номера карт заменяются на «[скрыто]».
+     * Формат запроса не меняется, обычные числа (телефоны, время, цены) не трогаются.
+     *
+     * internal — только для unit-тестов внутри :brain.
+     */
+    internal fun buildMessages(
         systemPrompt: String,
         history: List<String>,
         userText: String,
     ): List<Pair<String, String>> {
         val out = ArrayList<Pair<String, String>>(8)
         if (systemPrompt.isNotBlank()) {
-            out += "system" to systemPrompt.take(1_500)
+            out += "system" to SensitivityClassifier.mask(systemPrompt).take(1_500)
         }
         history.takeLast(8).forEach { line ->
             val lower = line.lowercase()
             when {
                 lower.startsWith("user:") ->
-                    out += "user" to line.substringAfter(':').trim().take(800)
+                    out += "user" to SensitivityClassifier.mask(line.substringAfter(':').trim()).take(800)
                 lower.startsWith("assistant:") ->
-                    out += "assistant" to line.substringAfter(':').trim().take(800)
+                    out += "assistant" to SensitivityClassifier.mask(line.substringAfter(':').trim()).take(800)
             }
         }
-        out += "user" to userText.take(AICompletionRequest.MAX_USER)
+        out += "user" to SensitivityClassifier.mask(userText).take(AICompletionRequest.MAX_USER)
         return out
     }
 
