@@ -86,6 +86,7 @@ class TimerTool(private val context: Context) : Tool {
         val v = vibrator ?: return
         val effect = VibrationEffect.createOneShot(durationMs, VibrationEffect.DEFAULT_AMPLITUDE)
         runCatching { v.vibrate(effect) }
+            .onFailure { Log.w(TAG, "vibrate failed: ${it.message}", it) }
     }
 
     companion object {
