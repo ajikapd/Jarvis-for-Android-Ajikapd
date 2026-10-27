@@ -22,19 +22,21 @@ class FactScoringMorphologyTest {
         assertTrue(match("люблю", "любим"))
         assertTrue(match("любит", "люблю")) // симметрично
     }
-
     @Test
     fun teaFormsMatch() {
         assertTrue(match("чай", "чая"))
         assertTrue(match("чай", "чаю"))
         assertTrue(match("чай", "чаем"))
         assertTrue(match("чая", "чаем"))
+        assertTrue(match("чаю", "чаем"))
+        assertTrue(match("чая", "чаю"))
     }
 
     @Test
     fun liveFormsMatch() {
         assertTrue(match("живу", "живёт"))
         assertTrue(match("живёт", "живу"))
+        assertTrue(match("живу", "живёшь"))
     }
 
     @Test
@@ -54,6 +56,7 @@ class FactScoringMorphologyTest {
         assertTrue(match("зелёный", "зелёного"))
         assertTrue(match("зелёный", "зелёный"))
         assertTrue(match("зелёного", "зелёному"))
+        assertTrue(match("зелёный", "зелёному"))
     }
 
     // ─────────────────────────────── НЕ должны совпадать
@@ -64,6 +67,13 @@ class FactScoringMorphologyTest {
         assertFalse(match("сон", "сын"))
         assertFalse(match("кот", "код"))
         assertFalse(match("она", "оно"))
+    }
+
+    @Test
+    fun shortFourAndFiveLetterLookalikesDoNotMatch() {
+        assertFalse(match("стол", "стон"))
+        assertFalse(match("банк", "бант"))
+        assertFalse(match("город", "горох"))
     }
 
     @Test
