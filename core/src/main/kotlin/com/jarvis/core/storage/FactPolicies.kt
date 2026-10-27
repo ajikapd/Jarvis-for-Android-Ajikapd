@@ -60,16 +60,70 @@ object FactPolicies {
 /**
  * Лексический скоринг фактов — прежняя логика LongTermMemory.retrieve,
  * вынесенная в чистую функцию ради JVM-тестов.
+ *
+ * Слова сравниваются не только точно, но и «приближённо» (см. [wordsMatch]):
+ * «люблю»~«любит», «чай»~«чая», «живу»~«живёт». Без библиотек и словарей.
  */
 object FactScoring {
 
     fun tokenize(text: String): List<String> = SkillRetriever.defaultNormalize(text)
 
+    /**
+     * Считаются ли слова одной леммой. Правило:
+     * 1. точное совпадение;
+     * 2. более короткое слово — префикс более длинного, и оно не короче 3 букв
+     *    («чай»/«чая», «кофе»/«кофе», «зелёный»/«зелёного»);
+     * 3. иначе нужен общий префикс >= 3 букв и >= 60% длины короткого слова
+     *    («люблю»/«любит»: 3/5 = 0.6; «музыка»/«музыку»: 5/6; «живу»/«живёт»: 3/4).
+     *
+     * Чередование «люблю/любит» (б/бл) отдельным словарём не лечим: общего
+     * префикса «люб» достаточно, чтобы пара прошла правило 3.
+     *
+     * Слова короче 3 букв совпадают только точно или как полный префикс:
+     * «кот»/«код» (2/3), «сон»/«сын» (1/3), «она»/«оно» (2/3) не совпадают.
+     */
+    fun wordsMatch(a: String, b: String): Boolean {
+        if (a == b) return true
+        if (a.isEmpty() || b.isEmpty()) return false
+        val minLen = minOf(a.length, b.length)
+        if (minLen < 3) return false
+        var prefix = 0
+        while (prefix < minLen && a[prefix] == b[prefix]) prefix++
+        if (prefix == minLen) return true // короткое слово целиком входит в длинное
+        // «чай»→«чая»/«чаю»: краткая форма на «й» теряет й перед окончанием.
+        val yWord = when {
+            a.endsWith('й') && a.length >= 3 -> a
+            b.endsWith('й') && b.length >= 3 -> b
+            else -> null
+        }
+        if (yWord != null && prefix == yWord.length - 1) {
+            val other = if (yWord == a) b else a
+            if (other.substring(prefix) in WORD_ENDINGS) return true
+        }
+        // «чая»→«чаем», «музыка»→«музыку»: короткая основа + окончание в длинном слове.
+        // Работает только при разной длине, поэтому «кот»/«код» и «она»/«оно» не совпадают.
+        if (a.length != b.length) {
+            val longer = if (a.length > b.length) a else b
+            val shorter = if (a.length > b.length) b else a
+            if (prefix >= 2 && prefix == shorter.length - 1) {
+                if (longer.substring(prefix) in WORD_ENDINGS) return true
+            }
+        }
+        if (minLen <= 3) return false
+        return prefix >= 3 && prefix.toFloat() / minLen >= 0.6f
+    }
+
+    /** Окончания, которые могут стоять после общей основы. */
+    private val WORD_ENDINGS = setOf(
+        "а", "я", "у", "ю", "е", "ы", "и", "о",
+        "ой", "ей", "ом", "ем", "ам", "ям", "ах", "ях", "ов", "ев",
+        "ий", "ия", "ию", "ье", "ья",
+    )
+
     /** Доля слов запроса, найденных в факте (0..1). */
     fun score(queryWords: List<String>, factWords: List<String>): Float {
         if (queryWords.isEmpty() || factWords.isEmpty()) return 0f
-        val factSet = factWords.toSet()
-        val hits = queryWords.count { it in factSet }
+        val hits = queryWords.count { q -> factWords.any { f -> wordsMatch(q, f) } }
         return hits.toFloat() / queryWords.size
     }
 
