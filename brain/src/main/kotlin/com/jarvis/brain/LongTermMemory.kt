@@ -1,99 +1,81 @@
 package com.jarvis.brain
 
-import android.content.ContentValues
 import android.content.Context
-import android.database.sqlite.SQLiteDatabase
-import android.database.sqlite.SQLiteOpenHelper
-import com.jarvis.core.skills.SkillRetriever
+import com.jarvis.core.storage.FactAddResult
+import com.jarvis.core.storage.FactsRepository
+import com.jarvis.core.storage.JarvisDb
+import com.jarvis.core.storage.LegacyFactsMigration
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 /**
  * Долгая память (JARVIS_BRAIN_ARCHITECTURE §4.2).
- * SQLite-таблица facts(id, text, category, created_at, source, weight).
- * Поиск релевантных фактов — простой лексический score (позже заменится на embedding:
- * векторы будут лежать в отдельной BLOB-колонке, контракт пользования не поменяется).
+ *
+ * Тонкая обёртка над [FactsRepository] (`jarvis_core.db`): прежний публичный API
+ * сохранён, чтобы BrainGraph, оркестратор и UI не менялись. Собственного
+ * SQLite-хелпера больше нет — старая `jarvis_memory.db` только читается
+ * одноразовой миграцией и остаётся на диске как бэкап.
+ *
+ * При первом обращении выполняется миграция `jarvis_memory.db → facts`
+ * (source='seed' пропускается, SECRET не пишется, дедуп по тексту).
  */
 class LongTermMemory(context: Context) : LongTermMemoryInterface {
 
+    private val appContext = context.applicationContext
     private val lock = ReentrantLock()
-    private val db by lazy { MemoryDbHelper(context).writableDatabase }
+    private val migrationDone = AtomicBoolean(false)
+
+    private val repo: FactsRepository by lazy { FactsRepository(JarvisDb.get(appContext)) }
+
+    private fun ensureReady() {
+        if (migrationDone.compareAndSet(false, true)) {
+            runCatching { LegacyFactsMigration(repo).migrateIfNeeded(appContext) }
+        }
+    }
 
     /** Возвращает top-N фактов, релевантных запросу. */
     override fun retrieve(query: String, limit: Int): List<MemoryFact> = lock.withLock {
-        val qWords = SkillRetriever.defaultNormalize(query)
-        if (qWords.isEmpty()) return emptyList()
-
-        all().map { fact ->
-            val words = SkillRetriever.defaultNormalize(fact.text)
-            FactScore(fact, score(qWords, words))
-        }
-            .filter { it.score > 0f }
-            .sortedByDescending { it.score }
-            .take(limit)
-            .map { it.fact }
+        ensureReady()
+        repo.retrieve(query, limit).map { it.toMemoryFact() }
     }
 
+    /**
+     * @return true только если факт реально записан; SECRET/дубль/невалидный — false.
+     */
     override fun add(text: String, category: String, source: String): Boolean = lock.withLock {
-        val trimmed = text.trim()
-        if (trimmed.length < 3) return false
-        // не дублируем идентичный факт
-        if (all().any { it.text.equals(trimmed, ignoreCase = true) }) return false
-
-        val values = ContentValues().apply {
-            put("text", trimmed)
-            put("category", category)
-            put("created_at", System.currentTimeMillis())
-            put("source", source)
-            put("weight", 1)
-        }
-        val id = db.insertOrThrow("facts", null, values)
-        id > 0
+        ensureReady()
+        repo.add(text, category, source) == FactAddResult.STORED
     }
 
     override fun all(): List<MemoryFact> = lock.withLock {
-        val list = mutableListOf<MemoryFact>()
-        db.rawQuery("SELECT * FROM facts ORDER BY created_at DESC", null).use { c ->
-            val idCol = c.getColumnIndexOrThrow("id")
-            val textCol = c.getColumnIndexOrThrow("text")
-            val catCol = c.getColumnIndexOrThrow("category")
-            val createdCol = c.getColumnIndexOrThrow("created_at")
-            val sourceCol = c.getColumnIndexOrThrow("source")
-            while (c.moveToNext()) {
-                list += MemoryFact(
-                    id = c.getLong(idCol),
-                    text = c.getString(textCol),
-                    category = c.getString(catCol),
-                    createdAt = c.getLong(createdCol),
-                    source = c.getString(sourceCol)
-                )
-            }
-        }
-        list
+        ensureReady()
+        repo.list().map { it.toMemoryFact() }
     }
 
+    /** id здесь — rowid строки (исторический Long-контракт UI/тестов). */
     override fun remove(id: Long): Boolean = lock.withLock {
-        db.delete("facts", "id = ?", arrayOf(id.toString())) > 0
+        ensureReady()
+        repo.deleteRow(id)
     }
 
-    override fun clear() {
-        lock.withLock { db.delete("facts", null, null) }
+    override fun clear() = lock.withLock {
+        ensureReady()
+        repo.clearAll()
     }
 
     override fun count(): Int = lock.withLock {
-        db.rawQuery("SELECT COUNT(*) FROM facts", null).use { c ->
-            if (c.moveToFirst()) c.getInt(0) else 0
-        }
+        ensureReady()
+        repo.count()
     }
 
-    private fun score(qWords: List<String>, factWords: List<String>): Float {
-        if (factWords.isEmpty()) return 0f
-        val factSet = factWords.toSet()
-        val hits = qWords.count { it in factSet }
-        return hits.toFloat() / qWords.size
-    }
-
-    private data class FactScore(val fact: MemoryFact, val score: Float)
+    private fun FactsRepository.StoredFact.toMemoryFact(): MemoryFact = MemoryFact(
+        id = rowId,
+        text = text,
+        category = category,
+        createdAt = createdAt,
+        source = source,
+    )
 
     data class MemoryFact(
         val id: Long,
@@ -102,27 +84,6 @@ class LongTermMemory(context: Context) : LongTermMemoryInterface {
         val createdAt: Long,
         val source: String
     )
-
-    private class MemoryDbHelper(context: Context) : SQLiteOpenHelper(
-        context, "jarvis_memory.db", null, 1
-    ) {
-        override fun onCreate(db: SQLiteDatabase) {
-            db.execSQL(
-                """
-                CREATE TABLE facts (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    text TEXT NOT NULL,
-                    category TEXT NOT NULL DEFAULT 'general',
-                    created_at INTEGER NOT NULL,
-                    source TEXT NOT NULL DEFAULT 'user',
-                    weight INTEGER NOT NULL DEFAULT 1
-                )
-                """.trimIndent()
-            )
-        }
-
-        override fun onUpgrade(db: SQLiteDatabase, old: Int, new: Int) = Unit
-    }
 }
 
 /**
