@@ -1492,6 +1492,7 @@ class DashboardActivity : AppCompatActivity() {
         val search = screen.findViewById<TextView>(R.id.memorySearch)
         val container = screen.findViewById<LinearLayout>(R.id.factsContainer)
         val clearBtn = screen.findViewById<TextView>(R.id.clearMemoryButton)
+        val clearChatBtn = screen.findViewById<TextView>(R.id.clearChatHistoryButton)
         val addBtn = screen.findViewById<TextView>(R.id.btnAddMemoryFact)
         val modelsStatus = screen.findViewById<TextView>(R.id.memoryModelsStatus)
         val openModels = screen.findViewById<TextView>(R.id.btnOpenModelsFromMemory)
@@ -1635,14 +1636,30 @@ class DashboardActivity : AppCompatActivity() {
         openModels?.setOnClickListener {
             openControlSecondary("models")
         }
+        // «Стереть все факты»: та же очистка, но уже поверх нового хранилища
+        // (FactsRepository), поэтому удаляются записи из jarvis_core.db.
         clearBtn.setOnClickListener {
             androidx.appcompat.app.AlertDialog.Builder(this)
-                .setTitle("Очистить память")
-                .setMessage("Все сохранённые факты будут удалены безвозвратно.")
-                .setNegativeButton("Отмена", null)
-                .setPositiveButton("Очистить") { _, _ ->
+                .setTitle(R.string.memory_clear_facts_title)
+                .setMessage(R.string.memory_clear_facts_message)
+                .setNegativeButton(R.string.memory_confirm_no, null)
+                .setPositiveButton(R.string.memory_confirm_yes) { _, _ ->
                     runCatching { BrainGraph.memory(this).clear() }
                     render()
+                }
+                .show()
+        }
+        // «Стереть историю чата»: вся conversation_messages (включая keep=1),
+        // RAM-пузыри и текущий ConversationContext.
+        clearChatBtn?.setOnClickListener {
+            androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle(R.string.memory_clear_chat_title)
+                .setMessage(R.string.memory_clear_chat_message)
+                .setNegativeButton(R.string.memory_confirm_no, null)
+                .setPositiveButton(R.string.memory_confirm_yes) { _, _ ->
+                    runCatching { com.jarvis.core.storage.ConversationJournal.clearAll() }
+                    ConversationStore.clear()
+                    runCatching { BrainGraph.clearDialogueHistory() }
                 }
                 .show()
         }

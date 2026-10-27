@@ -3,4 +3,13 @@
     <string name="voice_channel_name">Голос ассистента</string>
     <string name="voice_notification_title">Jarvis слушает</string>
     <string name="voice_notification_text">Скажите «джарвис, …» для команды</string>
+    <!-- Экран «Память»: подтверждаемые действия удаления (Task 4) -->
+    <string name="memory_clear_chat">Стереть историю чата</string>
+    <string name="memory_clear_chat_desc">Удалить всю сохранённую историю диалога, включая избранное</string>
+    <string name="memory_clear_chat_title">Стереть историю чата?</string>
+    <string name="memory_clear_chat_message">Все сохранённые реплики диалога будут удалены безвозвратно, включая избранные. Факты о вас останутся.</string>
+    <string name="memory_clear_facts_title">Стереть все факты?</string>
+    <string name="memory_clear_facts_message">Все сохранённые факты о вас будут удалены безвозвратно.</string>
+    <string name="memory_confirm_yes">Да</string>
+    <string name="memory_confirm_no">Нет</string>
 </resources>
