@@ -16,6 +16,15 @@ object CompoundCommandSplitter {
         "вернись", "назад", "домой", "подожди", "дождись", "жди",
     )
 
+    /**
+     * Короткие голосовые триггеры, которые тоже считаются командой
+     * («громче, потом тише»), хотя и не начинаются с глагола.
+     */
+    private val commandTriggers = setOf(
+        "громче", "тише", "стоп", "пауза", "продолжи", "дальше", "далее",
+        "отмена", "отмени", "повтори",
+    )
+
     private val hardSeparators = listOf(
         Regex("""\s*,\s*и\s+""", RegexOption.IGNORE_CASE),
         Regex("""\s+потом\s+""", RegexOption.IGNORE_CASE),
@@ -39,9 +48,36 @@ object CompoundCommandSplitter {
         for (part in parts) {
             steps += splitOnAndBeforeVerb(part)
         }
-        return steps.map { it.trim() }.filter { it.isNotEmpty() }.let { list ->
-            if (list.size <= 1) listOf(trimmed) else list
-        }
+        val candidate = steps.map { it.trim() }.filter { it.isNotEmpty() }
+        if (candidate.size <= 1) return listOf(trimmed)
+        // Режем только если КАЖДАЯ часть — команда. «Привет, как дела?»,
+        // «Слушай, включи свет», «Включи свет, пожалуйста» и «Меня зовут
+        // Артём, я живу в Москве» остаются одной репликой.
+        return if (candidate.all { looksLikeCommand(it) }) candidate else listOf(trimmed)
+    }
+
+    /**
+     * Похожа ли часть на самостоятельную команду: начинается с известного
+     * командного глагола или короткого триггера навыка.
+     */
+    private fun looksLikeCommand(part: String): Boolean {
+        val tokens = part.trim().split(Regex("""\s+""")).filter { it.isNotBlank() }
+        if (tokens.isEmpty()) return false
+        val first = tokens[0].lowercase().trim(',', '.', '!', '?', ':', ';')
+        if (first in stepVerbs || first in commandTriggers) return true
+        return isScreenQuestion(tokens, 0)
+    }
+
+    /** «что на экране» / «что видно» — тоже шаг составной команды. */
+    private fun isScreenQuestion(tokens: List<String>, idx: Int): Boolean {
+        if (idx >= tokens.size) return false
+        val w = tokens[idx].lowercase().trim(',', '.', '!', '?')
+        if (w != "что") return false
+        val tail = tokens.subList(idx, minOf(idx + 4, tokens.size))
+            .joinToString(" ")
+            .lowercase()
+        return tail.contains("на экране") || tail.contains("видно") ||
+            tail.contains("на экрану")
     }
 
     /** «открой X и нажми Y» / «открой часы и что на экране» → шаги. */
