@@ -1673,12 +1673,9 @@ class DashboardActivity : AppCompatActivity() {
             memory.add("Вечером лучше не беспокоить без причины.", "habit", "seed")
             memory.add("Текущий проект — Jarvis for Android.", "project", "seed")
         }
-        if (runCatching { BrainGraph.memory(this).count() }.getOrDefault(0) == 0 &&
-            !getSharedPreferences("jarvis_prefs", MODE_PRIVATE).getBoolean("memory_demo_seeded", false)
-        ) {
-            seedDemo()
-            getSharedPreferences("jarvis_prefs", MODE_PRIVATE).edit().putBoolean("memory_demo_seeded", true).apply()
-        }
+        // Авто-seed демо-фактов отключён: демо-записи больше не попадают в реальную БД
+        // памяти при первом открытии экрана. Кнопка btnSeedMemory по-прежнему позволяет
+        // добавить их вручную (явное действие пользователя).
         screen.findViewById<TextView>(R.id.btnSeedMemory)?.setOnClickListener {
             seedDemo()
             render()
