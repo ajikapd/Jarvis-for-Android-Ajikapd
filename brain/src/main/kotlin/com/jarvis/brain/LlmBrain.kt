@@ -8,6 +8,7 @@ import com.jarvis.core.common.model.IntentType
 import com.jarvis.core.common.model.Slot
 import com.jarvis.core.common.model.UserRequest
 import com.jarvis.core.nlp.Transliterator
+import com.jarvis.core.privacy.SensitivityClassifier
 import com.google.ai.edge.litertlm.*
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -98,17 +99,17 @@ class LlmBrain(
         val rules = fallback.route(request, history, topSkills)
         when (rules) {
             is BrainResult.SkillCall if rules.confidence >= RULES_SKILL_FAST -> {
-                Log.d(TAG, "fast rules-skill '${request.text}' -> ${rules.intent.type} ${elapsed(t0)}ms")
+                Log.d(TAG, "fast rules-skill '${SensitivityClassifier.mask(request.text)}' -> ${rules.intent.type} ${elapsed(t0)}ms")
                 return rules
             }
             is BrainResult.Chat if rules.confidence >= RULES_CHAT_FAST -> {
                 // Чат → DialogueResponder (+ Chat LLM). FunctionGemma здесь не нужен.
-                Log.d(TAG, "fast rules-chat '${request.text}' ${elapsed(t0)}ms")
+                Log.d(TAG, "fast rules-chat '${SensitivityClassifier.mask(request.text)}' ${elapsed(t0)}ms")
                 return rules
             }
             is BrainResult.Clarify if rules.confidence >= RULES_CLARIFY_FAST -> {
                 // Не хватает слота («кому?») — LLM не угадает; не тратим инференс.
-                Log.d(TAG, "fast rules-clarify '${request.text}' ${elapsed(t0)}ms")
+                Log.d(TAG, "fast rules-clarify '${SensitivityClassifier.mask(request.text)}' ${elapsed(t0)}ms")
                 return rules
             }
             else -> Unit
@@ -130,8 +131,8 @@ class LlmBrain(
             val parsed = parseFunctionCalls(raw, topSkills, request.text)
             Log.d(
                 TAG,
-                "llm ${elapsed(t0)}ms user='${request.text}' " +
-                    "out='${raw.take(160)}' skills=${topSkills.map { it.id }} " +
+                "llm ${elapsed(t0)}ms user='${SensitivityClassifier.mask(request.text)}' " +
+                    "out='${SensitivityClassifier.mask(raw).take(160)}' skills=${topSkills.map { it.id }} " +
                     "hit=${parsed != null}",
             )
             parsed ?: run {

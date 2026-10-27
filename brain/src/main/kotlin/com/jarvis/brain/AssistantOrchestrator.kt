@@ -816,7 +816,7 @@ class AssistantOrchestrator(
             runCatching {
                 android.util.Log.d(
                     "Jarvis.Capability",
-                    "discover q='${normalizedRequest.text.take(60)}' → " +
+                    "discover q='${SensitivityClassifier.mask(normalizedRequest.text).take(60)}' → " +
                         topCaps.joinToString { it.id },
                 )
             }
@@ -1602,7 +1602,7 @@ class AssistantOrchestrator(
             android.util.Log.i(
                 "Jarvis.Orchestrator",
                 "dialogue ${dialogueMs}ms kind=${detailed.kind} reason=${detailed.reason} " +
-                    "replyLen=${detailed.text.length} user='${request.text.take(80)}'",
+                    "replyLen=${detailed.text.length} user='${SensitivityClassifier.mask(request.text).take(80)}'",
             )
         }
         val factRefused = rememberIfFact(request)
