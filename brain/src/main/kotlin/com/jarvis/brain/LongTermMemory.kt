@@ -85,29 +85,3 @@ class LongTermMemory(context: Context) : LongTermMemoryInterface {
         val source: String
     )
 }
-
-/**
- * Лёгкий экстрактор фактов (JARVIS_BRAIN_ARCHITECTURE §4.2): решает, стоит ли
- * запомнить устойчивый факт о пользователе из фразы. Ситуативные команды
- * ("включи фонарик") не запоминаются; указания предпочтений — да.
- */
-object FactExtractor {
-
-    private val factMarkers = listOf(
-        "люблю", "предпочитаю", "ненавижу", "не люблю", "мне нравится",
-        "мой", "моя", "моё", "мои", "у меня", "я обычно", "обычно я",
-        "всегда", "никогда", "не хочу", "хочу", "напомни", "мой будильник",
-        "мне не нравится", "поставь на", "я встаю в", "я ложусь в",
-        "день рождения", "родился", "живу в", "работаю", "учусь в"
-    )
-
-    /**
-     * @return текст факта одним предложением, или null если запоминать нечего.
-     */
-    fun extract(requestText: String): String? {
-        val text = requestText.lowercase()
-        val marker = factMarkers.firstOrNull { text.contains(it) } ?: return null
-        val sentence = requestText.trim()
-        return if (sentence.length in 3..240) sentence else null
-    }
-}

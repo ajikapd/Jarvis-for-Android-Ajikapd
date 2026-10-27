@@ -224,7 +224,9 @@ class AssistantOrchestrator(
             text,
             com.jarvis.core.llm.LlmContextBudget.BALANCED,
         )
-        rememberReply(policyText)
+        val factRefused = rememberIfFact(normalizedRequest)
+        val finalText = if (factRefused) FactExtractor.REFUSAL else policyText
+        rememberReply(finalText)
         state(AssistantState.READY)
         trace.route = com.jarvis.core.runtime.RouteDecision.CHAT
         trace.routeReason = if (streamResult.streamed) "chat_stream" else "chat_stream_fallback"
@@ -241,11 +243,10 @@ class AssistantOrchestrator(
         trace.aiCompletionMs = streamResult.latencyMs
         trace.aiLatencyMs = streamResult.latencyMs
         latency.firstUsefulAt = com.jarvis.core.runtime.LatencyClock.elapsedMs()
-        rememberIfFact(normalizedRequest)
         return finalizeTrace(
             AssistantResponse(
                 requestId = request.requestId,
-                replyText = policyText,
+                replyText = finalText,
                 status = AssistantResponseStatus.PROCESSED,
                 durationMs = (System.nanoTime() - startedAt) / 1_000_000,
                 route = com.jarvis.core.runtime.RouteDecision.CHAT.name,
@@ -1398,12 +1399,13 @@ class AssistantOrchestrator(
                     context.lastToolCall = enriched
                 }
                 val reply = ResponsePlanner.plan(result)
-                rememberReply(reply)
-                rememberIfFact(request)
+                val factRefused = rememberIfFact(request)
+                val finalReply = if (factRefused) FactExtractor.REFUSAL else reply
+                rememberReply(finalReply)
                 state(AssistantState.READY)
                 return AssistantResponse(
                     requestId = request.requestId,
-                    replyText = reply,
+                    replyText = finalReply,
                     status = ResponsePlanner.assistantStatusOf(result),
                     intent = intent,
                     toolResult = result,
@@ -1602,12 +1604,13 @@ class AssistantOrchestrator(
                     "replyLen=${detailed.text.length} user='${request.text.take(80)}'",
             )
         }
-        rememberReply(detailed.text)
-        rememberIfFact(request)
+        val factRefused = rememberIfFact(request)
+        val finalText = if (factRefused) FactExtractor.REFUSAL else detailed.text
+        rememberReply(finalText)
         state(AssistantState.READY)
         return AssistantResponse(
             requestId = request.requestId,
-            replyText = detailed.text,
+            replyText = finalText,
             status = AssistantResponseStatus.PROCESSED,
             intent = null,
             durationMs = (System.nanoTime() - startedAt) / 1_000_000,
@@ -1627,10 +1630,20 @@ class AssistantOrchestrator(
         context.addAssistant(SensitivityClassifier.mask(text))
     }
 
-    private fun rememberIfFact(request: UserRequest) {
-        if (!memoryEnabled) return
-        val fact = FactExtractor.extract(request.text) ?: return
-        runCatching { longTermMemory.add(fact, category = "preference") }
+    /**
+     * @return true, если фраза похожа на факт, но содержала секрет: сохранять
+     *         нельзя, а пользователю вместо «запомнил» уходит [FactExtractor.REFUSAL].
+     */
+    private fun rememberIfFact(request: UserRequest): Boolean {
+        if (!memoryEnabled) return false
+        return when (val decision = FactExtractor.decide(request.text)) {
+            is FactExtractor.Decision.Save -> {
+                runCatching { longTermMemory.add(decision.text, category = "preference") }
+                false
+            }
+            FactExtractor.Decision.Refused -> true
+            null -> false
+        }
     }
 
     private fun respond(
