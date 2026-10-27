@@ -554,7 +554,8 @@ class AssistantOrchestrator(
             trace.agent = true
             android.util.Log.i(
                 "Jarvis.PlanPath",
-                "semantic PLAN goal=${semantic.goal} status=${planRun.plan.status} " +
+                "semantic PLAN goal=${SensitivityClassifier.mask(semantic.goal)} " +
+                    "status=${planRun.plan.status} " +
                     "steps=${planRun.plan.steps.size} completed=${planRun.loopResult?.completed} " +
                     "dry=${planRun.dryRun}",
             )
@@ -1338,7 +1339,8 @@ class AssistantOrchestrator(
                 ) {
                     android.util.Log.i(
                         "Jarvis.Orchestrator",
-                        "knowledge ${result.status} → chat LLM fallback msg='${result.message.orEmpty().take(80)}'",
+                        "knowledge ${result.status} → chat LLM fallback " +
+                            "msg='${SensitivityClassifier.mask(result.message.orEmpty()).take(80)}'",
                     )
                     context.lastToolCall = toolCall
                     val q = toolCall.arguments["query"]?.toString()?.trim().orEmpty()

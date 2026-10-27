@@ -15,6 +15,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.jarvis.core.common.model.AssistantResponseStatus
 import com.jarvis.core.common.model.UserRequest
+import com.jarvis.core.privacy.SensitivityClassifier
 import com.jarvis.core.runtime.ImmediateAckPolicy
 import com.jarvis.core.runtime.InteractionGenerationGate
 import com.jarvis.core.runtime.LatencyStatsStore
@@ -145,7 +146,7 @@ class VoiceService : Service() {
                             "streamUsed=${orch.lastChatStreamResult?.streamed} " +
                             "ttft=${orch.lastChatStreamResult?.ttftMs} " +
                             "sentences=${orch.lastChatStreamResult?.sentenceCount} " +
-                            "reply=\"${streamed.replyText.take(120)}\"",
+                            "reply=\"${SensitivityClassifier.mask(streamed.replyText).take(120)}\"",
                     )
                     if (usedStream) {
                         VoiceController.endStreamSpeak {
@@ -201,7 +202,7 @@ class VoiceService : Service() {
             "brain ${brainMs}ms status=${response?.status} " +
                 "route=${response?.route ?: trace?.route} " +
                 "orch=${response?.durationMs ?: brainMs}ms " +
-                "reply=\"${text.take(120)}\"",
+                "reply=\"${SensitivityClassifier.mask(text).take(120)}\"",
         )
         val needsFollowUp = response?.status == AssistantResponseStatus.NEEDS_CONFIRMATION ||
             response?.status == AssistantResponseStatus.NEEDS_CLARIFICATION

@@ -223,12 +223,21 @@ object CompanionProactive {
             bypassCoalesce = bypassCoalesce,
         )
         if (com.jarvis.app.BuildConfig.DEBUG) {
+            // Пакет текущего FG оставляем для диагностики, но не логируем
+            // цепочку/историю приложений. Чувствительные пакеты (банки,
+            // менеджеры паролей) скрываем.
+            val fgApp = snapshot.context.currentApp
+            val fgAppSafe = when {
+                fgApp.isNullOrBlank() -> "—"
+                com.jarvis.core.privacy.SensitivityClassifier.isSensitivePackage(fgApp) -> "[скрыто]"
+                else -> fgApp
+            }
             android.util.Log.i(
                 "JarvisProactive",
                 "tick type=${result.decision.type} reason=${result.decision.reasonCode} " +
                     "key=${result.decision.behaviorPatternKey} " +
                     "hp=${snapshot.context.headphonesConnected} " +
-                    "app=${snapshot.context.currentApp} " +
+                    "app=$fgAppSafe " +
                     "cands=${candidates.size} bypass=$bypassCoalesce",
             )
         }
