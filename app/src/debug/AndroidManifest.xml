@@ -29,6 +29,12 @@
             <intent-filter>
                 <action android:name="com.jarvis.assistant.DEBUG_SETTINGS" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="com.jarvis.assistant.DEBUG_SANITIZE" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.jarvis.assistant.DEBUG_CONTEXT" />
+            </intent-filter>
         </receiver>
     </application>
 

@@ -6,6 +6,8 @@ import android.content.Intent
 import android.util.Log
 import com.jarvis.asr.SherpaAsrSession
 import com.jarvis.core.common.model.UserRequest
+import com.jarvis.core.companion.PhoneContextBus
+import com.jarvis.core.privacy.SensitivityClassifier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -26,6 +28,17 @@ import java.io.File
  *     -n com.jarvis.assistant/com.jarvis.app.DebugCommandReceiver \
  *     --es action start|stop
  *
+ * Проверка классификатора (только debug, только синтетические строки):
+ *   adb shell am broadcast \
+ *     -a com.jarvis.assistant.DEBUG_SANITIZE \
+ *     -n com.jarvis.assistant/com.jarvis.app.DebugCommandReceiver \
+ *     --es text "Ваш код 482913, никому не сообщайте" [--es package ru.sberbankmobile]
+ *
+ * Снимок текущего PhoneContext (без содержимого уведомлений и экрана):
+ *   adb shell am broadcast \
+ *     -a com.jarvis.assistant.DEBUG_CONTEXT \
+ *     -n com.jarvis.assistant/com.jarvis.app.DebugCommandReceiver
+ *
  * Приёмник зарегистрирован только в DEBUG-манифесте (app/src/debug),
  * отвечает структурированными строками в logcat (tag Jarvis.Debug).
  */
@@ -39,7 +52,51 @@ class DebugCommandReceiver : BroadcastReceiver() {
             ACTION_ASR_TEST -> handleAsrTest(context, intent)
             ACTION_DEBUG_AUTONOMY -> handleAutonomy(context, intent)
             ACTION_DEBUG_SETTINGS -> handleSettings(context, intent)
+            ACTION_DEBUG_SANITIZE -> if (BuildConfig.DEBUG) handleSanitize(intent)
+            ACTION_DEBUG_CONTEXT -> if (BuildConfig.DEBUG) handleContextSnapshot()
         }
+    }
+
+    /**
+     * Прогоняет строку через классификатор и печатает результат.
+     *
+     * Сырой текст в logcat НЕ выводится — только длина, вердикт и masked-версия,
+     * чтобы проверочные строки не оседали в системном логе.
+     */
+    private fun handleSanitize(intent: Intent) {
+        val raw = intent.getStringExtra(EXTRA_TEXT).orEmpty()
+        if (raw.isEmpty()) {
+            Log.d(TAG, "sanitize: --es text \"...\" required")
+            return
+        }
+        val pkg = intent.getStringExtra(EXTRA_PACKAGE)?.trim()?.takeIf { it.isNotBlank() }
+        val verdict = SensitivityClassifier.classify(raw, pkg)
+        val masked = SensitivityClassifier.mask(raw)
+        Log.d(
+            TAG,
+            "sanitize: len=${raw.length} sensitivity=$verdict " +
+                "packageSensitive=${SensitivityClassifier.isSensitivePackage(pkg)} " +
+                "changed=${masked != raw} masked=\"$masked\"",
+        )
+    }
+
+    /** Текущий PhoneContext: только типы/пакеты наблюдений, без текста экрана и уведомлений. */
+    private fun handleContextSnapshot() {
+        val ctx = PhoneContextBus.current()
+        Log.d(TAG, "context: ${ctx.describe()}")
+        val recent = runCatching { PhoneContextBus.recent(15) }.getOrDefault(emptyList())
+        recent.forEach { o ->
+            Log.d(
+                TAG,
+                "context.event type=${o.type} source=${o.source} " +
+                    "pkg=${o.packageName ?: "—"} sensitivity=${o.sensitivity}",
+            )
+        }
+        Log.d(
+            TAG,
+            "context.events=${recent.size} " +
+                "types=${recent.map { it.type }.distinct().joinToString(",")}",
+        )
     }
 
     private fun handleCommand(context: Context, intent: Intent) {
@@ -319,8 +376,12 @@ class DebugCommandReceiver : BroadcastReceiver() {
         const val ACTION_ASR_TEST = "com.jarvis.assistant.ASR_TEST"
         const val ACTION_DEBUG_AUTONOMY = "com.jarvis.assistant.DEBUG_AUTONOMY"
         const val ACTION_DEBUG_SETTINGS = "com.jarvis.assistant.DEBUG_SETTINGS"
+        const val ACTION_DEBUG_SANITIZE = "com.jarvis.assistant.DEBUG_SANITIZE"
+        const val ACTION_DEBUG_CONTEXT = "com.jarvis.assistant.DEBUG_CONTEXT"
         private const val EXTRA_COMMAND = "command"
         private const val EXTRA_ACTION = "action"
+        private const val EXTRA_TEXT = "text"
+        private const val EXTRA_PACKAGE = "package"
 
         /** Смещение до PCM в RIFF/WAVE (ищем chunk `data`). */
         private fun findWavDataOffset(data: ByteArray): Int {
