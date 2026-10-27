@@ -101,7 +101,9 @@ class DebugCommandReceiver : BroadcastReceiver() {
 
     private fun handleCommand(context: Context, intent: Intent) {
         val text = intent.getStringExtra(EXTRA_COMMAND)?.trim().orEmpty()
-        Log.d(TAG, "command text=\"$text\"")
+        // В logcat пишем только masked-версию: коды/карты из реплики не должны
+        // оседать в системном логе. Сам запрос уходит в конвейер без изменений.
+        Log.d(TAG, "command text=\"${SensitivityClassifier.mask(text)}\"")
         if (text.isEmpty()) {
             Log.d(TAG, "ignored: empty command")
             return
@@ -120,7 +122,7 @@ class DebugCommandReceiver : BroadcastReceiver() {
                     }
                 }
                 if (VoiceController.isRunning) {
-                    Log.d(TAG, "inject via VoiceService e2e: \"$text\"")
+                    Log.d(TAG, "inject via VoiceService e2e: \"${SensitivityClassifier.mask(text)}\"")
                     VoiceController.notifyRequest(UserRequest(text))
                     return@launch
                 }
@@ -128,10 +130,10 @@ class DebugCommandReceiver : BroadcastReceiver() {
                 val response = BrainGraph.build(app).process(UserRequest(text))
                 Log.d(
                     TAG,
-                    "request=\"$text\" -> intent=${response.intent?.type} " +
+                    "request=\"${SensitivityClassifier.mask(text)}\" -> intent=${response.intent?.type} " +
                         "tool=${response.toolResult?.toolId}/${response.toolResult?.status} " +
                         "status=${response.status} durationMs=${response.durationMs} " +
-                        "reply=\"${response.replyText}\"",
+                        "reply=\"${SensitivityClassifier.mask(response.replyText)}\"",
                 )
             } catch (e: Throwable) {
                 Log.e(TAG, "command processing failed: ${e.message}", e)
