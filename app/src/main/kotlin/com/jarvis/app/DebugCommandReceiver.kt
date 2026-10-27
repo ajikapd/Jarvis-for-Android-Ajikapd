@@ -8,6 +8,13 @@ import com.jarvis.asr.SherpaAsrSession
 import com.jarvis.core.common.model.UserRequest
 import com.jarvis.core.companion.PhoneContextBus
 import com.jarvis.core.privacy.SensitivityClassifier
+import com.jarvis.core.storage.ConversationJournal
+import com.jarvis.core.storage.ConversationRepository
+import com.jarvis.core.storage.FactPolicies
+import com.jarvis.core.storage.FactsRepository
+import com.jarvis.core.storage.JarvisDb
+import com.jarvis.core.storage.JarvisSchema
+import com.jarvis.core.storage.RetentionPolicy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -54,6 +61,7 @@ class DebugCommandReceiver : BroadcastReceiver() {
             ACTION_DEBUG_SETTINGS -> handleSettings(context, intent)
             ACTION_DEBUG_SANITIZE -> if (BuildConfig.DEBUG) handleSanitize(intent)
             ACTION_DEBUG_CONTEXT -> if (BuildConfig.DEBUG) handleContextSnapshot()
+            ACTION_DEBUG_MEMORY -> if (BuildConfig.DEBUG) handleMemory(context, intent)
         }
     }
 
@@ -97,6 +105,58 @@ class DebugCommandReceiver : BroadcastReceiver() {
             "context.events=${recent.size} " +
                 "types=${recent.map { it.type }.distinct().joinToString(",")}",
         )
+    }
+
+    /**
+     * Состояние постоянной памяти: только числа и метаданные, без текстов.
+     *
+     *   adb shell am broadcast -a com.jarvis.assistant.DEBUG_MEMORY \
+     *     -n com.jarvis.assistant/com.jarvis.app.DebugCommandReceiver \
+     *     [--es probe 482913]
+     *
+     * probe — необязательная проверка «есть ли подстрока в истории» (true/false),
+     * сам текст из БД не выводится.
+     */
+    private fun handleMemory(context: Context, intent: Intent) {
+        val app = context.applicationContext
+        val now = System.currentTimeMillis()
+        val db = JarvisDb.get(app)
+        val facts = FactsRepository(db)
+        val conversations = ConversationRepository(db)
+        val dbFile = app.getDatabasePath(JarvisSchema.DB_NAME)
+        val walFile = java.io.File(dbFile.path + "-wal")
+        val prefs = app.getSharedPreferences("jarvis_prefs", Context.MODE_PRIVATE)
+
+        Log.d(
+            TAG,
+            "memory: schema=v${db.readableDatabase.version} dbBytes=${dbFile.length()} " +
+                "walBytes=${if (walFile.exists()) walFile.length() else 0L}",
+        )
+        Log.d(
+            TAG,
+            "memory: facts=${facts.count()} messages=${conversations.count()} " +
+                "keep=${conversations.keepCount()}",
+        )
+        val boundaries = conversations.boundaries()
+        Log.d(
+            TAG,
+            "memory: newestAgeMs=${RetentionPolicy.ageMs(boundaries.second, now)} " +
+                "oldestAgeMs=${RetentionPolicy.ageMs(boundaries.first, now)} " +
+                "ttlDays=${RetentionPolicy.CONVERSATION_TTL_MS / 86_400_000L}",
+        )
+        Log.d(
+            TAG,
+            "memory: migratedFacts=${prefs.getBoolean(FactPolicies.MIGRATED_FLAG, false)} " +
+                "journalInstalled=${ConversationJournal.isInstalled()} " +
+                "session=${ConversationJournal.sessionId.take(8)}",
+        )
+
+        val probe = intent.getStringExtra(EXTRA_PROBE)?.trim()
+        if (!probe.isNullOrEmpty()) {
+            val inMessages = conversations.containsText(probe)
+            val inFacts = facts.list().any { it.text.contains(probe) }
+            Log.d(TAG, "memory: probeLen=${probe.length} inMessages=$inMessages inFacts=$inFacts")
+        }
     }
 
     private fun handleCommand(context: Context, intent: Intent) {
@@ -380,10 +440,12 @@ class DebugCommandReceiver : BroadcastReceiver() {
         const val ACTION_DEBUG_SETTINGS = "com.jarvis.assistant.DEBUG_SETTINGS"
         const val ACTION_DEBUG_SANITIZE = "com.jarvis.assistant.DEBUG_SANITIZE"
         const val ACTION_DEBUG_CONTEXT = "com.jarvis.assistant.DEBUG_CONTEXT"
+        const val ACTION_DEBUG_MEMORY = "com.jarvis.assistant.DEBUG_MEMORY"
         private const val EXTRA_COMMAND = "command"
         private const val EXTRA_ACTION = "action"
         private const val EXTRA_TEXT = "text"
         private const val EXTRA_PACKAGE = "package"
+        private const val EXTRA_PROBE = "probe"
 
         /** Смещение до PCM в RIFF/WAVE (ищем chunk `data`). */
         private fun findWavDataOffset(data: ByteArray): Int {

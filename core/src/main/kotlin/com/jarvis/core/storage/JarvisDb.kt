@@ -21,9 +21,21 @@ class JarvisDb private constructor(context: Context) : SQLiteOpenHelper(
     JarvisSchema.VERSION,
 ) {
 
+    /** Для лога «сколько заняло открытие» (диагностика холодного старта). */
+    private val createdAtElapsed: Long = android.os.SystemClock.elapsedRealtime()
+
     init {
         // Должно быть вызвано до getWritableDatabase().
         setWriteAheadLoggingEnabled(true)
+    }
+
+    override fun onOpen(db: SQLiteDatabase) {
+        super.onOpen(db)
+        Log.i(
+            TAG,
+            "opened in ${android.os.SystemClock.elapsedRealtime() - createdAtElapsed}ms " +
+                "wal=${db.isWriteAheadLoggingEnabled} version=${db.version}",
+        )
     }
 
     override fun onConfigure(db: SQLiteDatabase) {
