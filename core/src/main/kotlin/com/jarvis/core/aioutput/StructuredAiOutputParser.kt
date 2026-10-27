@@ -47,7 +47,9 @@ object StructuredAiOutputParser {
      * Prefer fenced ```json``` or first balanced `{...}` object.
      */
     internal fun isolateJson(text: String): String? {
-        val fenced = Regex("""```(?:json)?\s*(\{[\s\S]*?})\s*```""", RegexOption.IGNORE_CASE)
+        // `}` must be escaped: Android's ICU regex rejects a bare closing brace
+        // (PatternSyntaxException), while OpenJDK tolerates it.
+        val fenced = Regex("""```(?:json)?\s*(\{[\s\S]*?\})\s*```""", RegexOption.IGNORE_CASE)
             .find(text)?.groupValues?.get(1)
         if (fenced != null) return fenced.trim()
 
