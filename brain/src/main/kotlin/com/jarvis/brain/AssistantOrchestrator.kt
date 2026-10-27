@@ -15,6 +15,7 @@ import com.jarvis.core.model.AssistantState
 import com.jarvis.core.nlp.AsrPhraseNormalizer
 import com.jarvis.core.nlp.Transliterator
 import com.jarvis.core.privacy.SensitivityClassifier
+import com.jarvis.core.storage.ConversationJournal
 import com.jarvis.core.runtime.traceLabel
 import com.jarvis.core.runtime.applyStructured
 import com.jarvis.core.runtime.applyLatency
@@ -125,7 +126,7 @@ class AssistantOrchestrator(
         applySemanticToTrace(trace, semantic, route)
         if (route != com.jarvis.core.runtime.RouteDecision.CHAT) return null
 
-        context.addUser(normalizedRequest.text)
+        rememberUser(normalizedRequest.text)
         state(AssistantState.THINKING)
 
         val assembled = if (memoryEnabled && llmContextAssembly != null) {
@@ -290,14 +291,14 @@ class AssistantOrchestrator(
             val text = normalizedRequest.text.lowercase().trim()
             val fresh = !isYes(text) && !isNo(text) && looksLikeFreshCommand(text, pending)
             if (!fresh) {
-                context.addUser(normalizedRequest.text)
+                rememberUser(normalizedRequest.text)
                 val resp = handlePending(normalizedRequest, pending, startedAt, trace)
                 return finalizeTrace(resp, trace, startedAt)
             }
             context.clearPending()
         }
 
-        context.addUser(normalizedRequest.text)
+        rememberUser(normalizedRequest.text)
         state(AssistantState.THINKING)
 
         // Follow-up («выключи», «тише», «а в Донецке») — до semantic / incomplete
@@ -1627,7 +1628,19 @@ class AssistantOrchestrator(
      * меняется).
      */
     private fun rememberReply(text: String) {
-        context.addAssistant(SensitivityClassifier.mask(text))
+        val masked = SensitivityClassifier.mask(text)
+        context.addAssistant(masked)
+        ConversationJournal.appendAssistant(masked)
+    }
+
+    /**
+     * Реплика пользователя: в память контекста — как есть (дедуп и follow-up
+     * сравнивают с исходным текстом), на диск — только masked-версия
+     * (это делает [ConversationJournal]).
+     */
+    private fun rememberUser(text: String) {
+        context.addUser(text)
+        ConversationJournal.appendUser(text)
     }
 
     /**

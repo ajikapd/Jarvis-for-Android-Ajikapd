@@ -1,5 +1,6 @@
 package com.jarvis.app
 
+import com.jarvis.core.storage.ConversationJournal
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -8,6 +9,10 @@ import java.util.concurrent.CopyOnWriteArrayList
 /**
  * In-process assistant thread for UI 3.0 Ассистент tab.
  * Fed from DashboardActivity events — not a second voice owner.
+ *
+ * Параллельно с RAM-пузырями каждая реплика пишется в постоянную историю
+ * ([ConversationJournal] → `conversation_messages`), причём только в masked-виде.
+ * [Bubble.dbId] связывает пузырь со строкой БД, чтобы «избранное» = keep=1.
  */
 object ConversationStore {
     data class Bubble(
@@ -18,6 +23,8 @@ object ConversationStore {
         val badge: String? = null,
         val plan: String? = null,
         val favorite: Boolean = false,
+        /** id строки conversation_messages; null для системных/несохранённых. */
+        val dbId: String? = null,
     ) {
         enum class Role { USER, AI, SYSTEM }
     }
@@ -27,12 +34,14 @@ object ConversationStore {
 
     fun pushUser(text: String) {
         if (text.isBlank()) return
+        val clean = text.trim()
         items.add(
             Bubble(
                 id = ++seq,
                 role = Bubble.Role.USER,
-                text = text.trim(),
+                text = clean,
                 atMs = System.currentTimeMillis(),
+                dbId = ConversationJournal.appendUser(clean),
             ),
         )
         trim()
@@ -40,16 +49,37 @@ object ConversationStore {
 
     fun pushAi(text: String, badge: String? = null, plan: String? = null) {
         if (text.isBlank()) return
+        val clean = text.trim()
         items.add(
             Bubble(
                 id = ++seq,
                 role = Bubble.Role.AI,
-                text = text.trim(),
+                text = clean,
                 atMs = System.currentTimeMillis(),
                 badge = badge,
                 plan = plan,
+                dbId = ConversationJournal.appendAssistant(clean),
             ),
         )
+        trim()
+    }
+
+    /** Поднимает историю из БД при старте процесса (только если RAM ещё пуст). */
+    fun restore(entries: List<ConversationJournal.Entry>) {
+        if (entries.isEmpty() || items.isNotEmpty()) return
+        entries.forEach { e ->
+            val role = if (e.role == "user") Bubble.Role.USER else Bubble.Role.AI
+            items.add(
+                Bubble(
+                    id = ++seq,
+                    role = role,
+                    text = e.text,
+                    atMs = e.createdAt,
+                    favorite = e.keep,
+                    dbId = e.id,
+                ),
+            )
+        }
         trim()
     }
 
@@ -57,7 +87,10 @@ object ConversationStore {
         val idx = items.indexOfFirst { it.id == id }
         if (idx >= 0) {
             val old = items[idx]
-            items[idx] = old.copy(favorite = !old.favorite)
+            val next = !old.favorite
+            items[idx] = old.copy(favorite = next)
+            // «Избранное» = keep=1 в постоянной истории.
+            ConversationJournal.setKeep(old.dbId, next)
         }
     }
 

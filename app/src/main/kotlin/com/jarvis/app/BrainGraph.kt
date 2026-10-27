@@ -61,6 +61,8 @@ object BrainGraph {
 
     @Volatile private var cached: AssistantOrchestrator? = null
     @Volatile private var memoryInstance: LongTermMemory? = null
+    /** Тот же ConversationContext, что у оркестратора (для очистки с экрана «Память»). */
+    @Volatile private var dialogueContext: com.jarvis.core.common.model.ConversationContext? = null
     @Volatile private var llmBrain: LlmBrain? = null
     @Volatile private var chatLlm: LlamaChatLlmEngine? = null
     @Volatile private var appContext: Context? = null
@@ -390,13 +392,16 @@ object BrainGraph {
 
         val brainRouter = buildBrainRouter(ctx)
 
+        val conversationContext = ConversationContext().also { seedDialogueHistory(it) }
+        dialogueContext = conversationContext
+
         val orchestrator = AssistantOrchestrator(
             brainRouter = brainRouter,
             skillRetriever = retriever,
             toolRegistry = toolRegistry,
             toolExecutor = toolExecutor,
             toolPolicy = RiskBasedPolicy(),
-            context = ConversationContext(),
+            context = conversationContext,
             longTermMemory = memory,
             dialogue = DialogueResponder(
                 ctx,
@@ -539,6 +544,38 @@ object BrainGraph {
                 android.util.Log.w("Jarvis.ChatLlm", "eager preload failed: ${e.message}")
             }
         }, "chat-preload").start()
+    }
+
+    /**
+     * Холодная загрузка недавнего разговора: последние 20 реплик не старше 48 часов
+     * из conversation_messages. Дедуп/«повтори» работают как раньше — лимит
+     * ConversationContext (20) не меняется.
+     */
+    private fun seedDialogueHistory(context: ConversationContext) {
+        if (!com.jarvis.core.storage.ConversationJournal.isInstalled()) return
+        val startedAt = System.currentTimeMillis()
+        runCatching {
+            val entries = com.jarvis.core.storage.ConversationJournal.recent(
+                limit = com.jarvis.core.storage.RetentionPolicy.CONTEXT_RECENT_LIMIT,
+                maxAgeMs = com.jarvis.core.storage.RetentionPolicy.RECENT_WINDOW_MS,
+            )
+            entries.forEach { e ->
+                if (e.role == com.jarvis.core.storage.JarvisSchema.ROLE_USER) {
+                    context.addUser(e.text)
+                } else {
+                    context.addAssistant(e.text)
+                }
+            }
+            android.util.Log.i(
+                "Jarvis.ChatHistory",
+                "context restored n=${entries.size} in ${System.currentTimeMillis() - startedAt}ms",
+            )
+        }
+    }
+
+    /** «Стереть историю чата» на экране «Память»: чистим и RAM-контекст. */
+    fun clearDialogueHistory() {
+        dialogueContext?.clear()
     }
 
     fun memory(context: Context): LongTermMemory {
