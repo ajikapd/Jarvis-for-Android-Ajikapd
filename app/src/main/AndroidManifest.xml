@@ -197,6 +197,10 @@
             android:exported="false"
             android:theme="@style/Theme.Jarvis" />
 
+        <receiver
+            android:name=".proactive.ProactiveActionReceiver"
+            android:exported="false" />
+
         <service
             android:name="com.jarvis.backgroundservice.JarvisService"
             tools:node="remove" />

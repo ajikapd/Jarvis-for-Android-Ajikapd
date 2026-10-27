@@ -12,4 +12,11 @@
     <string name="memory_clear_facts_message">Все сохранённые факты о вас будут удалены безвозвратно.</string>
     <string name="memory_confirm_yes">Да</string>
     <string name="memory_confirm_no">Нет</string>
+    <!-- Проактивные предложения (Task 5, Б3) -->
+    <string name="proactive_channel_name">Предложения Jarvis</string>
+    <string name="proactive_channel_description">Тихие предложения без звука и вибрации</string>
+    <string name="proactive_action_yes">Да</string>
+    <string name="proactive_action_no">Нет</string>
+    <string name="proactive_action_later">Позже</string>
+    <string name="proactive_public_text">Jarvis: есть предложение</string>
 </resources>
