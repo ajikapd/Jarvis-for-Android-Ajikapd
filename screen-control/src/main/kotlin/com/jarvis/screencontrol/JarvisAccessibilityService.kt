@@ -11,6 +11,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import com.jarvis.core.companion.ObservationSource
 import com.jarvis.core.companion.ObservationType
 import com.jarvis.core.companion.PhoneContextBus
+import com.jarvis.core.privacy.SensitivityClassifier
 import com.jarvis.core.companion.PhoneObservation
 import com.jarvis.core.companion.Sensitivity
 
@@ -114,6 +115,8 @@ class JarvisAccessibilityService : AccessibilityService() {
         if (key == lastContentKey) return
         lastContentKey = key
         lastContentAtElapsed = now
+        // Содержимое чувствительного пакета не описываем вовсе — только факт смены окна.
+        val sensitivePackage = SensitivityClassifier.isSensitivePackage(pkg)
         // Не дублируем APP_FOREGROUND — только WINDOW_CHANGED с коротким hint.
         PhoneContextBus.publish(
             PhoneObservation(
@@ -121,33 +124,64 @@ class JarvisAccessibilityService : AccessibilityService() {
                 type = ObservationType.WINDOW_CHANGED,
                 packageName = pkg,
                 screenId = hint,
-                summary = "Контент: $pkg${hint?.let { " · $it" } ?: ""}",
+                summary = if (sensitivePackage) {
+                    "Контент: $pkg · скрыто"
+                } else {
+                    "Контент: $pkg${hint?.let { " · $it" } ?: ""}"
+                },
                 entities = buildMap {
                     put("package", pkg)
                     put("kind", "content")
                     if (!hint.isNullOrBlank()) put("hint", hint.take(48))
                 },
-                sensitivity = Sensitivity.NORMAL,
+                sensitivity = if (sensitivePackage) Sensitivity.SECRET else Sensitivity.NORMAL,
                 confidence = 0.55f,
             ),
         )
         Log.d(TAG, "WINDOW_CONTENT $pkg hint=$hint")
     }
 
+    /**
+     * Короткий текстовый намёк для события WINDOW_CONTENT.
+     *
+     * Возвращает null (событие публикуется без текста) если:
+     * - пакет чувствительный (банк/платёжное/менеджер паролей/аутентификатор);
+     * - на экране есть поле ввода пароля (isPassword);
+     * - [SensitivityClassifier] считает текст SECRET (код, номер карты).
+     */
     private fun lightweightContentHint(pkg: String): String? {
+        if (SensitivityClassifier.isSensitivePackage(pkg)) return null
         val root = rootInActiveWindow ?: return null
         if (root.packageName?.toString() != pkg) return null
         return runCatching {
+            if (hasPasswordField(root, depth = 0)) return@runCatching null
             val title = root.contentDescription?.toString()?.trim().orEmpty()
                 .ifBlank { root.text?.toString()?.trim().orEmpty() }
                 .ifBlank {
                     // Первый текстовый ребёнок (ограниченный обход).
                     firstText(root, depth = 0)
                 }
-            title.take(40).takeIf { it.isNotBlank() }
+            if (SensitivityClassifier.classify(title, pkg) == Sensitivity.SECRET) {
+                null
+            } else {
+                title.take(40).takeIf { it.isNotBlank() }
+            }
         }.getOrNull().also {
             runCatching { root.recycle() }
         }
+    }
+
+    /** Поле пароля в ограниченном поддереве — текст не читаем вовсе. */
+    private fun hasPasswordField(node: AccessibilityNodeInfo, depth: Int): Boolean {
+        if (depth > 3) return false
+        if (runCatching { node.isPassword }.getOrDefault(false)) return true
+        for (i in 0 until node.childCount.coerceAtMost(6)) {
+            val child = node.getChild(i) ?: continue
+            val found = hasPasswordField(child, depth + 1)
+            runCatching { child.recycle() }
+            if (found) return true
+        }
+        return false
     }
 
     private fun firstText(node: AccessibilityNodeInfo, depth: Int): String {

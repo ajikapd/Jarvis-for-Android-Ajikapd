@@ -13,13 +13,17 @@ import com.jarvis.core.companion.ObservationType
 import com.jarvis.core.companion.PhoneContextBus
 import com.jarvis.core.companion.PhoneObservation
 import com.jarvis.core.companion.Sensitivity
-import java.util.concurrent.ConcurrentHashMap
+import java.util.LinkedHashMap
 
 /**
  * Слушает активные уведомления. Снимок доступен через [snapshot].
  * Поддерживает текстовый reply через [RemoteInput].
  *
  * Companion Stage 3: posted/removed → [PhoneContextBus] (с фильтром, без полного текста).
+ *
+ * Приватность: кэш ограничен [NotificationPrivacy.MAX_CACHE_ENTRIES] записями (FIFO),
+ * текст/заголовок проходят через [NotificationPrivacy.sanitize]; содержимое
+ * уведомлений чувствительных пакетов в кэш не попадает.
  */
 class JarvisNotificationListenerService : NotificationListenerService() {
 
@@ -42,13 +46,14 @@ class JarvisNotificationListenerService : NotificationListenerService() {
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         sbn ?: return
-        cache[keyOf(sbn)] = toInfo(sbn)
+        val info = toInfo(sbn)
+        synchronized(cache) { cache[keyOf(sbn)] = info }
         publishToBus(sbn, posted = true)
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
         sbn ?: return
-        cache.remove(keyOf(sbn))
+        synchronized(cache) { cache.remove(keyOf(sbn)) }
         publishToBus(sbn, posted = false)
     }
 
@@ -62,14 +67,17 @@ class JarvisNotificationListenerService : NotificationListenerService() {
             lastPostedAtElapsed = now
         }
         val pkg = sbn.packageName.orEmpty().ifBlank { return }
-        val title = sbn.notification.extras
-            ?.getCharSequence(Notification.EXTRA_TITLE)
-            ?.toString()
-            ?.trim()
-            .orEmpty()
-        val shortTitle = title.take(40).let { if (title.length > 40) "$it…" else it }
+        val sensitive = com.jarvis.core.privacy.SensitivityClassifier.isSensitivePackage(pkg)
+        val shortTitle = NotificationPrivacy.summaryTitle(
+            sbn.notification.extras?.getCharSequence(Notification.EXTRA_TITLE),
+            pkg,
+        )
         val summary = if (posted) {
-            if (shortTitle.isNotBlank()) "Уведомление: $pkg · $shortTitle" else "Уведомление: $pkg"
+            when {
+                sensitive -> "Уведомление: $pkg · скрыто"
+                shortTitle.isNotBlank() -> "Уведомление: $pkg · $shortTitle"
+                else -> "Уведомление: $pkg"
+            }
         } else {
             "Уведомление снято: $pkg"
         }
@@ -84,7 +92,7 @@ class JarvisNotificationListenerService : NotificationListenerService() {
                     "ongoing" to sbn.isOngoing.toString(),
                     "has_title" to (shortTitle.isNotBlank()).toString(),
                 ),
-                sensitivity = Sensitivity.PRIVATE,
+                sensitivity = if (sensitive) Sensitivity.SECRET else Sensitivity.PRIVATE,
                 confidence = 0.85f,
             ),
         )
@@ -105,22 +113,26 @@ class JarvisNotificationListenerService : NotificationListenerService() {
     }
 
     fun refresh() {
-        cache.clear()
-        activeNotifications?.forEach { cache[keyOf(it)] = toInfo(it) }
+        val fresh = activeNotifications?.map { keyOf(it) to toInfo(it) }.orEmpty()
+        synchronized(cache) {
+            cache.clear()
+            fresh.forEach { (k, v) -> cache[k] = v }
+        }
     }
 
-    fun list(): List<NotificationInfo> = cache.values.sortedByDescending { it.postTime }
+    fun list(): List<NotificationInfo> =
+        synchronized(cache) { cache.values.sortedByDescending { it.postTime } }
 
     fun dismiss(key: String): Boolean = try {
         cancelNotification(key)
-        cache.remove(key)
+        synchronized(cache) { cache.remove(key) }
         true
     } catch (_: Throwable) {
         false
     }
 
     fun sendAction(key: String, actionIndex: Int): Boolean {
-        val info = cache[key] ?: return false
+        val info = synchronized(cache) { cache[key] } ?: return false
         val action = info.actions.getOrNull(actionIndex) ?: return false
         val pi = action.actionIntent ?: return false
         return try {
@@ -163,12 +175,12 @@ class JarvisNotificationListenerService : NotificationListenerService() {
     private fun toInfo(sbn: StatusBarNotification): NotificationInfo {
         val n = sbn.notification
         val extras = n.extras
-        val title = extras?.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
-        val text = extras?.getCharSequence(Notification.EXTRA_TEXT)?.toString().orEmpty()
+        val title = NotificationPrivacy.sanitize(extras?.getCharSequence(Notification.EXTRA_TITLE), sbn.packageName)
+        val text = NotificationPrivacy.sanitize(extras?.getCharSequence(Notification.EXTRA_TEXT), sbn.packageName)
         val actions = n.actions?.mapIndexed { i, a ->
             NotificationActionInfo(
                 index = i,
-                title = a.title?.toString().orEmpty(),
+                title = NotificationPrivacy.sanitize(a.title, sbn.packageName),
                 actionIntent = a.actionIntent,
                 canReply = a.remoteInputs?.isNotEmpty() == true,
             )
@@ -187,7 +199,12 @@ class JarvisNotificationListenerService : NotificationListenerService() {
         private const val TAG = "Jarvis.NLS"
         @Volatile var instance: JarvisNotificationListenerService? = null
             private set
-        private val cache = ConcurrentHashMap<String, NotificationInfo>()
+
+        /** FIFO-кэш: вытесняется самая старая запись, содержимое уже обезличено. */
+        private val cache = object : LinkedHashMap<String, NotificationInfo>(16, 0.75f, false) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, NotificationInfo>?): Boolean =
+                size > NotificationPrivacy.MAX_CACHE_ENTRIES
+        }
 
         fun isConnected(): Boolean = instance != null
 

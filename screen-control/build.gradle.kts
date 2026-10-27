@@ -24,4 +24,5 @@ dependencies {
     implementation(project(":core"))
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.mlkit.text.recognition)
+    testImplementation(libs.junit)
 }
