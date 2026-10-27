@@ -74,7 +74,7 @@ object ProactiveDelivery {
 
         // Дедупликация и отсрочка — до показа. Сами подавления тоже пишем в журнал.
         if (decision.type != ProactiveDecisionType.NO_OP) {
-            if (ProactiveDeliveryLog.isSnoozed(context, fingerprint, now)) {
+            if (ProactiveDeliveryLog.isSnoozed(context, fingerprint, patternKey, now)) {
                 return suppress(
                     context = context,
                     deliveryId = deliveryId,

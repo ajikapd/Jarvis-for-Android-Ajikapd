@@ -18,26 +18,40 @@ class ProactiveActionReceiver : BroadcastReceiver() {
         val deliveryId = intent.getStringExtra(EXTRA_DELIVERY_ID) ?: return
         val patternKey = intent.getStringExtra(EXTRA_PATTERN_KEY)
         val fingerprint = intent.getStringExtra(EXTRA_FINGERPRINT)
-
-        Log.i(
-            TAG,
-            "receive action=$action id=$deliveryId key=${patternKey ?: "—"} " +
-                "fp=${fingerprint ?: "—"}",
-        )
-        ProactiveDelivery.handleAction(
-            context = context.applicationContext,
-            action = action,
-            deliveryId = deliveryId,
-            patternKey = patternKey,
-            fingerprint = fingerprint,
-        )
-        if (action == ACTION_YES || action == ACTION_NO || action == ACTION_LATER) {
-            ProactiveNotification.cancel(context.applicationContext, deliveryId)
-        }
+        perform(context.applicationContext, action, deliveryId, patternKey, fingerprint)
     }
 
     companion object {
         private const val TAG = "Jarvis.ProactiveDelivery"
+
+        /**
+         * Общая точка для PendingIntent кнопок и debug-хука
+         * DEBUG_PROACTIVE_ACTION: журнал + feedback + снятие уведомления.
+         */
+        fun perform(
+            context: Context,
+            action: String,
+            deliveryId: String,
+            patternKey: String?,
+            fingerprint: String?,
+        ) {
+            val app = context.applicationContext
+            Log.i(
+                TAG,
+                "receive action=$action id=$deliveryId key=${patternKey ?: "—"} " +
+                    "fp=${fingerprint ?: "—"}",
+            )
+            ProactiveDelivery.handleAction(
+                context = app,
+                action = action,
+                deliveryId = deliveryId,
+                patternKey = patternKey,
+                fingerprint = fingerprint,
+            )
+            if (action == ACTION_YES || action == ACTION_NO || action == ACTION_LATER) {
+                ProactiveNotification.cancel(app, deliveryId)
+            }
+        }
 
         const val ACTION_YES = "com.jarvis.assistant.PROACTIVE_YES"
         const val ACTION_NO = "com.jarvis.assistant.PROACTIVE_NO"

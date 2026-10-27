@@ -6,11 +6,19 @@ import android.content.Intent
 import android.util.Log
 import com.jarvis.asr.SherpaAsrSession
 import com.jarvis.app.proactive.PhoneStateReader
+import com.jarvis.app.proactive.ProactiveActionReceiver
+import com.jarvis.app.proactive.ProactiveDelivery
+import com.jarvis.app.proactive.ProactiveDeliveryLog
+import com.jarvis.app.proactive.ProactiveNotification
 import com.jarvis.core.common.model.UserRequest
 import com.jarvis.core.companion.PhoneContextBus
 import com.jarvis.core.privacy.SensitivityClassifier
 import com.jarvis.core.proactive.DeliveryDecider
+import com.jarvis.core.proactive.DeliveryMode
+import com.jarvis.core.proactive.ProactiveDecision
 import com.jarvis.core.proactive.ProactiveDecisionType
+import com.jarvis.core.proactive.ProactiveReasonCode
+import com.jarvis.core.proactive.ProactiveText
 import com.jarvis.core.storage.ConversationJournal
 import com.jarvis.core.storage.ConversationRepository
 import com.jarvis.core.storage.FactPolicies
@@ -66,6 +74,13 @@ class DebugCommandReceiver : BroadcastReceiver() {
             ACTION_DEBUG_CONTEXT -> if (BuildConfig.DEBUG) handleContextSnapshot()
             ACTION_DEBUG_MEMORY -> if (BuildConfig.DEBUG) handleMemory(context, intent)
             ACTION_DEBUG_PROACTIVE_STATE -> if (BuildConfig.DEBUG) handleProactiveState(context)
+            ACTION_DEBUG_PROACTIVE -> if (BuildConfig.DEBUG) handleProactive(context, intent)
+            ACTION_DEBUG_PROACTIVE_ACTION -> if (BuildConfig.DEBUG) {
+                handleProactiveAction(context, intent)
+            }
+            ACTION_DEBUG_PROACTIVE_CLEAR -> if (BuildConfig.DEBUG) {
+                handleProactiveClear(context, intent)
+            }
         }
     }
 
@@ -183,6 +198,138 @@ class DebugCommandReceiver : BroadcastReceiver() {
         Log.i(
             PROACTIVE_TAG,
             "state decision type=SUGGESTION mode=${decision.mode} reason=${decision.reason}",
+        )
+    }
+
+    /**
+     * Б5: синтетическая доставка (только debug).
+     *
+     *   adb shell am broadcast -a com.jarvis.assistant.DEBUG_PROACTIVE \
+     *     -n com.jarvis.assistant/com.jarvis.app.DebugCommandReceiver \
+     *     [--es mode auto|voice|silent] \
+     *     [--es fakeState none|silent|dnd|call|session|nonotif|novoice]
+     *
+     * Текст фиксированный, произвольный не принимается. Лимиты проактивности и
+     * бюджет не расходуются: ProactiveDecisionEngine здесь не вызывается.
+     */
+    private fun handleProactive(context: Context, intent: Intent) {
+        val app = context.applicationContext
+        val modeRaw = intent.getStringExtra(EXTRA_MODE)?.trim()?.lowercase()
+        val mode = when (modeRaw) {
+            null, "", "auto" -> "auto"
+            "voice", "silent" -> modeRaw
+            else -> {
+                Log.d(TAG, "proactive: unknown mode=$modeRaw, using auto")
+                "auto"
+            }
+        }
+        val fakeRaw = intent.getStringExtra(EXTRA_FAKE_STATE)?.trim()?.lowercase()
+        val fake = when {
+            fakeRaw.isNullOrBlank() -> null
+            fakeRaw in PhoneStateReader.knownFakeStates() -> fakeRaw
+            else -> {
+                Log.d(TAG, "proactive: unknown fakeState=$fakeRaw, using real state")
+                null
+            }
+        }
+        val state = PhoneStateReader.applyFake(PhoneStateReader.read(app), fake)
+        val now = System.currentTimeMillis()
+        val decision = ProactiveDecision(
+            type = ProactiveDecisionType.SUGGESTION,
+            behaviorPatternKey = SYNTHETIC_PATTERN_KEY,
+            fingerprint = "debug:synthetic:$now:${java.util.UUID.randomUUID()}",
+            reasonCode = ProactiveReasonCode.SELECTED,
+            reason = SYNTHETIC_TEXT,
+            confidence = 1f,
+            relevance = 1f,
+            createdAtMillis = now,
+        )
+        val text = ProactiveText(
+            voice = SYNTHETIC_TEXT,
+            title = "Jarvis: проверка доставки",
+            body = SYNTHETIC_TEXT,
+        )
+        val outcome = ProactiveDelivery.deliver(
+            context = app,
+            decision = decision,
+            text = text,
+            fakeState = fake,
+            modeOverride = mode,
+        )
+        Log.i(
+            PROACTIVE_TAG,
+            "debug proactive mode=$mode fake=${fake ?: "none"} " +
+                "state ringer=${state.ringerMode} filter=${state.interruptionFilter} " +
+                "call=${state.callActive} session=${state.jarvisSessionActive} " +
+                "speaking=${state.jarvisSpeaking} notifications=${state.notificationsAllowed} " +
+                "voice=${state.voiceAvailable}",
+        )
+        Log.i(
+            PROACTIVE_TAG,
+            "debug proactive id=${outcome.deliveryId} mode=${outcome.mode} " +
+                "reason=${outcome.reason} notification=${outcome.notificationShown} " +
+                "voiceRequested=${outcome.voiceRequested} duplicate=${outcome.duplicate} " +
+                "focus=see VoiceService log budget=untouched",
+        )
+    }
+
+    /**
+     * Б5: нажать кнопку уведомления без UI.
+     *
+     *   adb shell am broadcast -a com.jarvis.assistant.DEBUG_PROACTIVE_ACTION \
+     *     -n com.jarvis.assistant/com.jarvis.app.DebugCommandReceiver \
+     *     --es action yes|no|later [--es deliveryId ...]
+     *
+     * Без deliveryId берётся последняя показанная (не SUPPRESS) запись журнала.
+     */
+    private fun handleProactiveAction(context: Context, intent: Intent) {
+        val app = context.applicationContext
+        val raw = intent.getStringExtra(EXTRA_ACTION)?.trim()?.lowercase()
+        val action = when (raw) {
+            "yes" -> ProactiveActionReceiver.ACTION_YES
+            "no" -> ProactiveActionReceiver.ACTION_NO
+            "later" -> ProactiveActionReceiver.ACTION_LATER
+            else -> {
+                Log.d(TAG, "proactive action: --es action yes|no|later required (got=$raw)")
+                return
+            }
+        }
+        val requestedId = intent.getStringExtra(EXTRA_DELIVERY_ID)
+        val entry = requestedId?.let { ProactiveDeliveryLog.find(app, it) }
+            ?: ProactiveDeliveryLog.all(app).lastOrNull { it.mode != DeliveryMode.SUPPRESS.name }
+        if (entry == null) {
+            Log.i(PROACTIVE_TAG, "debug proactive action=$raw skipped: no delivery in log")
+            return
+        }
+        val deliveryId = requestedId ?: entry.deliveryId
+        Log.i(
+            PROACTIVE_TAG,
+            "debug proactive action=$raw id=$deliveryId key=${entry.patternKey ?: "—"}",
+        )
+        ProactiveActionReceiver.perform(
+            context = app,
+            action = action,
+            deliveryId = deliveryId,
+            patternKey = entry.patternKey,
+            fingerprint = entry.fingerprint,
+        )
+    }
+
+    /**
+     * Б5: снять синтетические уведомления. С --ez log true очищает журнал
+     * доставки целиком.
+     */
+    private fun handleProactiveClear(context: Context, intent: Intent) {
+        val app = context.applicationContext
+        val synthetic = ProactiveDeliveryLog.all(app).filter {
+            it.patternKey?.startsWith(SYNTHETIC_PATTERN_PREFIX) == true
+        }
+        synthetic.forEach { ProactiveNotification.cancel(app, it.deliveryId) }
+        val clearLog = intent.getBooleanExtra(EXTRA_LOG, false)
+        if (clearLog) ProactiveDeliveryLog.clear(app)
+        Log.i(
+            PROACTIVE_TAG,
+            "debug proactive clear notifications=${synthetic.size} logCleared=$clearLog",
         )
     }
 
@@ -469,11 +616,21 @@ class DebugCommandReceiver : BroadcastReceiver() {
         const val ACTION_DEBUG_CONTEXT = "com.jarvis.assistant.DEBUG_CONTEXT"
         const val ACTION_DEBUG_MEMORY = "com.jarvis.assistant.DEBUG_MEMORY"
         const val ACTION_DEBUG_PROACTIVE_STATE = "com.jarvis.assistant.DEBUG_PROACTIVE_STATE"
+        const val ACTION_DEBUG_PROACTIVE = "com.jarvis.assistant.DEBUG_PROACTIVE"
+        const val ACTION_DEBUG_PROACTIVE_ACTION = "com.jarvis.assistant.DEBUG_PROACTIVE_ACTION"
+        const val ACTION_DEBUG_PROACTIVE_CLEAR = "com.jarvis.assistant.DEBUG_PROACTIVE_CLEAR"
         private const val EXTRA_COMMAND = "command"
         private const val EXTRA_ACTION = "action"
         private const val EXTRA_TEXT = "text"
         private const val EXTRA_PACKAGE = "package"
         private const val EXTRA_PROBE = "probe"
+        private const val EXTRA_MODE = "mode"
+        private const val EXTRA_FAKE_STATE = "fakeState"
+        private const val EXTRA_DELIVERY_ID = "deliveryId"
+        private const val EXTRA_LOG = "log"
+        private const val SYNTHETIC_TEXT = "Синтетика: проверка доставки"
+        private const val SYNTHETIC_PATTERN_KEY = "debug:synthetic"
+        private const val SYNTHETIC_PATTERN_PREFIX = "debug:"
 
         /** Смещение до PCM в RIFF/WAVE (ищем chunk `data`). */
         private fun findWavDataOffset(data: ByteArray): Int {

@@ -88,16 +88,19 @@ object ProactiveDeliveryLog {
         }
     }
 
-    /** Пользователь нажал «Позже», и час ещё не прошёл. */
+    /** Пользователь нажал «Позже», и час ещё не прошёл (тот же fingerprint или паттерн). */
     fun isSnoozed(
         context: Context,
         fingerprint: String?,
+        patternKey: String? = null,
         now: Long = System.currentTimeMillis(),
     ): Boolean {
-        if (fingerprint.isNullOrBlank()) return false
+        val fp = fingerprint?.takeIf { it.isNotBlank() }
+        val key = patternKey?.takeIf { it.isNotBlank() }
+        if (fp == null && key == null) return false
         return synchronized(lock) {
             readRaw(context).any {
-                it.fingerprint == fingerprint &&
+                (it.fingerprint == fp || (key != null && it.patternKey == key)) &&
                     it.userAction == ACTION_LATER &&
                     (it.snoozeUntil ?: 0L) > now
             }
