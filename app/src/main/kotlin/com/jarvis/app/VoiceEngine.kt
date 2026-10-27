@@ -451,6 +451,10 @@ class VoiceEngine(
         speaker?.stop()
     }
 
+    /** true, пока Jarvis реально произносит текст (для проактивной доставки). */
+    val isSpeaking: Boolean
+        get() = speaker?.isSpeaking() == true
+
     /** V2-07: begin queued sentence TTS for LLM stream. */
     fun beginStreamSpeak(): Int = speaker?.beginStreamSpeak() ?: 0
 
@@ -627,6 +631,14 @@ object VoiceController {
     @Volatile
     var isLiveSession: Boolean = false
         private set
+
+    /** true, если VoiceService жив и TTS-движок присоединён (можно говорить). */
+    val hasEngine: Boolean
+        get() = activeEngine != null
+
+    /** true, если Jarvis сейчас произносит текст. */
+    val isSpeaking: Boolean
+        get() = activeEngine?.isSpeaking == true
 
     /** Откуда последний раз подняли VoiceService (diagnostics). */
     @Volatile

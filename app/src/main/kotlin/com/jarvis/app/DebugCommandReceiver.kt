@@ -5,9 +5,12 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import com.jarvis.asr.SherpaAsrSession
+import com.jarvis.app.proactive.PhoneStateReader
 import com.jarvis.core.common.model.UserRequest
 import com.jarvis.core.companion.PhoneContextBus
 import com.jarvis.core.privacy.SensitivityClassifier
+import com.jarvis.core.proactive.DeliveryDecider
+import com.jarvis.core.proactive.ProactiveDecisionType
 import com.jarvis.core.storage.ConversationJournal
 import com.jarvis.core.storage.ConversationRepository
 import com.jarvis.core.storage.FactPolicies
@@ -62,6 +65,7 @@ class DebugCommandReceiver : BroadcastReceiver() {
             ACTION_DEBUG_SANITIZE -> if (BuildConfig.DEBUG) handleSanitize(intent)
             ACTION_DEBUG_CONTEXT -> if (BuildConfig.DEBUG) handleContextSnapshot()
             ACTION_DEBUG_MEMORY -> if (BuildConfig.DEBUG) handleMemory(context, intent)
+            ACTION_DEBUG_PROACTIVE_STATE -> if (BuildConfig.DEBUG) handleProactiveState(context)
         }
     }
 
@@ -159,8 +163,30 @@ class DebugCommandReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun handleCommand(context: Context, intent: Intent) {
-        val text = intent.getStringExtra(EXTRA_COMMAND)?.trim().orEmpty()
+    /**
+     * Б1: реальный снимок состояния для проактивной доставки.
+     * Ничего не показывает и не говорит — только значения enum/boolean.
+     *
+     *   adb shell am broadcast -a com.jarvis.assistant.DEBUG_PROACTIVE_STATE \
+     *     -n com.jarvis.assistant/com.jarvis.app.DebugCommandReceiver
+     */
+    private fun handleProactiveState(context: Context) {
+        val state = PhoneStateReader.read(context)
+        Log.i(
+            PROACTIVE_TAG,
+            "state ringer=${state.ringerMode} filter=${state.interruptionFilter} " +
+                "call=${state.callActive} session=${state.jarvisSessionActive} " +
+                "speaking=${state.jarvisSpeaking} notifications=${state.notificationsAllowed} " +
+                "voice=${state.voiceAvailable}",
+        )
+        val decision = DeliveryDecider.decide(ProactiveDecisionType.SUGGESTION, state)
+        Log.i(
+            PROACTIVE_TAG,
+            "state decision type=SUGGESTION mode=${decision.mode} reason=${decision.reason}",
+        )
+    }
+
+    private fun handleCommand(context: Context, intent: Intent) {        val text = intent.getStringExtra(EXTRA_COMMAND)?.trim().orEmpty()
         // В logcat пишем только masked-версию: коды/карты из реплики не должны
         // оседать в системном логе. Сам запрос уходит в конвейер без изменений.
         Log.d(TAG, "command text=\"${SensitivityClassifier.mask(text)}\"")
@@ -432,6 +458,7 @@ class DebugCommandReceiver : BroadcastReceiver() {
 
     companion object {
         private const val TAG = "Jarvis.Debug"
+        private const val PROACTIVE_TAG = "Jarvis.ProactiveDelivery"
         private val asrTestLock = Any()
         const val ACTION_DEBUG_COMMAND = "com.jarvis.assistant.DEBUG_COMMAND"
         const val ACTION_DEBUG_VOICE = "com.jarvis.assistant.DEBUG_VOICE"
@@ -441,6 +468,7 @@ class DebugCommandReceiver : BroadcastReceiver() {
         const val ACTION_DEBUG_SANITIZE = "com.jarvis.assistant.DEBUG_SANITIZE"
         const val ACTION_DEBUG_CONTEXT = "com.jarvis.assistant.DEBUG_CONTEXT"
         const val ACTION_DEBUG_MEMORY = "com.jarvis.assistant.DEBUG_MEMORY"
+        const val ACTION_DEBUG_PROACTIVE_STATE = "com.jarvis.assistant.DEBUG_PROACTIVE_STATE"
         private const val EXTRA_COMMAND = "command"
         private const val EXTRA_ACTION = "action"
         private const val EXTRA_TEXT = "text"

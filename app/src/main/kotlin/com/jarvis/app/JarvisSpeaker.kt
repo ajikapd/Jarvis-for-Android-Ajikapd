@@ -126,6 +126,9 @@ class JarvisSpeaker(context: Context) {
 
     fun stop() = stopSpeaking()
 
+    /** true, пока проигрывается хоть один синтезированный фрагмент. */
+    fun isSpeaking(): Boolean = speechPlaying
+
     /**
      * V2-07: queue sentence chunks for sequential TTS without canceling prior chunk mid-play.
      * [onFirstAudio] fires once for the first chunk of this stream generation.
