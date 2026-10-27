@@ -8,6 +8,9 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.os.IBinder
 import android.os.Process
 import android.os.SystemClock
@@ -15,6 +18,8 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.jarvis.core.common.model.AssistantResponseStatus
 import com.jarvis.core.common.model.UserRequest
+import com.jarvis.core.event.JarvisEvents
+import com.jarvis.core.model.AssistantState
 import com.jarvis.core.privacy.SensitivityClassifier
 import com.jarvis.core.runtime.ImmediateAckPolicy
 import com.jarvis.core.runtime.InteractionGenerationGate
@@ -47,6 +52,15 @@ class VoiceService : Service() {
     private var engine: VoiceEngine? = null
     private val generationGate = InteractionGenerationGate()
     private var ackJob: Job? = null
+
+    // Б4: проактивная реплика (ACTION_SAY). Отдельный путь: обычные ответы
+    // не запрашивают аудиофокус и не меняют поведение.
+    private val audioManager: AudioManager?
+        get() = getSystemService(AudioManager::class.java)
+    private val sayLock = Any()
+    private var sayFocusRequest: AudioFocusRequest? = null
+    private var sayFocusHeld = false
+    private var sayInFlight = false
 
     private val coreListener = object : VoiceController.Listener {
         override fun onWake() {
@@ -268,6 +282,12 @@ class VoiceService : Service() {
                 Log.i(TAG, "onStartCommand LIVE entry=$entry")
                 if (engine != null) openLiveScreen() else startVoice(liveMode = true, entry = entry)
             }
+            ACTION_SAY -> {
+                if (!handleProactiveSay(intent)) {
+                    // Сервис не запущен — микрофон ради одной фразы не поднимаем.
+                    stopSelf(startId)
+                }
+            }
             else -> {
                 Log.i(TAG, "onStartCommand START entry=$entry")
                 startVoice(liveMode = false, entry = entry)
@@ -309,6 +329,109 @@ class VoiceService : Service() {
         } else {
             BrainGraph.warmChatLlm(this)
             Log.d(TAG, "low-power: chat warm only")
+        }
+    }
+
+    /**
+     * Б4: озвучить готовый текст предложения. Только если VoiceService уже
+     * работает, TTS-движок присоединён, Jarvis не говорит и нет активной
+     * сессии/диалога. Перед речью берём AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
+     * (USAGE_ASSISTANT / CONTENT_TYPE_SPEECH), после речи — abandon.
+     *
+     * @return false, если сервис/движок не готов (вызывающий может остановить
+     *         только что созданный экземпляр сервиса).
+     */
+    private fun handleProactiveSay(intent: Intent): Boolean {
+        val text = intent.getStringExtra(EXTRA_TEXT)?.trim().orEmpty()
+        if (text.isEmpty()) {
+            Log.i(SAY_TAG, "say skip: empty text")
+            return true
+        }
+        if (engine == null || !VoiceController.hasEngine) {
+            Log.i(SAY_TAG, "say skip: service not running")
+            return false
+        }
+        val state = JarvisEvents.assistantState.value
+        val session = VoiceController.isLiveSession ||
+            state == AssistantState.LISTENING ||
+            state == AssistantState.THINKING ||
+            state == AssistantState.SPEAKING
+        if (session) {
+            Log.i(SAY_TAG, "say skip: session active state=$state")
+            return true
+        }
+        if (VoiceController.isSpeaking) {
+            Log.i(SAY_TAG, "say skip: already speaking")
+            return true
+        }
+        synchronized(sayLock) {
+            if (sayInFlight) {
+                Log.i(SAY_TAG, "say skip: previous proactive phrase in flight")
+                return true
+            }
+            val am = audioManager ?: run {
+                Log.i(SAY_TAG, "say skip: no AudioManager")
+                return true
+            }
+            val request = buildSayFocusRequest()
+            val result = am.requestAudioFocus(request)
+            Log.i(
+                SAY_TAG,
+                "say focus request result=$result gain=TRANSIENT_MAY_DUCK " +
+                    "usage=ASSISTANT content=SPEECH",
+            )
+            if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+                Log.i(SAY_TAG, "say skip: audio focus denied")
+                return true
+            }
+            sayFocusRequest = request
+            sayFocusHeld = true
+            sayInFlight = true
+        }
+        Log.i(SAY_TAG, "say accepted chars=${text.length} state=$state")
+        VoiceController.speak(
+            text = text,
+            onComplete = { finishProactiveSay("complete") },
+            onFirstAudio = { ms -> Log.i(SAY_TAG, "say first-audio ${ms}ms") },
+        )
+        return true
+    }
+
+    private fun buildSayFocusRequest(): AudioFocusRequest =
+        AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ASSISTANT)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build(),
+            )
+            .setWillPauseWhenDucked(false)
+            .setOnAudioFocusChangeListener { change ->
+                Log.i(SAY_TAG, "say focus change=$change")
+                if (
+                    change == AudioManager.AUDIOFOCUS_LOSS ||
+                    change == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT
+                ) {
+                    VoiceController.stopSpeaking()
+                    finishProactiveSay("focus_lost")
+                }
+            }
+            .build()
+
+    private fun finishProactiveSay(reason: String) {
+        synchronized(sayLock) {
+            if (!sayInFlight) return
+            sayInFlight = false
+            val request = sayFocusRequest
+            val held = sayFocusHeld
+            sayFocusRequest = null
+            sayFocusHeld = false
+            if (held && request != null) {
+                audioManager?.abandonAudioFocusRequest(request)
+                Log.i(SAY_TAG, "say focus abandon reason=$reason")
+            } else {
+                Log.i(SAY_TAG, "say finished reason=$reason (no focus)")
+            }
         }
     }
 
@@ -369,6 +492,7 @@ class VoiceService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        finishProactiveSay("destroy")
         if (coreRegistered) VoiceController.removeListener(coreListener)
         engine?.stop()
         engine = null
@@ -384,7 +508,10 @@ class VoiceService : Service() {
         const val ACTION_LIVE_START = "com.jarvis.assistant.VOICE_LIVE_START"
         const val ACTION_STOP = "com.jarvis.assistant.VOICE_STOP"
         const val ACTION_TOGGLE_WAKE = "com.jarvis.assistant.VOICE_TOGGLE_WAKE"
+        const val ACTION_SAY = "com.jarvis.assistant.VOICE_SAY"
         const val EXTRA_ENTRY = "entry"
+        const val EXTRA_TEXT = "text"
+        private const val SAY_TAG = "Jarvis.ProactiveDelivery"
         private const val CHANNEL_ID = "jarvis_voice"
         private const val NOTIFICATION_ID = 1
     }

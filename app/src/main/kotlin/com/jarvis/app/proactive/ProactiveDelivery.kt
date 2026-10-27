@@ -35,8 +35,6 @@ object ProactiveDelivery {
         val reason: DeliveryReason,
         val notificationShown: Boolean,
         val voiceRequested: Boolean,
-        val focusGranted: Boolean,
-        val voiceAccepted: Boolean,
         val duplicate: Boolean = false,
     )
 
@@ -121,12 +119,7 @@ object ProactiveDelivery {
             fingerprint = fingerprint,
         )
 
-        var voice = ProactiveVoice.Result(
-            requested = false,
-            focusGranted = false,
-            accepted = false,
-            note = "silent_only",
-        )
+        var voice = ProactiveVoice.Result(requested = false, note = "silent_only")
         if (resolved.mode == DeliveryMode.VOICE_AND_NOTIFICATION) {
             voice = ProactiveVoice.speak(context, text.voice)
         }
@@ -139,7 +132,7 @@ object ProactiveDelivery {
             mode = resolved.mode,
             reason = resolved.reason,
             reasonText = decision.reason,
-            voiceShown = voice.accepted,
+            voiceShown = voice.requested,
             now = now,
         )
 
@@ -148,7 +141,7 @@ object ProactiveDelivery {
             "deliver id=$deliveryId type=${decision.type} fake=${fakeState ?: "none"} " +
                 "mode=${resolved.mode} reason=${resolved.reason} " +
                 "notification=$notificationShown voiceRequested=${voice.requested} " +
-                "focus=${voice.focusGranted} voiceAccepted=${voice.accepted} note=${voice.note}",
+                "note=${voice.note}",
         )
 
         return Outcome(
@@ -157,8 +150,6 @@ object ProactiveDelivery {
             reason = resolved.reason,
             notificationShown = notificationShown,
             voiceRequested = voice.requested,
-            focusGranted = voice.focusGranted,
-            voiceAccepted = voice.accepted,
         )
     }
 
@@ -261,8 +252,6 @@ object ProactiveDelivery {
             reason = reason,
             notificationShown = false,
             voiceRequested = false,
-            focusGranted = false,
-            voiceAccepted = false,
             duplicate = duplicate,
         )
     }
