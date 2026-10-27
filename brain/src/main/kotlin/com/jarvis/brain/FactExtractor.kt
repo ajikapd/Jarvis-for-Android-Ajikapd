@@ -43,6 +43,25 @@ object FactExtractor {
         RegexOption.IGNORE_CASE,
     )
 
+    /**
+     * Вопросительные слова. Проверяется только ПЕРВОЕ слово фразы (после
+     * вводной «запомни …»): «запомни что я люблю когда идёт дождь» и
+     * «я живу там, где тепло» вопросами не считаются.
+     */
+    private val questionWords = setOf(
+        // RU
+        "что", "кто", "где", "когда", "почему", "зачем", "как",
+        "какой", "какая", "какое", "какие", "какого", "какому", "каким",
+        "каком", "какую", "каких",
+        "чей", "чья", "чьё", "чье", "чьи", "сколько", "куда", "откуда",
+        "ли", "ль",
+        // EN
+        "what", "who", "whom", "whose", "where", "when", "why", "how", "which",
+        "is", "are", "am", "was", "were", "do", "does", "did",
+        "can", "could", "will", "would", "should", "shall", "may", "might",
+        "have", "has", "had",
+    )
+
     /** Слова, которые превращают «запомни …» в отказ. */
     private val secretWordRegex = Regex(
         "(?<![а-яёa-z0-9])(?:парол[а-яё]*|код[а-яё]*|пин[а-яё]*|cvv|cvc|" +
@@ -94,6 +113,8 @@ object FactExtractor {
         val lower = raw.lowercase()
         val hasMarker = factMarkers.any { lower.contains(it) }
         val hasTemplate = templates.any { it.regex.matches(body) }
+        // Вопрос — не факт: сохранять нечего, но и отказом это не считаем.
+        if (isQuestionForm(raw, body)) return null
         if (!hadLeadIn && !hasMarker && !hasTemplate) return null
         if (body.length < 3) return null
 
@@ -111,6 +132,23 @@ object FactExtractor {
     fun isSecretPhrase(text: String): Boolean =
         secretWordRegex.containsMatchIn(text) ||
             SensitivityClassifier.classify(text) == com.jarvis.core.companion.Sensitivity.SECRET
+
+    /**
+     * Вопрос ли это: либо исходная фраза кончается на «?», либо первое слово
+     * тела (после срезанной вводной) — вопросительное. Проверяется именно
+     * первое слово: «люблю когда идёт дождь» и «живу там, где тепло» — факты.
+     */
+    fun isQuestionForm(raw: String, body: String = raw): Boolean {
+        if (raw.trimEnd().endsWith("?")) return true
+        val tokens = body.trim()
+            .split(Regex("\\s+"))
+            .map { it.lowercase().trim(',', ':', ';', '.', '!', '?', '—', '–', '-', '«', '»', '"', '\'') }
+            .filter { it.isNotEmpty() }
+        val first = tokens.firstOrNull() ?: return false
+        // «ли»/«ль» — частица, она может стоять не первым словом («люблю ли я чай»).
+        if (tokens.any { it == "ли" || it == "ль" }) return true
+        return first in questionWords
+    }
 
     private fun applyTemplate(body: String): String {
         for (t in templates) {
