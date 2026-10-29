@@ -58,6 +58,9 @@ device_test_output.txt
 Jarvis_full_info/inventory/project_tree.txt
 Audit_for_jarvis.md
 
+# ── Cloud bench outputs ────────────────────────────────────────────
+scripts/cloud_bench/results/
+
 # ── Secrets / signing material ─────────────────────────────────────
 .env
 .env.*
@@ -75,3 +78,5 @@ api_keys*
 google-services.json
 service-account*.json
 /sk-*
+__pycache__/
+*.pyc
