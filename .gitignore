@@ -80,3 +80,4 @@ service-account*.json
 /sk-*
 __pycache__/
 *.pyc
+.aider*
