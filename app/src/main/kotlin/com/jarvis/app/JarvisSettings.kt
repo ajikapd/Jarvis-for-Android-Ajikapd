@@ -14,6 +14,12 @@ object JarvisSettings {
     fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
+
+    private fun secureKeys(context: Context): SecureKeyStore {
+        SecureKeyMigration.migrate(context)
+        return SecureKeyStore(context)
+    }
+
     // ── Тема ──────────────────────────────────────────────────────
     val THEMES = listOf("CLASSIC", "ARC", "STEALTH", "LIGHT")
     fun theme(context: Context): String =
@@ -112,22 +118,16 @@ object JarvisSettings {
     }
 
     // ── Cloud LLM (NaraRouter) ────────────────────────────────────
-    /** API key для https://router.bynara.id/v1 — хранится локально в prefs. */
+    /** Encrypted provider key for the legacy custom LLM endpoint. */
     fun cloudApiKey(context: Context): String =
-        prefs(context).getString("cloud_api_key", "")?.trim().orEmpty()
+        secureKeys(context).getKey("custom").orEmpty()
 
     fun setCloudApiKey(context: Context, key: String) {
-        prefs(context).edit().putString("cloud_api_key", key.trim()).apply()
+        secureKeys(context).setKey("custom", key)
     }
 
-    fun cloudBaseUrl(context: Context): String {
-        val v = prefs(context).getString("cloud_base_url", null)?.trim().orEmpty()
-        return if (v.isBlank()) {
-            com.jarvis.brain.aiprovider.NaraRouterDefaults.BASE_URL
-        } else {
-            v
-        }
-    }
+    fun cloudBaseUrl(context: Context): String =
+        prefs(context).getString("cloud_base_url", null)?.trim().orEmpty()
 
     fun setCloudBaseUrl(context: Context, url: String) {
         prefs(context).edit().putString("cloud_base_url", url.trim()).apply()
@@ -161,7 +161,10 @@ object JarvisSettings {
         }
     }
 
-    fun cloudConfigured(context: Context): Boolean = cloudApiKey(context).isNotBlank()
+    fun cloudConfigured(context: Context): Boolean {
+        val keys = secureKeys(context)
+        return keys.hasKey("custom") || keys.hasKey("groq") || keys.hasKey("gemini")
+    }
 
     // ── Cloud / Hybrid ASR (V2-08) ─────────────────────────────────
     /** AUTO | CLOUD_PREFERRED | LOCAL_ONLY */
@@ -191,13 +194,14 @@ object JarvisSettings {
      * (shared secret storage — key never logged).
      */
     fun asrCloudApiKey(context: Context): String {
-        val dedicated = prefs(context).getString("asr_cloud_api_key", "")?.trim().orEmpty()
+        val keys = secureKeys(context)
+        val dedicated = keys.getKey("custom_asr").orEmpty()
         if (dedicated.isNotBlank()) return dedicated
         return if (asrCloudBaseUrl(context).isNotBlank()) cloudApiKey(context) else ""
     }
 
     fun setAsrCloudApiKey(context: Context, key: String) {
-        prefs(context).edit().putString("asr_cloud_api_key", key.trim()).apply()
+        secureKeys(context).setKey("custom_asr", key)
     }
 
     fun asrCloudModel(context: Context): String {
@@ -233,10 +237,11 @@ object JarvisSettings {
     }
 
     fun ttsCloudApiKey(context: Context): String {
-        val dedicated = prefs(context).getString("tts_cloud_api_key", "")?.trim().orEmpty()
+        val keys = secureKeys(context)
+        val dedicated = keys.getKey("custom_tts").orEmpty()
         if (dedicated.isNotBlank()) return dedicated
         if (ttsCloudBaseUrl(context).isNotBlank()) {
-            val asrKey = prefs(context).getString("asr_cloud_api_key", "")?.trim().orEmpty()
+            val asrKey = keys.getKey("custom_asr").orEmpty()
             if (asrKey.isNotBlank()) return asrKey
             return cloudApiKey(context)
         }
@@ -244,7 +249,7 @@ object JarvisSettings {
     }
 
     fun setTtsCloudApiKey(context: Context, key: String) {
-        prefs(context).edit().putString("tts_cloud_api_key", key.trim()).apply()
+        secureKeys(context).setKey("custom_tts", key)
     }
 
     fun ttsCloudModel(context: Context): String {

@@ -2772,7 +2772,7 @@ class DashboardActivity : AppCompatActivity() {
         }
         screen.findViewById<android.widget.EditText>(R.id.asrCloudApiKeyInput)?.apply {
             setText(
-                JarvisSettings.prefs(ctx).getString("asr_cloud_api_key", "")?.trim().orEmpty(),
+                JarvisSettings.asrCloudApiKey(ctx),
             )
             setOnFocusChangeListener { _, hasFocus ->
                 if (!hasFocus) {
@@ -2825,7 +2825,7 @@ class DashboardActivity : AppCompatActivity() {
         }
         screen.findViewById<android.widget.EditText>(R.id.ttsCloudApiKeyInput)?.apply {
             setText(
-                JarvisSettings.prefs(ctx).getString("tts_cloud_api_key", "")?.trim().orEmpty(),
+                JarvisSettings.ttsCloudApiKey(ctx),
             )
             setOnFocusChangeListener { _, hasFocus ->
                 if (!hasFocus) {

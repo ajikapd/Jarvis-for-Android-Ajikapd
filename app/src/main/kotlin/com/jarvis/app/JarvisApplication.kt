@@ -15,6 +15,7 @@ import com.jarvis.core.storage.RetentionPolicy
 class JarvisApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+        SecureKeyMigration.migrate(this)
         SystemStateObserver.ensureStarted(this)
         UsageStatsObserver.ensureStarted(this)
         CompanionMemory.get(this).expireNow()
