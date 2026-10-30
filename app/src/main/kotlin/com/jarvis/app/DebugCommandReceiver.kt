@@ -71,8 +71,10 @@ class DebugCommandReceiver : BroadcastReceiver() {
             ACTION_DEBUG_AUTONOMY -> handleAutonomy(context, intent)
             ACTION_DEBUG_SETTINGS -> handleSettings(context, intent)
             ACTION_DEBUG_SANITIZE -> if (BuildConfig.DEBUG) handleSanitize(intent)
-            ACTION_DEBUG_CONTEXT -> if (BuildConfig.DEBUG) handleContextSnapshot()
             ACTION_DEBUG_MEMORY -> if (BuildConfig.DEBUG) handleMemory(context, intent)
+            ACTION_DEBUG_KEYS -> if (BuildConfig.DEBUG) handleKeys(context)
+            ACTION_DEBUG_KEYS_SET -> if (BuildConfig.DEBUG) handleKeysSet(context, intent)
+            ACTION_DEBUG_KEYS_CLEAR -> if (BuildConfig.DEBUG) handleKeysClear(context, intent)
             ACTION_DEBUG_PROACTIVE_STATE -> if (BuildConfig.DEBUG) handleProactiveState(context)
             ACTION_DEBUG_PROACTIVE -> if (BuildConfig.DEBUG) handleProactive(context, intent)
             ACTION_DEBUG_PROACTIVE_ACTION -> if (BuildConfig.DEBUG) {
@@ -374,6 +376,36 @@ class DebugCommandReceiver : BroadcastReceiver() {
         }
     }
 
+    private fun handleKeys(context: Context) {
+        val store = SecureKeyStore(context)
+        Log.d(
+            TAG,
+            "keys groq=${store.hasKey("groq")} gemini=${store.hasKey("gemini")} " +
+                "custom=${store.hasKey("custom")} migrated=${SecureKeyMigration.isMigrated(context)}",
+        )
+    }
+
+    private fun handleKeysSet(context: Context, intent: Intent) {
+        val provider = intent.getStringExtra(EXTRA_PROVIDER)?.trim().orEmpty()
+        val key = intent.getStringExtra(EXTRA_KEY).orEmpty()
+        if (provider.isBlank()) {
+            Log.d(TAG, "keys set failed reason=missing_provider")
+            return
+        }
+        SecureKeyStore(context).setKey(provider, key)
+        Log.d(TAG, "keys set provider=${provider.lowercase()} configured=${SecureKeyStore(context).hasKey(provider)}")
+    }
+
+    private fun handleKeysClear(context: Context, intent: Intent) {
+        val provider = intent.getStringExtra(EXTRA_PROVIDER)?.trim().orEmpty()
+        if (provider.isBlank()) {
+            Log.d(TAG, "keys clear failed reason=missing_provider")
+            return
+        }
+        SecureKeyStore(context).clearKey(provider)
+        Log.d(TAG, "keys clear provider=${provider.lowercase()} configured=${SecureKeyStore(context).hasKey(provider)}")
+    }
+
     private fun handleVoice(context: Context, intent: Intent) {
         when (intent.getStringExtra(EXTRA_ACTION)) {
             "start" -> startVoice(context)
@@ -614,12 +646,19 @@ class DebugCommandReceiver : BroadcastReceiver() {
         const val ACTION_DEBUG_SETTINGS = "com.jarvis.assistant.DEBUG_SETTINGS"
         const val ACTION_DEBUG_SANITIZE = "com.jarvis.assistant.DEBUG_SANITIZE"
         const val ACTION_DEBUG_CONTEXT = "com.jarvis.assistant.DEBUG_CONTEXT"
+        const val ACTION_DEBUG_KEYS = "com.jarvis.assistant.DEBUG_KEYS"
         const val ACTION_DEBUG_MEMORY = "com.jarvis.assistant.DEBUG_MEMORY"
+
+        const val ACTION_DEBUG_KEYS_SET = "com.jarvis.assistant.DEBUG_KEYS_SET"
+        const val ACTION_DEBUG_KEYS_CLEAR = "com.jarvis.assistant.DEBUG_KEYS_CLEAR"
         const val ACTION_DEBUG_PROACTIVE_STATE = "com.jarvis.assistant.DEBUG_PROACTIVE_STATE"
         const val ACTION_DEBUG_PROACTIVE = "com.jarvis.assistant.DEBUG_PROACTIVE"
         const val ACTION_DEBUG_PROACTIVE_ACTION = "com.jarvis.assistant.DEBUG_PROACTIVE_ACTION"
         const val ACTION_DEBUG_PROACTIVE_CLEAR = "com.jarvis.assistant.DEBUG_PROACTIVE_CLEAR"
         private const val EXTRA_COMMAND = "command"
+
+        private const val EXTRA_PROVIDER = "provider"
+        private const val EXTRA_KEY = "key"
         private const val EXTRA_ACTION = "action"
         private const val EXTRA_TEXT = "text"
         private const val EXTRA_PACKAGE = "package"

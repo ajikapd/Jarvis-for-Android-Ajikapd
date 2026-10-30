@@ -38,7 +38,18 @@
             <intent-filter>
                 <action android:name="com.jarvis.assistant.DEBUG_MEMORY" />
             </intent-filter>
+
+            <intent-filter>
+                <action android:name="com.jarvis.assistant.DEBUG_KEYS" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.jarvis.assistant.DEBUG_KEYS_SET" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.jarvis.assistant.DEBUG_KEYS_CLEAR" />
+            </intent-filter>
         </receiver>
+
     </application>
 
 </manifest>
