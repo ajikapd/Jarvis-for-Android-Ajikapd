@@ -473,7 +473,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Облачный LLM · NaraRouter"
+                android:text="Облачный LLM · OpenAI-compatible"
                 android:textColor="#9DA5AE"
                 android:textSize="10sp"
                 android:layout_marginBottom="6dp" />
@@ -495,7 +495,7 @@
                 android:id="@+id/cloudApiKeyHint"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Ключ с router.bynara.id · free ~7M tok/день. Без ключа — только локальная модель."
+                android:text="Облачный endpoint не задан. Для custom укажите адрес в настройках."
                 android:textColor="#626B76"
                 android:textSize="10sp"
                 android:layout_marginBottom="8dp" />
@@ -629,7 +629,7 @@
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Online + ключ → Nara; иначе Local"
+                        android:text="Online + ключ → облако; иначе Local"
                         android:textColor="#626B76"
                         android:textSize="10sp" />
                 </LinearLayout>

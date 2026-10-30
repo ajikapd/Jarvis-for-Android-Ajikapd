@@ -25,7 +25,7 @@ class CloudLLMProviderNaraTest {
             )
         }
         val client = OpenAiCompatibleCloudClient(
-            baseUrlProvider = { NaraRouterDefaults.BASE_URL },
+            baseUrlProvider = { "https://example.invalid/v1" },
             apiKeyProvider = { key },
             transport = transport,
         )
@@ -39,7 +39,7 @@ class CloudLLMProviderNaraTest {
     @Test
     fun httpErrorMapsToFailure() {
         val client = OpenAiCompatibleCloudClient(
-            baseUrlProvider = { NaraRouterDefaults.BASE_URL },
+            baseUrlProvider = { "https://example.invalid/v1" },
             apiKeyProvider = { "sk-nry-x" },
             transport = CloudLlmHttpTransport { _, _, _, _, _ ->
                 CloudLlmHttpResponse(429, """{"error":"rate"}""")
@@ -54,7 +54,7 @@ class CloudLLMProviderNaraTest {
     @Test
     fun routerPrefersCloudWhenAvailableAndPreferFlag() {
         val client = OpenAiCompatibleCloudClient(
-            baseUrlProvider = { NaraRouterDefaults.BASE_URL },
+            baseUrlProvider = { "https://example.invalid/v1" },
             apiKeyProvider = { "sk" },
             transport = CloudLlmHttpTransport { _, _, _, _, _ ->
                 CloudLlmHttpResponse(
@@ -91,7 +91,7 @@ class CloudLLMProviderNaraTest {
     @Test
     fun extractContentParsesJson() {
         val client = OpenAiCompatibleCloudClient(
-            baseUrlProvider = { NaraRouterDefaults.BASE_URL },
+            baseUrlProvider = { "https://example.invalid/v1" },
             apiKeyProvider = { "k" },
             transport = CloudLlmHttpTransport { _, _, _, _, _ -> CloudLlmHttpResponse(500, "") },
         )
@@ -104,7 +104,7 @@ class CloudLLMProviderNaraTest {
     @Test
     fun blankKeyNotAvailable() {
         val client = OpenAiCompatibleCloudClient(
-            baseUrlProvider = { NaraRouterDefaults.BASE_URL },
+            baseUrlProvider = { "https://example.invalid/v1" },
             apiKeyProvider = { "  " },
             transport = CloudLlmHttpTransport { _, _, _, _, _ -> CloudLlmHttpResponse(200, "{}") },
         )

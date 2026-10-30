@@ -124,7 +124,7 @@ class AIProviderTest {
         // Without client/key — no execution
         val r = cloud.complete(AICompletionRequest("x", "stream please"))
         assertEquals(AICompletionStatus.FAILURE, r.status)
-        assertTrue(cloud.capabilities.notes.any { it.contains("nara") })
+        assertTrue(cloud.capabilities.notes.any { it.contains("openai_compatible") })
     }
 
     @Test

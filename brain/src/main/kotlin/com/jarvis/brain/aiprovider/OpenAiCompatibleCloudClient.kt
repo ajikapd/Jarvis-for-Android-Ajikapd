@@ -3,17 +3,13 @@ package com.jarvis.brain.aiprovider
 import com.jarvis.core.privacy.SensitivityClassifier
 
 /**
- * NaraRouter (https://router.bynara.id) — OpenAI-compatible gateway.
- * Free tier ~7M tokens/day (условия могут меняться).
+ * OpenAI-compatible cloud client defaults and model identifiers.
+ * The endpoint is always supplied by the user/provider wiring.
  */
 object NaraRouterDefaults {
-    const val BASE_URL = "https://router.bynara.id/v1"
-    /** Быстрые ответы (free-тариф Nara). */
+    /** Быстрые ответы для совместимых cloud-моделей. */
     const val MODEL_FAST = "agnes-2.5-flash"
-    /**
-     * Качество на free: mistral-large на части аккаунтов недоступен.
-     * mistral-medium-3-5 проверен в обзоре Habr на free-тарифе.
-     */
+    /** Модель качества для совместимых cloud-моделей. */
     const val MODEL_QUALITY = "mistral-medium-3-5"
     const val CONNECT_TIMEOUT_MS = 12_000
     const val READ_TIMEOUT_MS = 45_000
@@ -135,6 +131,8 @@ class OpenAiCompatibleCloudClient(
     private val readTimeoutMs: Int = NaraRouterDefaults.READ_TIMEOUT_MS,
 ) {
     fun hasApiKey(): Boolean = !apiKeyProvider()?.trim().isNullOrBlank()
+
+    fun isConfigured(): Boolean = hasApiKey() && baseUrlProvider().trim().isNotBlank()
 
     fun chatCompletion(
         model: String,

@@ -2698,17 +2698,17 @@ class DashboardActivity : AppCompatActivity() {
             }
         }
 
-        // ── Cloud LLM (NaraRouter) ──
+        // ── Cloud LLM ──
         val cloudKeyInput = screen.findViewById<android.widget.EditText>(R.id.cloudApiKeyInput)
         val cloudHint = screen.findViewById<TextView>(R.id.cloudApiKeyHint)
-        cloudKeyInput?.setText(JarvisSettings.cloudApiKey(this))
+        cloudKeyInput?.setText("")
         fun refreshCloudHint() {
             val set = JarvisSettings.cloudConfigured(this)
             cloudHint?.text = if (set) {
                 "Ключ сохранён · модель: ${JarvisSettings.cloudModelForProfile(this)} · " +
                     "preferCloud=${JarvisSettings.preferCloudLlm(this)}"
             } else {
-                "Ключ с router.bynara.id · free ~7M tok/день. Без ключа — только локальная модель."
+                "Облачный endpoint не задан. Для custom укажите адрес в настройках."
             }
         }
         refreshCloudHint()
@@ -3361,7 +3361,7 @@ class DashboardActivity : AppCompatActivity() {
     private fun addCloudModelCard(list: LinearLayout, titleText: String, profile: String, modelId: String) {
         val card = LayoutInflater.from(this).inflate(R.layout.item_model_card, list, false)
         card.findViewById<TextView>(R.id.modelTitle).text = titleText
-        card.findViewById<TextView>(R.id.modelSubtitle).text = "NaraRouter · $modelId"
+        card.findViewById<TextView>(R.id.modelSubtitle).text = "OpenAI-compatible · $modelId"
         val status = card.findViewById<TextView>(R.id.modelStatus)
         val active = JarvisSettings.chatProfile(this).equals(profile, ignoreCase = true)
         status.text = if (active) "ACTIVE" else "CLOUD"
@@ -3381,17 +3381,21 @@ class DashboardActivity : AppCompatActivity() {
             }
             Thread {
                 val t0 = android.os.SystemClock.elapsedRealtime()
-                val ms = runCatching {
-                    val conn = java.net.URL("https://router.bynara.id/v1/models")
+                val baseUrl = JarvisSettings.cloudBaseUrl(this).trim().trimEnd('/')
+                val ms = if (baseUrl.isBlank()) {
+                    -1L
+                } else runCatching {
+                    val conn = java.net.URL("$baseUrl/models")
                         .openConnection() as java.net.HttpURLConnection
                     conn.connectTimeout = 4000
                     conn.readTimeout = 4000
                     conn.requestMethod = "GET"
+                    conn.setRequestProperty("Authorization", "Bearer ${JarvisSettings.cloudApiKey(this)}")
                     conn.responseCode
                     android.os.SystemClock.elapsedRealtime() - t0
                 }.getOrDefault(-1L)
                 runOnUiThread {
-                    message.text = if (ms >= 0) "NaraRouter · ${ms} мс" else "NaraRouter · нет ответа"
+                    message.text = if (ms >= 0) "Cloud · ${ms} мс" else "Cloud · нет ответа"
                     if (ms >= 0) status.text = "${ms}ms"
                 }
             }.start()

@@ -5,12 +5,12 @@ import com.jarvis.core.runtime.TtftKind
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Cloud LLM через OpenAI-compatible API (по умолчанию NaraRouter).
+ * Cloud LLM через OpenAI-compatible API.
  * V2-07: real SSE streaming when [client] supports stream transport.
  */
 class CloudLLMProvider(
     override val id: String = ID,
-    override val displayName: String = "Cloud LLM (NaraRouter)",
+    override val displayName: String = "Cloud LLM (OpenAI-compatible)",
     private val client: OpenAiCompatibleCloudClient? = null,
     private val modelProvider: () -> String = { NaraRouterDefaults.MODEL_FAST },
     private val systemPromptProvider: () -> String = {
@@ -39,15 +39,15 @@ class CloudLLMProvider(
         speedTier = QualityRequirement.FAST,
         privacyClass = PrivacyLevel.NORMAL,
         notes = listOf(
-            "provider=nara_router",
+            "provider=openai_compatible",
             "openai_compatible=true",
-            "base=${NaraRouterDefaults.BASE_URL}",
+            "endpoint=user_configured",
             "streaming=${streamingEnabled && client != null}",
         ),
     )
 
     override fun availability(): AIProviderAvailability {
-        return if (client != null && client.hasApiKey()) {
+        return if (client != null && client.isConfigured()) {
             AIProviderAvailability.AVAILABLE
         } else {
             AIProviderAvailability.UNAVAILABLE
@@ -103,7 +103,7 @@ class CloudLLMProvider(
             )
         }
         val c = client
-        if (c == null || !c.hasApiKey()) {
+        if (c == null || !c.isConfigured()) {
             return AICompletionResult(
                 requestId = request.requestId,
                 providerId = id,
@@ -160,7 +160,7 @@ class CloudLLMProvider(
             }
             override fun isCancelled(): Boolean = cancelled.get()
         }
-        if (!capabilities.supportsStreaming || client == null || !client.hasApiKey()) {
+        if (!capabilities.supportsStreaming || client == null || !client.isConfigured()) {
             listener.onEvent(
                 AIStreamEvent(
                     type = AIStreamEventType.ERROR,
