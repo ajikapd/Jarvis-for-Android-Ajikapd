@@ -1,104 +1,59 @@
-# Cloud LLM bench (Jarvis)
+# cloud_bench: замер облачных LLM для Jarvis
 
-Скрипт замеряет облачные LLM (Gemini / Groq) на синтетическом наборе из 30 промптов.
-Только Python 3 **стандартная библиотека** (без `pip install`).
+Скрипт на стандартной библиотеке Python (pip не нужен). Ключи берутся ТОЛЬКО из переменных
+окружения `GEMINI_API_KEY` и `GROQ_API_KEY`; они не печатаются и не пишутся в файлы.
 
-Код приложения Jarvis **не** трогает. Ключи API принадлежат вам: скрипт читает их только из переменных окружения и **никогда** не печатает значения ключей и заголовки `Authorization` / `x-goog-api-key`.
-
-## Требования
-
-- `python3` 3.8+
-- Переменные:
-  - `GEMINI_API_KEY` — для моделей `provider=gemini`
-  - `GROQ_API_KEY` — для моделей `provider=groq`
-  - `MISTRAL_API_KEY` — необязателен (зарезервирован)
-
-## Как запустить (ключ не в history)
-
-Пробел перед `export` мешает bash записать строку в `~/.bash_history` (при обычных настройках):
-
-```bash
- cd /mnt/D/Jarvis_for_android/scripts/cloud_bench
- export GEMINI_API_KEY='…ваш ключ…'
- export GROQ_API_KEY='…ваш ключ…'
- python3 bench.py --yes
-```
-
-Полезные флаги:
-
-| Флаг | Смысл |
-|------|--------|
-| `--dry-run` | Только план и оценка токенов, без HTTP |
-| `--yes` | Не спрашивать подтверждение |
-| `--models gemini-3.5-flash,openai/gpt-oss-20b` | Фильтр моделей |
-| `--variants default,minimal-thinking` | Какие варианты reasoning |
-| `--limit-prompts 5` | Первые N промптов |
-| `--out DIR` | Корень для `results/<timestamp>/` |
-| `--pause 4` | Пауза между запросами (сек), по умолчанию 4 |
-
-Список моделей — в `models.json` (можно править без правки кода). Промпты — `prompts.json`.
-
-### Пример dry-run
-
-```bash
-python3 bench.py --dry-run --limit-prompts 3 --models gemini-3.5-flash-lite
-```
-
-### Тесты
+## Запуск
 
 ```bash
 cd /mnt/D/Jarvis_for_android/scripts/cloud_bench
-python3 -m unittest discover -s tests -v
+python3 -m unittest discover -s tests -t .          # тесты на локальной заглушке, интернет не нужен
+python3 bench.py --providers groq --dry-run         # покажет план и оценку токенов, ничего не отправит
+
+ export GROQ_API_KEY='...'                          # пробел в начале: команда не попадёт в историю
+python3 bench.py --preflight --providers groq       # быстрая проверка доступа (по 1-3 запроса на модель)
+python3 bench.py --providers groq --yes             # полный прогон
+
+ export GEMINI_API_KEY='...'
+python3 bench.py --providers gemini --yes
+
+python3 bench.py --merge results/<каталог_groq> results/<каталог_gemini>   # общий отчёт
 ```
 
-## Ожидаемое время и токены
+В конце смотри `short_report.txt` (его можно целиком копировать в чат) и `results.jsonl`.
 
-Полный прогон: **9 моделей × 2 варианта × 30 промптов ≈ 540 запросов**.  
-При паузе 4 с + латентность сети это порядка **~1–2+ часов** (плюс ретраи 429/503).
+## Что измеряется
 
-Оценка токенов перед стартом **консервативная**: для `default` умножается на **×3** (размышления), для `minimal-thinking` — ×1. Это не счётчик биллинга.
+Для каждой модели два варианта: `default` и `min` (минимальные размышления). Параметры варианта
+`min` подбираются автоматически из `min_candidates` в `models.json`: берётся первый, который сервер
+принял (HTTP 200); 400 = не поддерживается, пробуем следующий. Если ничего не подошло, прогоняется
+только `default`.
 
-Сузить прогон:
+- TTFT 1-й чанк: до первого SSE-события; TTFT текст: до первого ВИДИМОГО текста (без размышлений);
+- число чанков (если всё приходит одним куском, помечается `NO-STREAM`);
+- токены in / out / reasoning / total из usage (`n/a`, если провайдер не отдал);
+- `leak%`: доля ответов, где размышления протекли в текст тегами `<thought>`/`<think>` (они вырезаются);
+- автооценка: memory, command (JSON с нужным tool), plan (JSON из 1-3 шагов с известными tool).
 
-```bash
-python3 bench.py --yes --models openai/gpt-oss-20b --limit-prompts 10 --variants default
-```
+## Защита от лишних трат
 
-## Результаты
+- перед прогоном `--preflight` (отключается `--no-preflight`): упавшая модель пропускается (`--force`
+  чтобы всё равно запустить); ошибки классифицируются: `blocked_by_cloudflare_user_agent_or_region`,
+  `auth_or_region`, `rate_limited` / `rate_limited_daily`, `overloaded`, `network_error`, `missing_key`;
+- суточный лимит (`PerDay`/`daily`/`TPD`) отключает модель до конца прогона (`daily_quota_exhausted`);
+- три сбоя подряд отключают модель (`circuit_open`);
+- 429/503/сеть: до 2 повторов, ждём `Retry-After` или экспоненциальную паузу;
+- модели `heavy` (лимит 20 запросов в сутки) и `experimental` по умолчанию выключены:
+  `--include-heavy`, `--include-experimental` или назвать модель явно через `--models`.
 
-В `results/<UTC-timestamp>/`:
+## Если Groq отвечает 403 `error code: 1010`
 
-| Файл | Содержимое |
-|------|------------|
-| `results.jsonl` | Одна JSON-строка на запрос (метрики + текст ответа) |
-| `summary.md` | Таблица success / TTFT / total / токены / auto-score / 429·503 |
-| `short_report.txt` | Краткая сводка **без** полных ответов и **без** ключей |
+Это Cloudflare перед Groq. Скрипт уже шлёт собственный User-Agent (не `Python-urllib`). Если всё
+равно 1010, задай другой: `export BENCH_USER_AGENT='Mozilla/5.0 ...'`. Если `Connection refused` или
+timeout, проверь прокси/VPN/сеть (urllib, как и curl, использует переменные `http_proxy`/`https_proxy`).
 
-Каталог `results/` в `.gitignore`.
+## Полезные флаги
 
-## Что прислать Claude
-
-1. `short_report.txt`
-2. `results.jsonl` (если нужны тексты ответов для ручной оценки)
-
-Не присылайте значения API-ключей и не вставляйте сырой вывод с `Authorization: Bearer …`.
-
-## Режимы рассуждения
-
-Для каждой модели: `default` (без спец-параметров) и `minimal-thinking`.
-
-Скрипт **пробирует** параметры (HTTP 400 = не поддерживается) и пишет в `summary.md`, какой вариант принят:
-
-- **Gemini** (OpenAI-совместимый `…/v1beta/openai/chat/completions`, fallback `streamGenerateContent`): по очереди `reasoning_effort=none|minimal|low`, затем `extra_body.google.thinking_config`, нативно `thinkingBudget=0` / `thinkingLevel`.
-- **Groq gpt-oss-***: `reasoning_effort=low` (+ `include_reasoning=false`).
-- **Groq qwen/***: `reasoning_effort=none`.
-
-Если ничего не принято → `variant=unsupported`.
-
-Источники: [Gemini thinking](https://ai.google.dev/gemini-api/docs/thinking), [Gemini OpenAI compatibility](https://ai.google.dev/gemini-api/docs/openai), [Groq Reasoning](https://console.groq.com/docs/reasoning).
-
-## Метрики
-
-- **TTFT** — время до первого токена **видимого** текста (не reasoning/thought).
-- `total_ms`, `in_tokens`, `out_tokens`, `reasoning_tokens` (из `usage` / `usageMetadata`, если есть).
-- Таймаут запроса: 60 с. При 429/503 — до 2 повторов с экспоненциальной паузой; каждая попытка пишется в `attempts`.
+`--models gpt-oss-20b` (id или часть названия), `--variants default`, `--limit-prompts 5`,
+`--pause 3` (секунды между запросами к одной модели), `--workers 1` (по одной модели за раз),
+`--retries 2`, `--timeout 60`.
