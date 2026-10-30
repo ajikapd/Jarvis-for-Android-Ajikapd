@@ -18,5 +18,24 @@
     <string name="proactive_action_yes">Да</string>
     <string name="proactive_action_no">Нет</string>
     <string name="proactive_action_later">Позже</string>
+    <string name="cloud_groq_title">Groq</string>
+    <string name="cloud_gemini_title">Google Gemini</string>
+    <string name="cloud_api_key_hint">API key</string>
+    <string name="cloud_models_title">Облачные модели</string>
+
+    <string name="cloud_privacy_no_personal_data">Личные данные и коды в облако не отправляются.</string>
+    <string name="cloud_gemini_free_tier_notice">Бесплатный тариф Google может использовать запросы для улучшения моделей.</string>
+    <string name="cloud_key_missing">Ключа нет</string>
+    <string name="cloud_key_set">Ключ задан</string>
+    <string name="cloud_save_key">Сохранить</string>
+    <string name="cloud_clear_key">Удалить ключ</string>
+    <string name="cloud_save_key_description">Сохранить ключ облачной модели</string>
+    <string name="cloud_clear_key_description">Удалить ключ облачной модели</string>
+    <string name="cloud_groq_key_description">Поле ключа Groq</string>
+    <string name="cloud_gemini_key_description">Поле ключа Google Gemini</string>
+    <string name="cloud_key_rejected">Введите настоящий ключ длиной не менее 20 символов.</string>
+    <string name="cloud_key_saved">Ключ сохранён</string>
+    <string name="cloud_key_deleted">Ключ удалён</string>
     <string name="proactive_public_text">Jarvis: есть предложение</string>
+
 </resources>

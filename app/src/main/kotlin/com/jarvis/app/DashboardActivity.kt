@@ -2729,6 +2729,58 @@ class DashboardActivity : AppCompatActivity() {
             }
         }
 
+
+        fun bindCloudProviderKey(
+            providerId: String,
+            inputId: Int,
+            statusId: Int,
+            saveId: Int,
+            clearId: Int,
+        ) {
+            val input = screen.findViewById<android.widget.EditText>(inputId) ?: return
+            val status = screen.findViewById<TextView>(statusId) ?: return
+            val store = SecureKeyStore(ctx)
+            fun refreshStatus() {
+                status.setText(if (store.hasKey(providerId)) R.string.cloud_key_set else R.string.cloud_key_missing)
+            }
+            input.setText("")
+            refreshStatus()
+            screen.findViewById<android.widget.Button>(saveId)?.setOnClickListener {
+                val clean = com.jarvis.core.llm.CloudKeyValidator.sanitizeKey(input.text?.toString())
+                if (com.jarvis.core.llm.CloudKeyValidator.isStubKey(clean)) {
+                    android.widget.Toast.makeText(ctx, R.string.cloud_key_rejected, android.widget.Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                store.setKey(providerId, clean)
+                input.setText("")
+                refreshStatus()
+                BrainGraph.invalidate()
+                android.widget.Toast.makeText(ctx, R.string.cloud_key_saved, android.widget.Toast.LENGTH_SHORT).show()
+            }
+            screen.findViewById<android.widget.Button>(clearId)?.setOnClickListener {
+                store.clearKey(providerId)
+                input.setText("")
+                refreshStatus()
+                BrainGraph.invalidate()
+                android.widget.Toast.makeText(ctx, R.string.cloud_key_deleted, android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        bindCloudProviderKey(
+            providerId = "groq",
+            inputId = R.id.groqKeyInput,
+            statusId = R.id.groqKeyStatus,
+            saveId = R.id.groqKeySave,
+            clearId = R.id.groqKeyClear,
+        )
+        bindCloudProviderKey(
+            providerId = "gemini",
+            inputId = R.id.geminiKeyInput,
+            statusId = R.id.geminiKeyStatus,
+            saveId = R.id.geminiKeySave,
+            clearId = R.id.geminiKeyClear,
+        )
+
         // ── ASR mode (V2-08) ──
         val asrModes = listOf("AUTO", "CLOUD_PREFERRED", "LOCAL_ONLY")
         val asrLabels = listOf("Auto", "Cloud preferred", "Local only")

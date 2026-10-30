@@ -503,11 +503,174 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:text="@string/cloud_models_title"
+                android:textColor="#9DA5AE"
+                android:textSize="14sp"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="6dp" />
+
+            <TextView
+                android:id="@+id/cloudPrivacyHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/cloud_privacy_no_personal_data"
+                android:textColor="#626B76"
+                android:textSize="14sp"
+                android:layout_marginBottom="8dp" />
+
+            <LinearLayout
+                android:id="@+id/groqKeyBlock"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_hud_panel"
+                android:padding="12dp"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cloud_groq_title"
+                    android:textColor="#F4F0E7"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <EditText
+                    android:id="@+id/groqKeyInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="@string/cloud_api_key_hint"
+                    android:inputType="textPassword"
+                    android:importantForAutofill="no"
+                    android:contentDescription="@string/cloud_groq_key_description"
+                    android:textColor="#F4F0E7"
+                    android:textColorHint="#626B76"
+                    android:textSize="14sp"
+                    android:background="@drawable/bg_hud_panel"
+                    android:padding="10dp"
+                    android:layout_marginTop="6dp" />
+
+                <TextView
+                    android:id="@+id/groqKeyStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cloud_key_missing"
+                    android:textColor="#626B76"
+                    android:textSize="14sp"
+                    android:layout_marginTop="4dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="6dp">
+
+                    <Button
+                        android:id="@+id/groqKeySave"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/cloud_save_key"
+                        android:contentDescription="@string/cloud_save_key_description"
+                        android:textSize="14sp" />
+
+                    <Button
+                        android:id="@+id/groqKeyClear"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/cloud_clear_key"
+                        android:contentDescription="@string/cloud_clear_key_description"
+                        android:textSize="14sp"
+                        android:layout_marginStart="8dp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/geminiKeyBlock"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_hud_panel"
+                android:padding="12dp"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cloud_gemini_title"
+                    android:textColor="#F4F0E7"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <EditText
+                    android:id="@+id/geminiKeyInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="@string/cloud_api_key_hint"
+                    android:inputType="textPassword"
+                    android:importantForAutofill="no"
+                    android:contentDescription="@string/cloud_gemini_key_description"
+                    android:textColor="#F4F0E7"
+                    android:textColorHint="#626B76"
+                    android:textSize="14sp"
+                    android:background="@drawable/bg_hud_panel"
+                    android:padding="10dp"
+                    android:layout_marginTop="6dp" />
+
+                <TextView
+                    android:id="@+id/geminiKeyStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cloud_key_missing"
+                    android:textColor="#626B76"
+                    android:textSize="14sp"
+                    android:layout_marginTop="4dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cloud_gemini_free_tier_notice"
+                    android:textColor="#626B76"
+                    android:textSize="14sp"
+                    android:layout_marginTop="4dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="6dp">
+
+                    <Button
+                        android:id="@+id/geminiKeySave"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/cloud_save_key"
+                        android:contentDescription="@string/cloud_save_key_description"
+                        android:textSize="14sp" />
+
+                    <Button
+                        android:id="@+id/geminiKeyClear"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/cloud_clear_key"
+                        android:contentDescription="@string/cloud_clear_key_description"
+                        android:textSize="14sp"
+                        android:layout_marginStart="8dp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
                 android:text="Распознавание речи (ASR)"
                 android:textColor="#9DA5AE"
                 android:textSize="10sp"
                 android:layout_marginTop="8dp"
                 android:layout_marginBottom="6dp" />
+
 
             <Spinner
                 android:id="@+id/asrModeSpinner"
