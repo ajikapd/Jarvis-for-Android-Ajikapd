@@ -52,7 +52,7 @@ class ChainRouter(
         val active = mutableListOf<Attempt>()
         val handles = mutableListOf<CancelHandle>()
         var hedged = false
-        var winner: Attempt? = null
+        val winnerRef = java.util.concurrent.atomic.AtomicReference<Attempt?>(null)
         var firstTokenMs: Long? = null
         var nextEntryIdx = 1
         var result: ChainResult? = null
@@ -99,8 +99,8 @@ class ChainRouter(
             val now = clock()
             if (now >= deadline) break
             // исчерпание: активных нет, записей больше нет, победителя нет
-            if (winner == null && active.isEmpty() && nextEntryIdx >= entries.size) break
-            val canHedge = active.size < cfg.maxParallel && nextEntryIdx < entries.size && winner == null
+            if (winnerRef.get() == null && active.isEmpty() && nextEntryIdx >= entries.size) break
+            val canHedge = active.size < cfg.maxParallel && nextEntryIdx < entries.size && winnerRef.get() == null
             val waitHedge = (hedgeAt - now).coerceAtLeast(0)
             val timeout = if (canHedge) waitHedge else (deadline - now)
 
@@ -117,20 +117,20 @@ class ChainRouter(
             when (event) {
                 is AttemptEvent.VisibleToken -> {
                     val a = event.attempt
-                    if (winner == null) {
-                        winner = a
+                    // атомарный выбор победителя: только первый successful CAS становится победителем
+                    if (winnerRef.compareAndSet(null, a)) {
                         firstTokenMs = clock()
                         sink.onFirstToken(event.text)
                         // отменить проигравших — только их handles, победителя не трогаем
                         active.filter { it !== a }.forEach { loser -> loser.handle?.cancel() }
                         active.removeAll { it !== a }
-                    } else if (a === winner) {
+                    } else if (a === winnerRef.get()) {
                         sink.onToken(event.text)
                     }
                 }
                 is AttemptEvent.Completed -> {
                     val a = event.attempt
-                    if (a === winner) {
+                    if (a === winnerRef.get()) {
                         sink.onComplete(event.usage)
                         health.recordSuccess(a.entry)
                         result = ChainResult(a.entry, hedged, firstTokenMs!! - startMs, failures)
@@ -138,7 +138,7 @@ class ChainRouter(
                         active.remove(a)
                         failures.add(ErrorClass.EMPTY_RESPONSE)
                         health.recordFailure(a.entry, ErrorClass.EMPTY_RESPONSE)
-                        if (winner == null && active.isEmpty()) startNext()
+                        if (winnerRef.get() == null && active.isEmpty()) startNext()
                     }
                 }
                 is AttemptEvent.Errored -> {
@@ -154,7 +154,7 @@ class ChainRouter(
                         } else {
                             failures.add(ErrorClass.BAD_REQUEST)
                             health.recordFailure(a.entry, ErrorClass.BAD_REQUEST, paramsExhausted = true)
-                            if (winner == null && active.isEmpty()) startNext()
+                            if (winnerRef.get() == null && active.isEmpty()) startNext()
                         }
                     } else {
                         val cls = CloudErrorClassifier.classify(event.httpStatus, event.body)
@@ -164,8 +164,8 @@ class ChainRouter(
                             health.reset(a.entry.providerId)
                         }
                         // падение до первого токена → следующая запись сразу
-                        if (winner == null && active.isEmpty()) startNext()
-                        else if (winner == null && active.size < cfg.maxParallel) {
+                        if (winnerRef.get() == null && active.isEmpty()) startNext()
+                        else if (winnerRef.get() == null && active.size < cfg.maxParallel) {
                             if (startNext()) hedged = true
                         }
                     }

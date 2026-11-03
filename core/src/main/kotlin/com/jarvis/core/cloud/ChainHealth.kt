@@ -1,5 +1,8 @@
 package com.jarvis.core.cloud
 
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+
 class ChainHealth(
     private val clock: () -> Long,
     private val config: ChainConfig = ChainConfig.Default
@@ -15,32 +18,34 @@ class ChainHealth(
     )
 
     private val states = mutableMapOf<String, State>()
+    private val mutex = Mutex()
+
     private fun key(entry: ChainEntry) = "${entry.providerId}/${entry.modelId}"
 
     private fun get(entry: ChainEntry): State = states.getOrPut(key(entry)) { State() }
     private fun set(entry: ChainEntry, state: State) { states[key(entry)] = state }
 
-    fun isAvailable(entry: ChainEntry): Boolean {
+    suspend fun isAvailable(entry: ChainEntry): Boolean = mutex.withLock {
         val now = clock()
         val s = get(entry)
-        if (s.disabled) return false
-        if (s.dailyExhaustedUntil > now) return false
-        if (s.rateLimitedUntil > now) return false
-        if (s.circuitOpenUntil > now) return false
+        if (s.disabled) return@withLock false
+        if (s.dailyExhaustedUntil > now) return@withLock false
+        if (s.rateLimitedUntil > now) return@withLock false
+        if (s.circuitOpenUntil > now) return@withLock false
         if (s.circuitOpenUntil <= now && s.consecutiveFailures >= config.circuitFailureThreshold && !s.circuitHalfOpen) {
             set(entry, s.copy(circuitHalfOpen = true, circuitProbeInFlight = false))
         }
         val current = get(entry)
-        if (current.circuitHalfOpen && current.circuitProbeInFlight) return false
-        return true
+        if (current.circuitHalfOpen && current.circuitProbeInFlight) return@withLock false
+        true
     }
 
-    fun recordSuccess(entry: ChainEntry) {
+    suspend fun recordSuccess(entry: ChainEntry) = mutex.withLock {
         val s = get(entry)
         set(entry, s.copy(consecutiveFailures = 0, circuitOpenUntil = 0, circuitHalfOpen = false, circuitProbeInFlight = false))
     }
 
-    fun recordFailure(entry: ChainEntry, errorClass: ErrorClass, retryAfterSeconds: Int? = null, paramsExhausted: Boolean = true) {
+    suspend fun recordFailure(entry: ChainEntry, errorClass: ErrorClass, retryAfterSeconds: Int? = null, paramsExhausted: Boolean = true) = mutex.withLock {
         val now = clock()
         val s = get(entry)
         when (errorClass) {
@@ -77,15 +82,15 @@ class ChainHealth(
         }
     }
 
-    fun markProbeInFlight(entry: ChainEntry) {
+    suspend fun markProbeInFlight(entry: ChainEntry) = mutex.withLock {
         val s = get(entry)
         set(entry, s.copy(circuitProbeInFlight = true))
     }
 
-    fun reset(providerId: String) {
+    suspend fun reset(providerId: String) = mutex.withLock {
         val toRemove = states.keys.filter { it.startsWith("$providerId/") }
         toRemove.forEach { states.remove(it) }
     }
 
-    fun snapshot(): Map<String, State> = states.toMap()
+    suspend fun snapshot(): Map<String, State> = mutex.withLock { states.toMap() }
 }

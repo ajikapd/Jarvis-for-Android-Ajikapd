@@ -304,4 +304,36 @@ class ChainRouterTest {
         assertFalse(call2.starts.any { it.second == 0 })
         assertTrue(call2.starts.any { it.second == 1 })
     }
+
+    @Test
+    fun stress_200runs_singleWinnerInvariant() = runBlocking {
+        val cfg = ChainConfig(hedgeAfterMs = 40, totalDeadlineMs = 2000, maxParallel = 2)
+        val entries = (0 until 3).map { entry("st$it") }
+        repeat(200) { iter ->
+            val rnd = java.util.Random(iter.toLong())
+            val call = FakeCall(entries.associate { e ->
+                e.modelId to listOf<(CallListener) -> Unit>({ l ->
+                    runBlocking {
+                        delay(rnd.nextInt(60).toLong())
+                        l.onFirstToken("tok-${e.modelId}")
+                        delay(1)
+                        l.onToken("cont-${e.modelId}")
+                        l.onComplete(null)
+                    }
+                })
+            })
+            val firstCount = java.util.concurrent.atomic.AtomicInteger(0)
+            val sink = object : TokenSink {
+                override fun onFirstToken(text: String) { firstCount.incrementAndGet() }
+                override fun onToken(text: String) { }
+                override fun onComplete(usage: Map<String, Any>?) { }
+            }
+            try {
+                ChainRouter(config = cfg).run(req, entries, health(), call, sink)
+                assertEquals("iter=$iter", 1, firstCount.get())
+            } catch (e: AllFailedException) {
+                assertEquals("iter=$iter", 0, firstCount.get())
+            }
+        }
+    }
 }
