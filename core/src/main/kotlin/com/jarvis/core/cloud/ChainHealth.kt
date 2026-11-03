@@ -40,7 +40,7 @@ class ChainHealth(
         set(entry, s.copy(consecutiveFailures = 0, circuitOpenUntil = 0, circuitHalfOpen = false, circuitProbeInFlight = false))
     }
 
-    fun recordFailure(entry: ChainEntry, errorClass: ErrorClass, retryAfterSeconds: Int? = null) {
+    fun recordFailure(entry: ChainEntry, errorClass: ErrorClass, retryAfterSeconds: Int? = null, paramsExhausted: Boolean = true) {
         val now = clock()
         val s = get(entry)
         when (errorClass) {
@@ -54,7 +54,18 @@ class ChainHealth(
             ErrorClass.AUTH_OR_REGION, ErrorClass.BLOCKED_BY_CLOUDFLARE -> {
                 set(entry, s.copy(disabled = true))
             }
-            ErrorClass.OVERLOADED, ErrorClass.NETWORK_ERROR, ErrorClass.SERVER_ERROR, ErrorClass.EMPTY_RESPONSE, ErrorClass.BAD_REQUEST -> {
+            ErrorClass.BAD_REQUEST -> {
+                if (paramsExhausted) {
+                    val newFailures = s.consecutiveFailures + 1
+                    if (newFailures >= config.circuitFailureThreshold) {
+                        set(entry, s.copy(consecutiveFailures = newFailures, circuitOpenUntil = now + config.circuitOpenMs, circuitHalfOpen = false, circuitProbeInFlight = false))
+                    } else {
+                        set(entry, s.copy(consecutiveFailures = newFailures))
+                    }
+                }
+                // else: параметры не исчерпаны — не сбой здоровья
+            }
+            ErrorClass.OVERLOADED, ErrorClass.NETWORK_ERROR, ErrorClass.SERVER_ERROR, ErrorClass.EMPTY_RESPONSE -> {
                 val newFailures = s.consecutiveFailures + 1
                 if (newFailures >= config.circuitFailureThreshold) {
                     set(entry, s.copy(consecutiveFailures = newFailures, circuitOpenUntil = now + config.circuitOpenMs, circuitHalfOpen = false, circuitProbeInFlight = false))

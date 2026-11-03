@@ -114,6 +114,66 @@ class CloudChainTests {
         assertEquals(1, snap.size)
     }
 
+    @Test fun health_halfOpen_allowsOneProbe() {
+        var now = 0L
+        val cfg = ChainConfig(circuitOpenMs = 100, circuitFailureThreshold = 3)
+        val h = ChainHealth(clock = { now }, config = cfg)
+        val e = DefaultCloudChain.entries()[0]
+        repeat(3) { h.recordFailure(e, ErrorClass.OVERLOADED) }
+        now = 101
+        assertTrue(h.isAvailable(e)) // полуоткрытие — проба допускается
+        h.markProbeInFlight(e)
+        assertFalse(h.isAvailable(e)) // второй параллельный пробный запрос не допускается
+    }
+
+    @Test fun health_halfOpen_successResets() {
+        var now = 0L
+        val cfg = ChainConfig(circuitOpenMs = 100, circuitFailureThreshold = 3)
+        val h = ChainHealth(clock = { now }, config = cfg)
+        val e = DefaultCloudChain.entries()[0]
+        repeat(3) { h.recordFailure(e, ErrorClass.OVERLOADED) }
+        now = 101
+        h.markProbeInFlight(e)
+        h.recordSuccess(e)
+        // полностью сброшено — доступна сразу, не полуоткрытие
+        now = 101
+        assertTrue(h.isAvailable(e))
+        now = 101
+        assertTrue(h.isAvailable(e)) // вторая проба тоже допустима — сброс
+    }
+
+    @Test fun health_halfOpen_failureReopens() {
+        var now = 0L
+        val cfg = ChainConfig(circuitOpenMs = 100, circuitFailureThreshold = 3)
+        val h = ChainHealth(clock = { now }, config = cfg)
+        val e = DefaultCloudChain.entries()[0]
+        repeat(3) { h.recordFailure(e, ErrorClass.OVERLOADED) }
+        now = 101
+        assertTrue(h.isAvailable(e)) // полуоткрытие
+        h.markProbeInFlight(e)
+        h.recordFailure(e, ErrorClass.OVERLOADED)
+        assertFalse(h.isAvailable(e)) // снова открыто на 5 мин
+        now = 201
+        assertTrue(h.isAvailable(e)) // после нового circuitOpenMs снова полуоткрытие
+    }
+
+    @Test fun health_badRequest_paramsNotExhausted_isNotFailure() {
+        val h = ChainHealth(clock = { 0L })
+        val e = DefaultCloudChain.entries()[0]
+        repeat(3) { h.recordFailure(e, ErrorClass.BAD_REQUEST, paramsExhausted = false) }
+        assertTrue(h.isAvailable(e)) // кандидаты не исчерпаны — здоровья не задето
+        assertEquals(0, h.snapshot()["groq/openai/gpt-oss-120b"]!!.consecutiveFailures)
+    }
+
+    @Test fun health_badRequest_paramsExhausted_isFailure() {
+        var now = 0L
+        val cfg = ChainConfig(circuitOpenMs = 100, circuitFailureThreshold = 2)
+        val h = ChainHealth(clock = { now }, config = cfg)
+        val e = DefaultCloudChain.entries()[0]
+        repeat(2) { h.recordFailure(e, ErrorClass.BAD_REQUEST, paramsExhausted = true) }
+        assertFalse(h.isAvailable(e)) // circuit открыт
+    }
+
     @Test fun thoughtStripper_basic() {
         val ts = ThoughtStripper()
         assertEquals("hello", ts.strip("<think>x</think>hello"))
