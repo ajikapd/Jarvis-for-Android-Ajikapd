@@ -1,10 +1,8 @@
 package com.jarvis.core.cloud
 
 enum class ErrorClass {
-    DAILY_EXHAUSTED,
     RATE_LIMITED,
     RATE_LIMITED_DAILY,
-    CIRCUIT_TRIGGER,
     AUTH_OR_REGION,
     BLOCKED_BY_CLOUDFLARE,
     OVERLOADED,

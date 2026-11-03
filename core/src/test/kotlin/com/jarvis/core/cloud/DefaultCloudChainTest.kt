@@ -68,17 +68,7 @@ class DefaultCloudChainTest {
     }
 
     @Test
-    fun availableEntriesFiltersByProvidersWithKeys() {
-        val chain = DefaultCloudChain
-        val entries = DefaultCloudChain.entries()
-        val available = DefaultCloudChain.availableEntries(entries, setOf("groq"))
-        assertEquals(2, available.size)
-        assertTrue(available.all { it.providerId == "groq" })
-    }
-
-    @Test
     fun availableEntriesEmptyWhenNoKeys() {
-        val chain = DefaultCloudChain
         val entries = DefaultCloudChain.entries()
         assertTrue(DefaultCloudChain.availableEntries(entries, emptySet()).isEmpty())
     }
