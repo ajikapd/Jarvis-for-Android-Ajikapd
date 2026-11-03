@@ -315,16 +315,15 @@ class ChainRouterTest {
         // ждать полуоткрытия
         delay(cfg.circuitOpenMs + 50)
         val call = FakeCall(mapOf(
-            "m-ho" to listOf({ l -> runBlocking { delay(300); l.onFirstToken("probe-ok"); l.onComplete(null) } })
+            "m-ho" to listOf({ l -> runBlocking { delay(400); l.onFirstToken("probe-ok"); l.onComplete(null) } })
         ))
-        // два параллельных run() — только один должен получить пробу
-        val jobs = (0 until 2).map {
-            GlobalScope.async { ChainRouter(config = cfg).run(req, listOf(e1), h, call, RecordingSink()) }
-        }
-        // первый вернёт результат, второй — AllFailed (запись недоступна: проба in-flight)
+        // первый run стартует пробу (медленную), второй run запускается после — проба уже in-flight
+        val job1 = GlobalScope.async { ChainRouter(config = cfg).run(req, listOf(e1), h, call, RecordingSink()) }
+        delay(100) // проба первого run уже in-flight
+        val job2 = GlobalScope.async { ChainRouter(config = cfg).run(req, listOf(e1), h, call, RecordingSink()) }
         var success = 0
         var failed = 0
-        jobs.forEach { j ->
+        listOf(job1, job2).forEach { j ->
             try { j.await(); success++ } catch (e: AllFailedException) { failed++ }
         }
         // ровно один пробный запрос к записи
@@ -369,6 +368,40 @@ class ChainRouterTest {
         // и откроется заново только после circuitOpenMs
         delay(cfg.circuitOpenMs + 30)
         assertTrue(h.isAvailable(e1))
+    }
+
+    @Test
+    fun cancelRace_handleAssignedAfterCancel() = runBlocking {
+        val e1 = entry("race1")
+        val e2 = entry("race2")
+        val cancelLatch = java.util.concurrent.ConcurrentHashMap<String, Int>()
+        // race2 выдаёт handle с задержкой; победитель (race1) появляется раньше
+        val call = object : CloudCall {
+            override fun start(entry: ChainEntry, paramCandidateIndex: Int, listener: CallListener): CancelHandle {
+                if (entry.modelId == "m-race1") {
+                    GlobalScope.launch { delay(3); listener.onFirstToken("win"); listener.onComplete(null) }
+                    return object : CancelHandle { override fun cancel() { cancelLatch.merge("m-race1", 1, Int::plus) } }
+                }
+                // победитель приходит до присвоения handle: cancelAttempt ставит флаг,
+                // затем assignHandle вызывает cancel()
+                return object : CancelHandle {
+                    override fun cancel() { cancelLatch.merge("m-race2", 1, Int::plus) }
+                }.also {
+                    GlobalScope.launch {
+                        delay(30)
+                        listener.onFirstToken("loser-late")
+                    }
+                }
+            }
+        }
+        // мгновенный hedge: обе записи запускаются сразу, победитель — через 3мс
+        val cfg = ChainConfig(hedgeAfterMs = 1, totalDeadlineMs = 2000, maxParallel = 2)
+        val r = ChainRouter(config = cfg).run(req, listOf(e1, e2), health(), call, RecordingSink())
+        assertEquals("m-race1", r.entry.modelId)
+        // подождать, пока отложенный handle присвоится и cancel догонит
+        delay(150)
+        // cancel всё равно вызван у отложенного проигравшего
+        assertEquals(1, cancelLatch["m-race2"])
     }
 
     @Test

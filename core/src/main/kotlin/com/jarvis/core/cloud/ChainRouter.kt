@@ -22,6 +22,19 @@ internal class Attempt(
     val stripper: ThoughtStripper
 ) {
     @Volatile var handle: CancelHandle? = null
+    private val cancelled = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    /** Атомарная отмена: ставит флаг и отменяет handle, если он уже есть. */
+    fun cancelAttempt() {
+        cancelled.set(true)
+        handle?.cancel()
+    }
+
+    /** Вызывается при присвоении handle: если отмена уже была — отменить сразу. */
+    fun assignHandle(h: CancelHandle) {
+        handle = h
+        if (cancelled.get()) h.cancel()
+    }
 }
 
 class ChainRouter(
@@ -81,7 +94,7 @@ class ChainRouter(
                 }
                 val handle = cloudCall.start(entry, paramIndex, listener)
                 handles.add(handle)
-                a.handle = handle
+                a.assignHandle(handle)
             }
             active.add(a)
             return a
@@ -125,7 +138,7 @@ class ChainRouter(
                         firstTokenMs = clock()
                         sink.onFirstToken(event.text)
                         // отменить проигравших — только их handles, победителя не трогаем
-                        active.filter { it !== a }.forEach { loser -> loser.handle?.cancel() }
+                        active.filter { it !== a }.forEach { loser -> loser.cancelAttempt() }
                         active.removeAll { it !== a }
                     } else if (a === winnerRef.get()) {
                         sink.onToken(event.text)
@@ -177,7 +190,8 @@ class ChainRouter(
         }
 
         if (result == null) {
-            handles.forEach { it.cancel() }
+            // отмена только через attempt-флаги — по одному cancel на attempt
+            active.forEach { it.cancelAttempt() }
             throw AllFailedException(failures.toList(), hedged)
         }
         result!!
