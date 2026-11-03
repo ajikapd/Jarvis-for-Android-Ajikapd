@@ -306,6 +306,72 @@ class ChainRouterTest {
     }
 
     @Test
+    fun halfOpen_twoParallelRuns_onlyOneProbe() = runBlocking {
+        val e1 = entry("ho")
+        val cfg = ChainConfig(hedgeAfterMs = 50, totalDeadlineMs = 3000, maxParallel = 2, circuitOpenMs = 100, circuitFailureThreshold = 3)
+        val h = ChainHealth(clock = { System.currentTimeMillis() }, config = cfg)
+        // открыть circuit: 3 сбоя
+        repeat(3) { h.recordFailure(e1, ErrorClass.OVERLOADED) }
+        // ждать полуоткрытия
+        delay(cfg.circuitOpenMs + 50)
+        val call = FakeCall(mapOf(
+            "m-ho" to listOf({ l -> runBlocking { delay(300); l.onFirstToken("probe-ok"); l.onComplete(null) } })
+        ))
+        // два параллельных run() — только один должен получить пробу
+        val jobs = (0 until 2).map {
+            GlobalScope.async { ChainRouter(config = cfg).run(req, listOf(e1), h, call, RecordingSink()) }
+        }
+        // первый вернёт результат, второй — AllFailed (запись недоступна: проба in-flight)
+        var success = 0
+        var failed = 0
+        jobs.forEach { j ->
+            try { j.await(); success++ } catch (e: AllFailedException) { failed++ }
+        }
+        // ровно один пробный запрос к записи
+        assertEquals(1, call.starts.size)
+        assertEquals(1, success)
+        assertEquals(1, failed)
+    }
+
+    @Test
+    fun halfOpen_probeSuccess_closesCircuit() = runBlocking {
+        val e1 = entry("ho2")
+        val cfg = ChainConfig(hedgeAfterMs = 50, totalDeadlineMs = 3000, maxParallel = 2, circuitOpenMs = 60, circuitFailureThreshold = 2)
+        val h = ChainHealth(clock = { System.currentTimeMillis() }, config = cfg)
+        repeat(2) { h.recordFailure(e1, ErrorClass.OVERLOADED) }
+        delay(cfg.circuitOpenMs + 30)
+        // проба успешна
+        val call = FakeCall(mapOf(
+            "m-ho2" to listOf({ l -> l.onFirstToken("ok"); l.onComplete(null) })
+        ))
+        ChainRouter(config = cfg).run(req, listOf(e1), h, call, RecordingSink())
+        // успех закрыл circuit: запись доступна сразу, без задержки
+        assertTrue(h.isAvailable(e1))
+    }
+
+    @Test
+    fun halfOpen_probeFailure_reopens() = runBlocking {
+        val e1 = entry("ho3")
+        val cfg = ChainConfig(hedgeAfterMs = 50, totalDeadlineMs = 5000, maxParallel = 2, circuitOpenMs = 60, circuitFailureThreshold = 2)
+        val h = ChainHealth(clock = { System.currentTimeMillis() }, config = cfg)
+        repeat(2) { h.recordFailure(e1, ErrorClass.OVERLOADED) }
+        delay(cfg.circuitOpenMs + 30)
+        // проба падает
+        val call = FakeCall(mapOf(
+            "m-ho3" to listOf({ l -> l.onError(503, "still bad") })
+        ))
+        try {
+            ChainRouter(config = cfg).run(req, listOf(e1), h, call, RecordingSink())
+            fail("expected AllFailedException")
+        } catch (e: AllFailedException) { /* ok */ }
+        // circuit снова открыт
+        assertFalse(h.isAvailable(e1))
+        // и откроется заново только после circuitOpenMs
+        delay(cfg.circuitOpenMs + 30)
+        assertTrue(h.isAvailable(e1))
+    }
+
+    @Test
     fun stress_200runs_singleWinnerInvariant() = runBlocking {
         val cfg = ChainConfig(hedgeAfterMs = 40, totalDeadlineMs = 2000, maxParallel = 2)
         val entries = (0 until 3).map { entry("st$it") }

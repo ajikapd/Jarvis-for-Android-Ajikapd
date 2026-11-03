@@ -58,6 +58,9 @@ class ChainRouter(
         var result: ChainResult? = null
 
         fun launchAttempt(entry: ChainEntry, paramIndex: Int): Attempt {
+            // полуоткрытая запись: пометить пробу как in-flight ДО старта,
+            // чтобы параллельные run() не получили вторую пробу
+            health.markProbeInFlight(entry)
             val a = Attempt(entry, paramIndex, eventChannel, ThoughtStripper())
             launch(Dispatchers.Default) {
                 val listener = object : CallListener {
