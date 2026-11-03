@@ -1,126 +1,177 @@
 package com.jarvis.core.cloud
 
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
 
-class ChainRouter(private val clock: () -> Long = { System.currentTimeMillis() }) {
+interface TokenSink {
+    fun onFirstToken(text: String)
+    fun onToken(text: String)
+    fun onComplete(usage: Map<String, Any>?)
+}
+
+internal sealed class AttemptEvent {
+    class VisibleToken(val text: String, val attempt: Attempt) : AttemptEvent()
+    class Completed(val usage: Map<String, Any>?, val attempt: Attempt) : AttemptEvent()
+    class Errored(val httpStatus: Int?, val body: String?, val attempt: Attempt) : AttemptEvent()
+}
+
+internal class Attempt(
+    val entry: ChainEntry,
+    val paramIndex: Int,
+    val channel: Channel<AttemptEvent>,
+    val stripper: ThoughtStripper
+)
+
+class ChainRouter(
+    private val clock: () -> Long = { System.currentTimeMillis() },
+    private val config: ChainConfig = ChainConfig.Default
+) {
     data class Request(val messages: List<Map<String, Any>> = emptyList())
+
+    /** Кэш принятого индекса кандидата параметров: живёт, пока жив роутер. */
+    private val acceptedParamIndex = mutableMapOf<String, Int>()
 
     suspend fun run(
         request: Request,
         availableEntries: List<ChainEntry>,
         health: ChainHealth,
-        config: ChainConfig = ChainConfig.Default,
-        cloudCall: CloudCall
-    ): ChainResult = withContext(Dispatchers.Default) {
+        cloudCall: CloudCall,
+        sink: TokenSink
+    ): ChainResult = coroutineScope {
+        val cfg = config
         val failures = mutableListOf<ErrorClass>()
-        val acceptedParamIndex = mutableMapOf<String, Int>()
-        val hedgeAfter = config.hedgeAfterMs
-        val deadline = clock() + config.totalDeadlineMs
+        val startMs = clock()
+        val deadline = startMs + cfg.totalDeadlineMs
 
-        var hedged = false
-        var winnerEntry: ChainEntry? = null
-        var firstTokenTime: Long? = null
-        val output = StringBuilder()
-
-        // filter available
         val entries = availableEntries.filter { health.isAvailable(it) }
-        if (entries.isEmpty()) {
-            throw AllFailedException()
-        }
+        if (entries.isEmpty()) throw AllFailedException()
 
-        // launch first
-        val jobs = mutableListOf<Job>()
-        val activeCalls = mutableListOf<Pair<ChainEntry, CancelHandle>>()
+        val eventChannel = Channel<AttemptEvent>(Channel.UNLIMITED)
+        val active = mutableListOf<Attempt>()
+        val handles = mutableListOf<CancelHandle>()
+        var hedged = false
+        var winner: Attempt? = null
+        var firstTokenMs: Long? = null
+        var nextEntryIdx = 1
+        var result: ChainResult? = null
 
-        // We'll implement sequentially with hedging via coroutine delays.
-        var index = 0
-        var currentJob: Job? = null
-
-        // Simplified: try entries one by one with hedge
-        outer@ for (entry in entries) {
-            if (clock() > deadline) break
-            val entryKey = "${entry.providerId}/${entry.modelId}"
-            var paramIdx = acceptedParamIndex.getOrPut(entryKey) { 0 }
-            var attemptParam = paramIdx
-            while (attemptParam < entry.paramCandidates.size) {
-                if (clock() > deadline) break@outer
-                health.markProbeInFlight(entry)
-                val callHandleHolder = arrayOf<CancelHandle?>(null)
-                val firstTokenDeferred = CompletableDeferred<Long?>()
-                val completedDeferred = CompletableDeferred<Boolean>()
-                var firstTokenReceived = false
+        fun launchAttempt(entry: ChainEntry, paramIndex: Int): Attempt {
+            val a = Attempt(entry, paramIndex, eventChannel, ThoughtStripper())
+            launch(Dispatchers.Default) {
                 val listener = object : CallListener {
                     override fun onFirstToken(text: String) {
-                        val stripped = ThoughtStripper().strip(text) // best effort
-                        if (!firstTokenReceived) {
-                            firstTokenReceived = true
-                            firstTokenTime = clock()
-                            firstTokenDeferred.complete(firstTokenTime)
-                        }
+                        val visible = a.stripper.strip(text)
+                        if (visible.isNotEmpty()) a.channel.trySend(AttemptEvent.VisibleToken(visible, a))
                     }
-                    override fun onToken(text: String) {}
-                    override fun onComplete(usage: Map<String, Any>?) { completedDeferred.complete(true) }
+                    override fun onToken(text: String) {
+                        val visible = a.stripper.strip(text)
+                        if (visible.isNotEmpty()) a.channel.trySend(AttemptEvent.VisibleToken(visible, a))
+                    }
+                    override fun onComplete(usage: Map<String, Any>?) {
+                        a.channel.trySend(AttemptEvent.Completed(usage, a))
+                    }
                     override fun onError(httpStatus: Int?, body: String?) {
-                        val cls = CloudErrorClassifier.classify(httpStatus, body)
-                        if (httpStatus == 400 && !firstTokenReceived) {
-                            // try next param candidate
-                            attemptParam++
-                            acceptedParamIndex[entryKey] = attemptParam
-                            completedDeferred.complete(false)
+                        a.channel.trySend(AttemptEvent.Errored(httpStatus, body, a))
+                    }
+                }
+                handles.add(cloudCall.start(entry, paramIndex, listener))
+            }
+            active.add(a)
+            return a
+        }
+
+        fun startNext(): Boolean {
+            if (nextEntryIdx >= entries.size) return false
+            val e = entries[nextEntryIdx++]
+            launchAttempt(e, acceptedParamIndex["${e.providerId}/${e.modelId}"] ?: 0)
+            return true
+        }
+
+        launchAttempt(entries[0], acceptedParamIndex["${entries[0].providerId}/${entries[0].modelId}"] ?: 0)
+        val hedgeAt = startMs + cfg.hedgeAfterMs
+
+        // цикл событий: Channel + withTimeoutOrNull (без delay(10)-опроса)
+        while (result == null) {
+            val now = clock()
+            if (now >= deadline) break
+            val canHedge = active.size < cfg.maxParallel && nextEntryIdx < entries.size && winner == null
+            val waitHedge = (hedgeAt - now).coerceAtLeast(0)
+            val timeout = if (canHedge) waitHedge else (deadline - now)
+
+            val event = if (timeout > 0) withTimeoutOrNull(timeout) { eventChannel.receive() } else null
+
+            if (event == null) {
+                if (canHedge && clock() >= hedgeAt) {
+                    startNext()
+                    hedged = true
+                }
+                continue
+            }
+
+            when (event) {
+                is AttemptEvent.VisibleToken -> {
+                    val a = event.attempt
+                    if (winner == null) {
+                        winner = a
+                        firstTokenMs = clock()
+                        sink.onFirstToken(event.text)
+                        // отменить проигравших
+                        active.filter { it !== a }.forEach { _ -> handles.forEach { h -> h.cancel() } }
+                        active.removeAll { it !== a }
+                    } else if (a === winner) {
+                        sink.onToken(event.text)
+                    }
+                }
+                is AttemptEvent.Completed -> {
+                    val a = event.attempt
+                    if (a === winner) {
+                        sink.onComplete(event.usage)
+                        health.recordSuccess(a.entry)
+                        result = ChainResult(a.entry, hedged, firstTokenMs!! - startMs, failures)
+                    } else {
+                        active.remove(a)
+                        failures.add(ErrorClass.EMPTY_RESPONSE)
+                        health.recordFailure(a.entry, ErrorClass.EMPTY_RESPONSE)
+                        if (winner == null && active.isEmpty()) startNext()
+                    }
+                }
+                is AttemptEvent.Errored -> {
+                    val a = event.attempt
+                    active.remove(a)
+                    if (event.httpStatus == 400) {
+                        // следующий кандидат параметров той же записи — не сбой здоровья
+                        val key = "${a.entry.providerId}/${a.entry.modelId}"
+                        val next = a.paramIndex + 1
+                        if (next < a.entry.paramCandidates.size) {
+                            acceptedParamIndex[key] = next
+                            launchAttempt(a.entry, next)
                         } else {
-                            failures.add(cls)
-                            if (cls == ErrorClass.AUTH_OR_REGION || cls == ErrorClass.BLOCKED_BY_CLOUDFLARE) health.reset(entry.providerId)
-                            else health.recordFailure(entry, cls)
-                            completedDeferred.complete(false)
+                            failures.add(ErrorClass.BAD_REQUEST)
+                            health.recordFailure(a.entry, ErrorClass.BAD_REQUEST, paramsExhausted = true)
+                            if (winner == null && active.isEmpty()) startNext()
+                        }
+                    } else {
+                        val cls = CloudErrorClassifier.classify(event.httpStatus, event.body)
+                        failures.add(cls)
+                        health.recordFailure(a.entry, cls)
+                        if (cls == ErrorClass.AUTH_OR_REGION || cls == ErrorClass.BLOCKED_BY_CLOUDFLARE) {
+                            health.reset(a.entry.providerId)
+                        }
+                        // падение до первого токена → следующая запись сразу
+                        if (winner == null && active.isEmpty()) startNext()
+                        else if (winner == null && active.size < cfg.maxParallel) {
+                            if (startNext()) hedged = true
                         }
                     }
                 }
-                val handle = cloudCall.start(entry, attemptParam, listener)
-                callHandleHolder[0] = handle
-                activeCalls.add(entry to handle)
-
-                // wait for first token or completion or hedge timeout
-                val start = clock()
-                while (!firstTokenReceived && !completedDeferred.isCompleted && clock() - start < hedgeAfter && clock() < deadline) {
-                    delay(10)
-                }
-                if (firstTokenReceived) {
-                    winnerEntry = entry
-                    // cancel others
-                    activeCalls.forEach { if (it.first != entry) it.second.cancel() }
-                    health.recordSuccess(entry)
-                    break@outer
-                }
-                if (completedDeferred.isCompleted) {
-                    // failed; try next entry
-                    break
-                }
-                // hedge: launch next entry in parallel (simplified: just continue loop after delay)
-                hedged = true
-                // wait a bit more for first token
-                while (!firstTokenReceived && !completedDeferred.isCompleted && clock() < deadline) {
-                    delay(10)
-                    if (clock() - start > hedgeAfter) break
-                }
-                if (firstTokenReceived) {
-                    winnerEntry = entry
-                    activeCalls.forEach { if (it.first != entry) it.second.cancel() }
-                    health.recordSuccess(entry)
-                    break@outer
-                }
-                // cancel and move next
-                handle.cancel()
-                // record failure as empty? If no token, treat as empty_response
-                if (!completedDeferred.isCompleted) {
-                    failures.add(ErrorClass.EMPTY_RESPONSE)
-                    health.recordFailure(entry, ErrorClass.EMPTY_RESPONSE)
-                }
-                break
             }
         }
 
-        if (winnerEntry == null) throw AllFailedException()
-        ChainResult(winnerEntry!!, hedged, firstTokenTime!! - (deadline - config.totalDeadlineMs), failures)
+        if (result == null) {
+            handles.forEach { it.cancel() }
+            throw AllFailedException()
+        }
+        result!!
     }
 }
 
