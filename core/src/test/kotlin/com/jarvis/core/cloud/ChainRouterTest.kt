@@ -146,6 +146,42 @@ class ChainRouterTest {
     }
 
     @Test
+    fun loserCancelledOnce_winnerNotCancelledBeforeComplete() = runBlocking {
+        val e1 = entry("slow")
+        val e2 = entry("fast")
+        val call = FakeCall(mapOf(
+            "m-slow" to listOf({ l -> runBlocking { delay(400); l.onFirstToken("loser"); l.onComplete(null) } }),
+            "m-fast" to listOf({ l -> runBlocking { delay(5); l.onFirstToken("winner"); l.onComplete(null) } })
+        ))
+        val sink = RecordingSink()
+        val r = ChainRouter(config = fastCfg).run(req, listOf(e1, e2), health(), call, sink)
+        assertEquals("m-fast", r.entry.modelId)
+        // проигравший отменён ровно один раз
+        val loserCancels = call.cancels.count { it.first.modelId == "m-slow" }
+        assertEquals(1, loserCancels)
+        // победитель не отменён (cancel не вызван ни разу для m-fast)
+        assertEquals(0, call.cancels.count { it.first.modelId == "m-fast" })
+    }
+
+    @Test
+    fun deadline_cancelsAllActive() = runBlocking {
+        val e1 = entry("stuck1")
+        val e2 = entry("stuck2")
+        val call = FakeCall(mapOf(
+            "m-stuck1" to listOf({ l -> runBlocking { delay(10_000); l.onFirstToken("late1") } }),
+            "m-stuck2" to listOf({ l -> runBlocking { delay(10_000); l.onFirstToken("late2") } })
+        ))
+        val cfg = ChainConfig(hedgeAfterMs = 50, totalDeadlineMs = 400, maxParallel = 2)
+        try {
+            ChainRouter(config = cfg).run(req, listOf(e1, e2), health(), call, RecordingSink())
+            fail("expected AllFailedException")
+        } catch (e: AllFailedException) { /* ok */ }
+        // после дедлайна cancel вызван у всех активных
+        val stuckCancels = call.cancels.count { it.first.modelId.startsWith("m-stuck") }
+        assertEquals(2, stuckCancels)
+    }
+
+    @Test
     fun allUnavailable_allFailedWithoutCalls() = runBlocking {
         val e1 = entry("off")
         val call = FakeCall(emptyMap())

@@ -20,7 +20,9 @@ internal class Attempt(
     val paramIndex: Int,
     val channel: Channel<AttemptEvent>,
     val stripper: ThoughtStripper
-)
+) {
+    @Volatile var handle: CancelHandle? = null
+}
 
 class ChainRouter(
     private val clock: () -> Long = { System.currentTimeMillis() },
@@ -74,7 +76,9 @@ class ChainRouter(
                         a.channel.trySend(AttemptEvent.Errored(httpStatus, body, a))
                     }
                 }
-                handles.add(cloudCall.start(entry, paramIndex, listener))
+                val handle = cloudCall.start(entry, paramIndex, listener)
+                handles.add(handle)
+                a.handle = handle
             }
             active.add(a)
             return a
@@ -115,8 +119,8 @@ class ChainRouter(
                         winner = a
                         firstTokenMs = clock()
                         sink.onFirstToken(event.text)
-                        // отменить проигравших
-                        active.filter { it !== a }.forEach { _ -> handles.forEach { h -> h.cancel() } }
+                        // отменить проигравших — только их handles, победителя не трогаем
+                        active.filter { it !== a }.forEach { loser -> loser.handle?.cancel() }
                         active.removeAll { it !== a }
                     } else if (a === winner) {
                         sink.onToken(event.text)
