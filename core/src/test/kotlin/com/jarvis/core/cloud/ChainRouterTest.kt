@@ -142,7 +142,29 @@ class ChainRouterTest {
         try {
             ChainRouter(config = cfg).run(req, listOf(e1), health(), call, RecordingSink())
             fail("expected AllFailedException")
-        } catch (e: AllFailedException) { /* ok */ }
+        } catch (e: AllFailedException) {
+            // дедлайн: failures пуст (записи не падали, просто молчали), hedged false
+            assertEquals(0, e.failures.size)
+            assertFalse(e.hedged)
+        }
+    }
+
+    @Test
+    fun allFailedExhausted_carriesFailuresAndHedged() = runBlocking {
+        val e1 = entry("f1")
+        val e2 = entry("f2")
+        val call = FakeCall(mapOf(
+            "m-f1" to listOf({ l -> l.onError(503, "overloaded") }),
+            "m-f2" to listOf({ l -> l.onComplete(null) }) // пустой ответ
+        ))
+        val cfg = ChainConfig(hedgeAfterMs = 30, totalDeadlineMs = 5000, maxParallel = 2)
+        try {
+            ChainRouter(config = cfg).run(req, listOf(e1, e2), health(), call, RecordingSink())
+            fail("expected AllFailedException")
+        } catch (e: AllFailedException) {
+            // обе записи дали сбой: overloaded + empty_response
+            assertEquals(listOf(ErrorClass.OVERLOADED, ErrorClass.EMPTY_RESPONSE), e.failures)
+        }
     }
 
     @Test

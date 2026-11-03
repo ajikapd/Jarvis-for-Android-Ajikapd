@@ -98,6 +98,8 @@ class ChainRouter(
         while (result == null) {
             val now = clock()
             if (now >= deadline) break
+            // исчерпание: активных нет, записей больше нет, победителя нет
+            if (winner == null && active.isEmpty() && nextEntryIdx >= entries.size) break
             val canHedge = active.size < cfg.maxParallel && nextEntryIdx < entries.size && winner == null
             val waitHedge = (hedgeAt - now).coerceAtLeast(0)
             val timeout = if (canHedge) waitHedge else (deadline - now)
@@ -173,10 +175,13 @@ class ChainRouter(
 
         if (result == null) {
             handles.forEach { it.cancel() }
-            throw AllFailedException()
+            throw AllFailedException(failures.toList(), hedged)
         }
         result!!
     }
 }
 
-class AllFailedException : RuntimeException("AllFailed")
+class AllFailedException(
+    val failures: List<ErrorClass> = emptyList(),
+    val hedged: Boolean = false
+) : RuntimeException("AllFailed")
