@@ -5,19 +5,34 @@ import org.junit.Assert.*
 import org.junit.Test
 import java.util.Collections
 
-/** Фейковый CloudCall: сценарии по ключу entry.modelId. */
+/** Фейковый CloudCall: сценарии по ключу entry.modelId + учёт параллелизма и отмен. */
 private class FakeCall(
     val script: Map<String, List<(CallListener) -> Unit>>
 ) : CloudCall {
     val starts = Collections.synchronizedList(mutableListOf<Pair<ChainEntry, Int>>())
     val cancels = Collections.synchronizedList(mutableListOf<Pair<ChainEntry, Int>>())
+    private val inFlight = java.util.concurrent.atomic.AtomicInteger(0)
+    private val maxInFlight = java.util.concurrent.atomic.AtomicInteger(0)
+    fun maxConcurrent(): Int = maxInFlight.get()
+
     override fun start(entry: ChainEntry, paramCandidateIndex: Int, listener: CallListener): CancelHandle {
         starts.add(entry to paramCandidateIndex)
+        val current = inFlight.incrementAndGet()
+        maxInFlight.updateAndGet { old -> maxOf(old, current) }
         val steps = script[entry.modelId] ?: emptyList()
         val step = steps.getOrNull(paramCandidateIndex) ?: { }
-        GlobalScope.launch(Dispatchers.Default) { step(listener) }
+        GlobalScope.launch(Dispatchers.Default) {
+            try {
+                step(listener)
+            } finally {
+                inFlight.decrementAndGet()
+            }
+        }
         return object : CancelHandle {
-            override fun cancel() { cancels.add(entry to paramCandidateIndex) }
+            override fun cancel() {
+                inFlight.decrementAndGet()
+                cancels.add(entry to paramCandidateIndex)
+            }
         }
     }
 }
@@ -146,14 +161,17 @@ class ChainRouterTest {
     @Test
     fun maxParallel_neverExceeded() = runBlocking {
         val entries = (0 until 4).map { entry("s$it") }
+        // все медленные: ни один не даёт токен — дедлайн наступит раньше
         val call = FakeCall(entries.associate { e ->
-            e.modelId to listOf<(CallListener) -> Unit>({ l -> runBlocking { delay(200); l.onFirstToken("t${e.modelId}"); l.onComplete(null) } })
+            e.modelId to listOf<(CallListener) -> Unit>({ l -> runBlocking { delay(10_000); l.onFirstToken("t") } })
         })
-        val cfg = ChainConfig(hedgeAfterMs = 50, totalDeadlineMs = 2000, maxParallel = 2)
-        val r = ChainRouter(config = cfg).run(req, entries, health(), call, RecordingSink())
-        assertNotNull(r)
-        // ключевая инвариантность: не упало, победитель один
-        assertTrue(r.failures.isEmpty() || r.failures.isNotEmpty())
+        val cfg = ChainConfig(hedgeAfterMs = 50, totalDeadlineMs = 500, maxParallel = 2)
+        try {
+            ChainRouter(config = cfg).run(req, entries, health(), call, RecordingSink())
+            fail("expected AllFailedException")
+        } catch (e: AllFailedException) { /* ok — дедлайн */ }
+        // ровно 2 параллельных вызова максимум (не меньше и не больше)
+        assertEquals(2, call.maxConcurrent())
     }
 
     @Test
