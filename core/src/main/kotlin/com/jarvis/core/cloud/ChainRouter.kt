@@ -24,9 +24,9 @@ internal class Attempt(
     @Volatile var handle: CancelHandle? = null
     private val cancelled = java.util.concurrent.atomic.AtomicBoolean(false)
 
-    /** Атомарная отмена: ставит флаг и отменяет handle, если он уже есть. */
+    /** Атомарная идемпотентная отмена: первый вызов ставит флаг и отменяет handle. */
     fun cancelAttempt() {
-        cancelled.set(true)
+        if (!cancelled.compareAndSet(false, true)) return
         handle?.cancel()
     }
 
@@ -52,7 +52,13 @@ class ChainRouter(
         health: ChainHealth,
         cloudCall: CloudCall,
         sink: TokenSink
-    ): ChainResult = coroutineScope {
+    ): ChainResult {
+        // состояние, видимое в finally: отмена вызывающим корутиной run()
+        val eventChannel = Channel<AttemptEvent>(Channel.UNLIMITED)
+        val active = java.util.Collections.synchronizedList(mutableListOf<Attempt>())
+        val handles = java.util.Collections.synchronizedList(mutableListOf<CancelHandle>())
+        try {
+            return coroutineScope {
         val cfg = config
         val failures = mutableListOf<ErrorClass>()
         val startMs = clock()
@@ -61,9 +67,6 @@ class ChainRouter(
         val entries = availableEntries.filter { health.isAvailable(it) }
         if (entries.isEmpty()) throw AllFailedException()
 
-        val eventChannel = Channel<AttemptEvent>(Channel.UNLIMITED)
-        val active = mutableListOf<Attempt>()
-        val handles = mutableListOf<CancelHandle>()
         var hedged = false
         val winnerRef = java.util.concurrent.atomic.AtomicReference<Attempt?>(null)
         var firstTokenMs: Long? = null
@@ -150,6 +153,8 @@ class ChainRouter(
                         sink.onComplete(event.usage)
                         health.recordSuccess(a.entry)
                         result = ChainResult(a.entry, hedged, firstTokenMs!! - startMs, failures)
+                        // победитель завершился — убрать из active, чтобы finally его не отменял
+                        active.remove(a)
                     } else {
                         active.remove(a)
                         failures.add(ErrorClass.EMPTY_RESPONSE)
@@ -195,6 +200,12 @@ class ChainRouter(
             throw AllFailedException(failures.toList(), hedged)
         }
         result!!
+            }
+        } finally {
+            // отмена вызывающим корутиной run(): все активные handles
+            // отменяются через attempt-флаги (idempotent, по одному разу)
+            active.forEach { it.cancelAttempt() }
+        }
     }
 }
 

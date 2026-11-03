@@ -405,6 +405,37 @@ class ChainRouterTest {
     }
 
     @Test
+    fun callerCancel_activeHandlesCancelled_noSinkAfter() = runBlocking {
+        val e1 = entry("cc1")
+        val e2 = entry("cc2")
+        val cancelLatch = java.util.concurrent.ConcurrentHashMap<String, Int>()
+        val sinkEvents = java.util.concurrent.atomic.AtomicInteger(0)
+        val call = object : CloudCall {
+            override fun start(entry: ChainEntry, paramCandidateIndex: Int, listener: CallListener): CancelHandle {
+                // медленные ответы — отмена придёт раньше
+                GlobalScope.launch { delay(5000); listener.onFirstToken("late-${entry.modelId}") }
+                return object : CancelHandle {
+                    override fun cancel() { cancelLatch.merge(entry.modelId, 1, Int::plus) }
+                }
+            }
+        }
+        val sink = object : TokenSink {
+            override fun onFirstToken(text: String) { sinkEvents.incrementAndGet() }
+            override fun onToken(text: String) { sinkEvents.incrementAndGet() }
+            override fun onComplete(usage: Map<String, Any>?) { }
+        }
+        val cfg = ChainConfig(hedgeAfterMs = 50, totalDeadlineMs = 5000, maxParallel = 2)
+        val job = GlobalScope.launch { ChainRouter(config = cfg).run(req, listOf(e1, e2), health(), call, sink) }
+        delay(150) // оба активны
+        job.cancelAndJoin()
+        // все активные handles отменены ровно по одному разу
+        assertEquals(1, cancelLatch["m-cc1"])
+        assertEquals(1, cancelLatch["m-cc2"])
+        // в sink ничего не пришло
+        assertEquals(0, sinkEvents.get())
+    }
+
+    @Test
     fun stress_200runs_singleWinnerInvariant() = runBlocking {
         val cfg = ChainConfig(hedgeAfterMs = 40, totalDeadlineMs = 2000, maxParallel = 2)
         val entries = (0 until 3).map { entry("st$it") }
