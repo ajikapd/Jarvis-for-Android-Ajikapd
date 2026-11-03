@@ -64,7 +64,7 @@ class ChainRouter(
         val startMs = clock()
         val deadline = startMs + cfg.totalDeadlineMs
 
-        val entries = availableEntries.filter { health.isAvailable(it) }
+        val entries = availableEntries.filter { health.tryAcquireProbe(it) }
         if (entries.isEmpty()) throw AllFailedException()
 
         var hedged = false
@@ -74,9 +74,6 @@ class ChainRouter(
         var result: ChainResult? = null
 
         fun launchAttempt(entry: ChainEntry, paramIndex: Int): Attempt {
-            // полуоткрытая запись: пометить пробу как in-flight ДО старта,
-            // чтобы параллельные run() не получили вторую пробу
-            health.markProbeInFlight(entry)
             val a = Attempt(entry, paramIndex, eventChannel, ThoughtStripper())
             launch(Dispatchers.Default) {
                 val listener = object : CallListener {

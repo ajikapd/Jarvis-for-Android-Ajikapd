@@ -306,30 +306,42 @@ class ChainRouterTest {
     }
 
     @Test
-    fun halfOpen_twoParallelRuns_onlyOneProbe() = runBlocking {
+    fun halfOpen_NthreadsLatch_onlyOneProbe() = runBlocking {
         val e1 = entry("ho")
         val cfg = ChainConfig(hedgeAfterMs = 50, totalDeadlineMs = 3000, maxParallel = 2, circuitOpenMs = 100, circuitFailureThreshold = 3)
         val h = ChainHealth(clock = { System.currentTimeMillis() }, config = cfg)
-        // открыть circuit: 3 сбоя
+        // открыть circuit
         repeat(3) { h.recordFailure(e1, ErrorClass.OVERLOADED) }
-        // ждать полуоткрытия
+        // ждать полуоткрытия (барьер до старта потоков)
         delay(cfg.circuitOpenMs + 50)
         val call = FakeCall(mapOf(
             "m-ho" to listOf({ l -> runBlocking { delay(400); l.onFirstToken("probe-ok"); l.onComplete(null) } })
         ))
-        // первый run стартует пробу (медленную), второй run запускается после — проба уже in-flight
-        val job1 = GlobalScope.async { ChainRouter(config = cfg).run(req, listOf(e1), h, call, RecordingSink()) }
-        delay(100) // проба первого run уже in-flight
-        val job2 = GlobalScope.async { ChainRouter(config = cfg).run(req, listOf(e1), h, call, RecordingSink()) }
-        var success = 0
-        var failed = 0
-        listOf(job1, job2).forEach { j ->
-            try { j.await(); success++ } catch (e: AllFailedException) { failed++ }
+        // N=8 потоков стартуют одновременно через CountDownLatch — без задержек
+        val n = 8
+        val startLatch = java.util.concurrent.CountDownLatch(1)
+        val doneLatch = java.util.concurrent.CountDownLatch(n)
+        val results = java.util.concurrent.ConcurrentLinkedQueue<Boolean>()
+        val pool = java.util.concurrent.Executors.newFixedThreadPool(n)
+        repeat(n) {
+            pool.submit {
+                try { startLatch.await() } catch (_: InterruptedException) {}
+                try {
+                    runBlocking { ChainRouter(config = cfg).run(req, listOf(e1), h, call, RecordingSink()) }
+                    results.add(true)
+                } catch (e: AllFailedException) {
+                    results.add(false)
+                } finally { doneLatch.countDown() }
+            }
         }
-        // ровно один пробный запрос к записи
+        startLatch.countDown()
+        doneLatch.await()
+        pool.shutdown()
+        // ровно один пробный start() на запись — tryAcquireProbe атомарен
         assertEquals(1, call.starts.size)
-        assertEquals(1, success)
-        assertEquals(1, failed)
+        // ровно один успех, остальные AllFailed
+        assertEquals(1, results.count { it })
+        assertEquals(n - 1, results.count { !it })
     }
 
     @Test

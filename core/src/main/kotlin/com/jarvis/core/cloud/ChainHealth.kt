@@ -88,6 +88,21 @@ class ChainHealth(
         set(entry, s.copy(circuitProbeInFlight = true))
     }
 
+    /**
+     * Атомарная (в рамках монитора) проверка доступности + захват пробы:
+     * если запись полуоткрыта — помечает пробу in-flight и возвращает true;
+     * если недоступна — false без побочных эффектов.
+     */
+    @Synchronized
+    fun tryAcquireProbe(entry: ChainEntry): Boolean {
+        if (!isAvailable(entry)) return false
+        val s = get(entry)
+        if (s.circuitHalfOpen && !s.circuitProbeInFlight) {
+            set(entry, s.copy(circuitProbeInFlight = true))
+        }
+        return true
+    }
+
     @Synchronized
     fun reset(providerId: String) {
         val toRemove = states.keys.filter { it.startsWith("$providerId/") }
