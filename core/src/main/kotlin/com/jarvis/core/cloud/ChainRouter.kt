@@ -56,7 +56,6 @@ class ChainRouter(
         // состояние, видимое в finally: отмена вызывающим корутиной run()
         val eventChannel = Channel<AttemptEvent>(Channel.UNLIMITED)
         val active = java.util.Collections.synchronizedList(mutableListOf<Attempt>())
-        val handles = java.util.Collections.synchronizedList(mutableListOf<CancelHandle>())
         try {
             return coroutineScope {
         val cfg = config
@@ -93,7 +92,6 @@ class ChainRouter(
                     }
                 }
                 val handle = cloudCall.start(entry, paramIndex, listener)
-                handles.add(handle)
                 a.assignHandle(handle)
             }
             active.add(a)
