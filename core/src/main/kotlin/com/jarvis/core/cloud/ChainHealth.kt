@@ -103,6 +103,15 @@ class ChainHealth(
         return true
     }
 
+    /** Снимает пометку пробы без записи успеха/сбоя (для отменённых попыток). */
+    @Synchronized
+    fun releaseProbe(entry: ChainEntry) {
+        val s = get(entry)
+        if (s.circuitHalfOpen || s.circuitProbeInFlight) {
+            set(entry, s.copy(circuitProbeInFlight = false))
+        }
+    }
+
     @Synchronized
     fun reset(providerId: String) {
         val toRemove = states.keys.filter { it.startsWith("$providerId/") }

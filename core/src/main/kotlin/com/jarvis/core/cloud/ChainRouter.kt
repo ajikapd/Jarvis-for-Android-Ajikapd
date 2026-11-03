@@ -63,7 +63,8 @@ class ChainRouter(
         val startMs = clock()
         val deadline = startMs + cfg.totalDeadlineMs
 
-        val entries = availableEntries.filter { health.tryAcquireProbe(it) }
+        // доступность проверяем без захвата пробы; захват — в момент реального старта
+        val entries = availableEntries.filter { health.isAvailable(it) }
         if (entries.isEmpty()) throw AllFailedException()
 
         var hedged = false
@@ -72,7 +73,9 @@ class ChainRouter(
         var nextEntryIdx = 1
         var result: ChainResult? = null
 
-        fun launchAttempt(entry: ChainEntry, paramIndex: Int): Attempt {
+        fun launchAttempt(entry: ChainEntry, paramIndex: Int): Attempt? {
+            // захват пробы в момент реального старта; если запись недоступна — не стартуем
+            if (!health.tryAcquireProbe(entry)) return null
             val a = Attempt(entry, paramIndex, eventChannel, ThoughtStripper())
             launch(Dispatchers.Default) {
                 val listener = object : CallListener {
@@ -99,13 +102,19 @@ class ChainRouter(
         }
 
         fun startNext(): Boolean {
-            if (nextEntryIdx >= entries.size) return false
-            val e = entries[nextEntryIdx++]
-            launchAttempt(e, acceptedParamIndex["${e.providerId}/${e.modelId}"] ?: 0)
-            return true
+            while (nextEntryIdx < entries.size) {
+                val e = entries[nextEntryIdx++]
+                if (launchAttempt(e, acceptedParamIndex["${e.providerId}/${e.modelId}"] ?: 0) != null) return true
+                // tryAcquireProbe == false: запись недоступна — пропустить, не сбой
+            }
+            return false
         }
 
-        launchAttempt(entries[0], acceptedParamIndex["${entries[0].providerId}/${entries[0].modelId}"] ?: 0)
+        // первый запуск; если первая запись вдруг недоступна — идём к следующей
+        if (launchAttempt(entries[0], acceptedParamIndex["${entries[0].providerId}/${entries[0].modelId}"] ?: 0) == null) {
+            startNext()
+        }
+        if (active.isEmpty() && nextEntryIdx >= entries.size) throw AllFailedException()
         val hedgeAt = startMs + cfg.hedgeAfterMs
 
         // цикл событий: Channel + withTimeoutOrNull (без delay(10)-опроса)
@@ -135,8 +144,11 @@ class ChainRouter(
                     if (winnerRef.compareAndSet(null, a)) {
                         firstTokenMs = clock()
                         sink.onFirstToken(event.text)
-                        // отменить проигравших — только их handles, победителя не трогаем
-                        active.filter { it !== a }.forEach { loser -> loser.cancelAttempt() }
+                        // отменить проигравших и освободить их пробы (без записи сбоя)
+                        active.filter { it !== a }.forEach { loser ->
+                            loser.cancelAttempt()
+                            health.releaseProbe(loser.entry)
+                        }
                         active.removeAll { it !== a }
                     } else if (a === winnerRef.get()) {
                         sink.onToken(event.text)
@@ -192,16 +204,18 @@ class ChainRouter(
         }
 
         if (result == null) {
-            // отмена только через attempt-флаги — по одному cancel на attempt
+            // дедлайн: отменить активные и освободить их пробы
             active.forEach { it.cancelAttempt() }
+            active.forEach { health.releaseProbe(it.entry) }
             throw AllFailedException(failures.toList(), hedged)
         }
         @Suppress("UNREACHABLE_CODE") result ?: error("unreachable: result non-null checked above")
             }
         } finally {
-            // отмена вызывающим корутиной run(): все активные handles
-            // отменяются через attempt-флаги (idempotent, по одному разу)
+            // отмена вызывающим корутиной run(): активные попытки отменяются
+            // через attempt-флаги (idempotent); пробы освобождаются
             active.forEach { it.cancelAttempt() }
+            active.forEach { health.releaseProbe(it.entry) }
         }
     }
 }
