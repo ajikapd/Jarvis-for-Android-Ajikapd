@@ -410,10 +410,12 @@ class ChainRouterTest {
         val entries = (0 until 3).map { entry("st$it") }
         repeat(200) { iter ->
             val rnd = java.util.Random(iter.toLong())
+            // гарантия успеха: st0 всегда отвечает быстро (≤20мс), остальные — случайно
             val call = FakeCall(entries.associate { e ->
+                val maxDelay = if (e.modelId == "m-st0") 20 else 200
                 e.modelId to listOf<(CallListener) -> Unit>({ l ->
                     runBlocking {
-                        delay(rnd.nextInt(60).toLong())
+                        delay(rnd.nextInt(maxDelay).toLong())
                         l.onFirstToken("tok-${e.modelId}")
                         delay(1)
                         l.onToken("cont-${e.modelId}")
@@ -422,17 +424,19 @@ class ChainRouterTest {
                 })
             })
             val firstCount = java.util.concurrent.atomic.AtomicInteger(0)
+            val tokens = Collections.synchronizedList(mutableListOf<String>())
             val sink = object : TokenSink {
                 override fun onFirstToken(text: String) { firstCount.incrementAndGet() }
-                override fun onToken(text: String) { }
+                override fun onToken(text: String) { tokens.add(text) }
                 override fun onComplete(usage: Map<String, Any>?) { }
             }
-            try {
-                ChainRouter(config = cfg).run(req, entries, health(), call, sink)
-                assertEquals("iter=$iter", 1, firstCount.get())
-            } catch (e: AllFailedException) {
-                assertEquals("iter=$iter", 0, firstCount.get())
-            }
+            // AllFailed не допускается: st0 отвечает ≤20мс при дедлайне 2000мс
+            val r = ChainRouter(config = cfg).run(req, entries, health(), call, sink)
+            // onFirstToken ровно 1 раз
+            assertEquals("iter=$iter firstToken", 1, firstCount.get())
+            // токены только от победителя: все содержат modelId победителя
+            val winnerId = r.entry.modelId
+            assertTrue("iter=$iter tokens not from winner: $tokens", tokens.all { it.contains(winnerId) })
         }
     }
 }
