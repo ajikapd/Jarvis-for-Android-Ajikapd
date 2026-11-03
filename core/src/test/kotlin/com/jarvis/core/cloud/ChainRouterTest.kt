@@ -345,6 +345,54 @@ class ChainRouterTest {
     }
 
     @Test
+    fun halfOpenThird_unstartedProbe_releasedAfterRun() = runBlocking {
+        // e3 — полуоткрытая третья запись; e1 отвечает успехом мгновенно,
+        // e3 даже не стартует (maxParallel=2, победитель мгновенный)
+        val e1 = entry("win")
+        val e3 = entry("hopen")
+        val cfg = ChainConfig(hedgeAfterMs = 1000, totalDeadlineMs = 3000, maxParallel = 2, circuitOpenMs = 50, circuitFailureThreshold = 2)
+        val h = ChainHealth(clock = { System.currentTimeMillis() }, config = cfg)
+        // открыть circuit у e3
+        repeat(2) { h.recordFailure(e3, ErrorClass.OVERLOADED) }
+        delay(cfg.circuitOpenMs + 30) // полуоткрытие
+        // до run: запись полуоткрыта (isAvailable true, проба свободна)
+        // (tryAcquireProbe не вызываем — иначе сами пометим пробу)
+        val call = FakeCall(mapOf(
+            "m-win" to listOf({ l -> l.onFirstToken("fast-win"); l.onComplete(null) }),
+            "m-hopen" to listOf({ l -> runBlocking { delay(3000); l.onFirstToken("never") } })
+        ))
+        // победитель e1 — успех; e3 не стартовала (hedgeAfterMs больше времени run)
+        val r = ChainRouter(config = cfg).run(req, listOf(e1, e3), h, call, RecordingSink())
+        assertEquals("m-win", r.entry.modelId)
+        // после run(): запись снова доступна для пробы (пометка снята releaseProbe)
+        assertTrue(h.tryAcquireProbe(e3))
+    }
+
+    @Test
+    fun halfOpenLoser_cancelledProbe_releasedAfterRun() = runBlocking {
+        // e2 — полуоткрытая, стартует как дубль и проигрывает (отменена)
+        val e1 = entry("w1")
+        val e2 = entry("hlose")
+        val cfg = ChainConfig(hedgeAfterMs = 30, totalDeadlineMs = 3000, maxParallel = 2, circuitOpenMs = 50, circuitFailureThreshold = 2)
+        val h = ChainHealth(clock = { System.currentTimeMillis() }, config = cfg)
+        // circuit открыт у e2
+        repeat(2) { h.recordFailure(e2, ErrorClass.OVERLOADED) }
+        delay(cfg.circuitOpenMs + 30) // полуоткрытие
+        val failuresBefore = h.snapshot()["p-hlose/m-hlose"]!!.consecutiveFailures
+        val call = FakeCall(mapOf(
+            "m-w1" to listOf({ l -> runBlocking { delay(40); l.onFirstToken("win"); l.onComplete(null) } }),
+            "m-hlose" to listOf({ l -> runBlocking { delay(3000); l.onFirstToken("late-loser") } })
+        ))
+        // e1 побеждает, e2 отменена как проигравший дубль
+        val r = ChainRouter(config = cfg).run(req, listOf(e1, e2), h, call, RecordingSink())
+        assertEquals("m-w1", r.entry.modelId)
+        // после run(): проба e2 освобождена, запись снова доступна
+        assertTrue("probe not released after loser cancel", h.tryAcquireProbe(e2))
+        // счётчик сбоев не изменился (отмена — не сбой)
+        assertEquals(failuresBefore, h.snapshot()["p-hlose/m-hlose"]!!.consecutiveFailures)
+    }
+
+    @Test
     fun halfOpen_probeSuccess_closesCircuit() = runBlocking {
         val e1 = entry("ho2")
         val cfg = ChainConfig(hedgeAfterMs = 50, totalDeadlineMs = 3000, maxParallel = 2, circuitOpenMs = 60, circuitFailureThreshold = 2)
