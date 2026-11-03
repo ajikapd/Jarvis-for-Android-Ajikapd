@@ -147,7 +147,9 @@ class ChainRouter(
                     if (a === winnerRef.get()) {
                         sink.onComplete(event.usage)
                         health.recordSuccess(a.entry)
-                        result = ChainResult(a.entry, hedged, firstTokenMs!! - startMs, failures)
+                        // безопасно: firstTokenMs всегда установлен при победителе,
+                        // но на всякий случай — 0 вместо NPE
+                        result = ChainResult(a.entry, hedged, (firstTokenMs ?: clock()) - startMs, failures)
                         // победитель завершился — убрать из active, чтобы finally его не отменял
                         active.remove(a)
                     } else {
@@ -194,7 +196,7 @@ class ChainRouter(
             active.forEach { it.cancelAttempt() }
             throw AllFailedException(failures.toList(), hedged)
         }
-        result!!
+        @Suppress("UNREACHABLE_CODE") result ?: error("unreachable: result non-null checked above")
             }
         } finally {
             // отмена вызывающим корутиной run(): все активные handles

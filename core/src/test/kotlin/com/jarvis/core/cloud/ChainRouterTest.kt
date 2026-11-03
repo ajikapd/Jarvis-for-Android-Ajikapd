@@ -448,6 +448,23 @@ class ChainRouterTest {
     }
 
     @Test
+    fun winnerWithoutComplete_deadlineSafe_noNpe() = runBlocking {
+        val e1 = entry("noc")
+        // победитель даёт первый токен, но Complete не приходит — дедлайн
+        val call = FakeCall(mapOf(
+            "m-noc" to listOf({ l -> runBlocking { delay(10); l.onFirstToken("tok") } /* нет onComplete */ })
+        ))
+        val cfg = ChainConfig(hedgeAfterMs = 50, totalDeadlineMs = 300, maxParallel = 2)
+        try {
+            ChainRouter(config = cfg).run(req, listOf(e1), health(), call, RecordingSink())
+            fail("expected AllFailedException on deadline")
+        } catch (e: AllFailedException) {
+            // дедлайн: победитель был, но не завершился — AllFailed без NPE
+            assertNotNull(e)
+        }
+    }
+
+    @Test
     fun stress_200runs_singleWinnerInvariant() = runBlocking {
         val cfg = ChainConfig(hedgeAfterMs = 40, totalDeadlineMs = 2000, maxParallel = 2)
         val entries = (0 until 3).map { entry("st$it") }
