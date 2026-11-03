@@ -393,6 +393,32 @@ class ChainRouterTest {
     }
 
     @Test
+    fun unavailableEntry_skipped_noFailureRecorded() = runBlocking {
+        val e1 = entry("skip1")  // станет недоступной (проба in-flight)
+        val e2 = entry("ok2")
+        val cfg = ChainConfig(hedgeAfterMs = 30, totalDeadlineMs = 3000, maxParallel = 2, circuitOpenMs = 50, circuitFailureThreshold = 2)
+        val h = ChainHealth(clock = { System.currentTimeMillis() }, config = cfg)
+        // открыть circuit у e1 и перевести в полуоткрытие
+        repeat(2) { h.recordFailure(e1, ErrorClass.OVERLOADED) }
+        delay(cfg.circuitOpenMs + 30)
+        // занять пробу e1 из «вне» — как будто другой run держит её
+        assertTrue(h.tryAcquireProbe(e1))
+        val failuresBefore = h.snapshot()["p-skip1/m-skip1"]!!.consecutiveFailures
+        val call = FakeCall(mapOf(
+            "m-skip1" to listOf({ l -> runBlocking { delay(3000); l.onFirstToken("should-not-run") } }),
+            "m-ok2" to listOf({ l -> l.onFirstToken("fine"); l.onComplete(null) })
+        ))
+        // e1 недоступна (проба занята) — роутер должен её пропустить и пойти к e2
+        val r = ChainRouter(config = cfg).run(req, listOf(e1, e2), h, call, RecordingSink())
+        assertEquals("m-ok2", r.entry.modelId)
+        // e1 даже не стартовала и её нет в failures (пропуск — не сбой)
+        assertEquals(0, call.starts.count { it.first.modelId == "m-skip1" })
+        assertEquals(0, r.failures.size)
+        // счётчик сбоев e1 не изменился
+        assertEquals(failuresBefore, h.snapshot()["p-skip1/m-skip1"]!!.consecutiveFailures)
+    }
+
+    @Test
     fun halfOpen_probeSuccess_closesCircuit() = runBlocking {
         val e1 = entry("ho2")
         val cfg = ChainConfig(hedgeAfterMs = 50, totalDeadlineMs = 3000, maxParallel = 2, circuitOpenMs = 60, circuitFailureThreshold = 2)
