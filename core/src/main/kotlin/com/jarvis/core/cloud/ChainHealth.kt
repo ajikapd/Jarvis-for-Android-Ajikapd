@@ -1,6 +1,9 @@
 package com.jarvis.core.cloud
 
-class ChainHealth(private val clock: () -> Long) {
+class ChainHealth(
+    private val clock: () -> Long,
+    private val config: ChainConfig = ChainConfig.Default
+) {
     data class State(
         val dailyExhaustedUntil: Long = 0,
         val rateLimitedUntil: Long = 0,
@@ -24,7 +27,7 @@ class ChainHealth(private val clock: () -> Long) {
         if (s.dailyExhaustedUntil > now) return false
         if (s.rateLimitedUntil > now) return false
         if (s.circuitOpenUntil > now) return false
-        if (s.circuitOpenUntil <= now && s.consecutiveFailures >= ChainConfig.circuitFailureThreshold && !s.circuitHalfOpen) {
+        if (s.circuitOpenUntil <= now && s.consecutiveFailures >= config.circuitFailureThreshold && !s.circuitHalfOpen) {
             set(entry, s.copy(circuitHalfOpen = true, circuitProbeInFlight = false))
         }
         val current = get(entry)
@@ -42,10 +45,10 @@ class ChainHealth(private val clock: () -> Long) {
         val s = get(entry)
         when (errorClass) {
             ErrorClass.RATE_LIMITED_DAILY -> {
-                set(entry, s.copy(dailyExhaustedUntil = now + ChainConfig.dailyExhaustedCooldownMs))
+                set(entry, s.copy(dailyExhaustedUntil = now + config.dailyExhaustedCooldownMs))
             }
             ErrorClass.RATE_LIMITED -> {
-                val seconds = (retryAfterSeconds ?: ChainConfig.rateLimitedDefaultSeconds).coerceIn(1, ChainConfig.rateLimitedMaxSeconds)
+                val seconds = (retryAfterSeconds ?: config.rateLimitedDefaultSeconds).coerceIn(1, config.rateLimitedMaxSeconds)
                 set(entry, s.copy(rateLimitedUntil = now + seconds * 1000L))
             }
             ErrorClass.AUTH_OR_REGION, ErrorClass.BLOCKED_BY_CLOUDFLARE -> {
@@ -53,8 +56,8 @@ class ChainHealth(private val clock: () -> Long) {
             }
             ErrorClass.OVERLOADED, ErrorClass.NETWORK_ERROR, ErrorClass.SERVER_ERROR, ErrorClass.EMPTY_RESPONSE, ErrorClass.BAD_REQUEST -> {
                 val newFailures = s.consecutiveFailures + 1
-                if (newFailures >= ChainConfig.circuitFailureThreshold) {
-                    set(entry, s.copy(consecutiveFailures = newFailures, circuitOpenUntil = now + ChainConfig.circuitOpenMs, circuitHalfOpen = false, circuitProbeInFlight = false))
+                if (newFailures >= config.circuitFailureThreshold) {
+                    set(entry, s.copy(consecutiveFailures = newFailures, circuitOpenUntil = now + config.circuitOpenMs, circuitHalfOpen = false, circuitProbeInFlight = false))
                 } else {
                     set(entry, s.copy(consecutiveFailures = newFailures))
                 }

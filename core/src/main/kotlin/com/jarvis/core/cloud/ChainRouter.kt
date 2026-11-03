@@ -9,7 +9,7 @@ class ChainRouter(private val clock: () -> Long = { System.currentTimeMillis() }
         request: Request,
         availableEntries: List<ChainEntry>,
         health: ChainHealth,
-        config: ChainConfig = ChainConfig,
+        config: ChainConfig = ChainConfig.Default,
         cloudCall: CloudCall
     ): ChainResult = withContext(Dispatchers.Default) {
         val failures = mutableListOf<ErrorClass>()

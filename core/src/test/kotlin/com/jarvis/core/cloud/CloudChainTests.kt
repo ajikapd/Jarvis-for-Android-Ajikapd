@@ -4,6 +4,22 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class CloudChainTests {
+    @Test fun chainConfig_isDataClassWithDefaults() {
+        val cfg = ChainConfig.Default
+        assertEquals(2500L, cfg.hedgeAfterMs)
+        assertEquals(15000L, cfg.totalDeadlineMs)
+        assertEquals(2, cfg.maxParallel)
+        assertEquals(6 * 60 * 60 * 1000L, cfg.dailyExhaustedCooldownMs)
+        assertEquals(20, cfg.rateLimitedDefaultSeconds)
+        assertEquals(60, cfg.rateLimitedMaxSeconds)
+        assertEquals(5 * 60 * 1000L, cfg.circuitOpenMs)
+        assertEquals(3, cfg.circuitFailureThreshold)
+        val small = ChainConfig(hedgeAfterMs = 50, circuitOpenMs = 100, circuitFailureThreshold = 2)
+        assertEquals(50L, small.hedgeAfterMs)
+        assertEquals(100L, small.circuitOpenMs)
+        assertEquals(2, small.circuitFailureThreshold)
+    }
+
     @Test fun defaultChain_orderAndAvailability() {
         val entries = DefaultCloudChain.entries()
         assertEquals(4, entries.size)
@@ -27,7 +43,7 @@ class CloudChainTests {
 
     @Test fun health_dailyExhausted() {
         var now = 0L
-        val h = ChainHealth { now }
+        val h = ChainHealth(clock = { now })
         val e = DefaultCloudChain.entries()[0]
         h.recordFailure(e, ErrorClass.RATE_LIMITED_DAILY)
         assertFalse(h.isAvailable(e))
@@ -37,7 +53,7 @@ class CloudChainTests {
 
     @Test fun health_rateLimited_cap() {
         var now = 0L
-        val h = ChainHealth { now }
+        val h = ChainHealth(clock = { now })
         val e = DefaultCloudChain.entries()[0]
         h.recordFailure(e, ErrorClass.RATE_LIMITED, 100)
         assertFalse(h.isAvailable(e))
@@ -50,7 +66,7 @@ class CloudChainTests {
 
     @Test fun health_rateLimited_default() {
         var now = 0L
-        val h = ChainHealth { now }
+        val h = ChainHealth(clock = { now })
         val e = DefaultCloudChain.entries()[0]
         h.recordFailure(e, ErrorClass.RATE_LIMITED, null)
         now = 19_000L
@@ -61,7 +77,7 @@ class CloudChainTests {
 
     @Test fun health_circuit() {
         var now = 0L
-        val h = ChainHealth { now }
+        val h = ChainHealth(clock = { now })
         val e = DefaultCloudChain.entries()[0]
         repeat(3) { h.recordFailure(e, ErrorClass.OVERLOADED) }
         assertFalse(h.isAvailable(e))
@@ -71,7 +87,7 @@ class CloudChainTests {
 
     @Test fun health_circuit_success_resets() {
         var now = 0L
-        val h = ChainHealth { now }
+        val h = ChainHealth(clock = { now })
         val e = DefaultCloudChain.entries()[0]
         repeat(2) { h.recordFailure(e, ErrorClass.OVERLOADED) }
         h.recordSuccess(e)
@@ -82,7 +98,7 @@ class CloudChainTests {
 
     @Test fun health_auth_disabled_until_reset() {
         var now = 0L
-        val h = ChainHealth { now }
+        val h = ChainHealth(clock = { now })
         val e = DefaultCloudChain.entries()[0]
         h.recordFailure(e, ErrorClass.AUTH_OR_REGION)
         assertFalse(h.isAvailable(e))
@@ -91,7 +107,7 @@ class CloudChainTests {
     }
 
     @Test fun health_snapshot() {
-        val h = ChainHealth { 0L }
+        val h = ChainHealth(clock = { 0L })
         val e = DefaultCloudChain.entries()[0]
         h.recordFailure(e, ErrorClass.OVERLOADED)
         val snap = h.snapshot()
