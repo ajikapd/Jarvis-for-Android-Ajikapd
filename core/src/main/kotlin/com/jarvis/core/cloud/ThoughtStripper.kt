@@ -25,17 +25,11 @@ class ThoughtStripper {
                     i = openIdx
                     continue
                 }
-                // no open tag; keep partial potential tag at end
+                // no open tag: хвост может быть началом тега, разорванного между чанками
                 val tail = buffer.substring(i)
-                val partial = openTags.map { t -> commonPrefix(t, tail) }.maxOrNull() ?: 0
-                if (partial > 0 && i + partial == buffer.length) {
-                    // leave partial in buffer? We'll append rest except partial
-                    out.append(buffer.substring(i, buffer.length - partial))
-                    buffer = StringBuilder(buffer.substring(buffer.length - partial))
-                    return out.toString()
-                }
-                out.append(tail)
-                buffer = StringBuilder()
+                val keep = longestSuffixPrefixOfTags(tail, openTags)
+                out.append(tail, 0, tail.length - keep)
+                buffer = StringBuilder(tail.substring(tail.length - keep))
                 return out.toString()
             } else {
                 val closeIdx = closeTags.map { t -> buffer.indexOf(t, i) }.filter { it >= 0 }.minOrNull()
@@ -66,13 +60,6 @@ class ThoughtStripper {
         val out = buffer.toString()
         buffer = StringBuilder()
         return out
-    }
-
-    private fun commonPrefix(a: String, b: String): Int {
-        val n = minOf(a.length, b.length)
-        var i = 0
-        while (i < n && a[i] == b[i]) i++
-        return i
     }
 
     /** Самый длинный суффикс [s], являющийся префиксом одного из [tags] (для разорванных между чанками тегов). */
