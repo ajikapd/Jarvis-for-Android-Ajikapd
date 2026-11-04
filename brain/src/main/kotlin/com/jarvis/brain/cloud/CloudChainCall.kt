@@ -1,6 +1,5 @@
 package com.jarvis.brain.cloud
 
-import android.util.Log
 import com.jarvis.brain.aiprovider.CloudLlmHttpTransport
 import com.jarvis.brain.aiprovider.CloudLlmStreamTransport
 import com.jarvis.brain.aiprovider.OpenAiCompatibleCloudClient
@@ -88,7 +87,7 @@ class CloudChainCall(
         if (cancelled.get()) return
         val redacted = redactKey(body)
         listener.onError(code, redacted)
-        Log.w(TAG, "chainCall error code=$code body=${redacted?.take(120)}")
+        SafeLog.w(TAG, "chainCall error code=$code body=${redacted?.take(120)}")
     }
 
     /** Убирает значение ключа из текста ошибки (лучшее усилие). */

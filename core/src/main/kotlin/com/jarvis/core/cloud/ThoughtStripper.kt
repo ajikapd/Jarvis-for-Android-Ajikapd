@@ -49,8 +49,11 @@ class ThoughtStripper {
                     i = closeIdx
                     continue
                 }
-                // no close tag; drop rest
-                buffer = StringBuilder()
+                // no close tag: хвост может содержать частичный close-тег (разрыв между чанками) —
+                // оставляем самый длинный суффикс буфера, являющийся префиксом одного из closeTags
+                val tail = buffer.substring(i)
+                val keep = longestSuffixPrefixOfTags(tail, closeTags)
+                buffer = if (keep > 0) StringBuilder(tail.substring(tail.length - keep)) else StringBuilder()
                 return out.toString()
             }
         }
@@ -70,5 +73,20 @@ class ThoughtStripper {
         var i = 0
         while (i < n && a[i] == b[i]) i++
         return i
+    }
+
+    /** Самый длинный суффикс [s], являющийся префиксом одного из [tags] (для разорванных между чанками тегов). */
+    private fun longestSuffixPrefixOfTags(s: String, tags: List<String>): Int {
+        var best = 0
+        for (t in tags) {
+            val maxKeep = minOf(t.length - 1, s.length)
+            for (keep in maxKeep downTo best + 1) {
+                if (s.regionMatches(s.length - keep, t, 0, keep)) {
+                    best = keep
+                    break
+                }
+            }
+        }
+        return best
     }
 }

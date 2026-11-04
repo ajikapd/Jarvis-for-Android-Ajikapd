@@ -60,7 +60,7 @@ class CloudLLMProvider(
         preferred?.takeIf { it.isNotBlank() }
             ?: modelProvider().ifBlank { NaraRouterDefaults.MODEL_FAST }
 
-    private fun resolveSystem(request: AICompletionRequest): String {
+    internal fun resolveSystem(request: AICompletionRequest): String {
         val assembled = request.assembledContext
         return assembled?.systemPrompt?.takeIf { it.isNotBlank() }
             ?: buildString {
