@@ -2,6 +2,8 @@ package com.jarvis.core.cloud
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.selects.onTimeout
+import kotlinx.coroutines.selects.select
 
 interface TokenSink {
     fun onFirstToken(text: String)
@@ -53,6 +55,7 @@ class ChainRouter(
     /** Кэш принятого индекса кандидата параметров: живёт, пока жив роутер. */
     private val acceptedParamIndex = mutableMapOf<String, Int>()
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     suspend fun run(
         request: Request,
         availableEntries: List<ChainEntry>,
@@ -76,8 +79,8 @@ class ChainRouter(
         /** «provider/model=класс@мс» по каждой попытке; класс=OK для победителя. */
         fun attemptReport(): List<String> = allAttempts.map { a ->
             val cls = when {
-                a === winnerRef.get() -> "OK"
                 a.lastError != null -> a.lastError.toString()
+                a === winnerRef.get() -> "OK"
                 else -> "NO_RESPONSE"
             }
             val ms = (clock() - a.startedAtMs).coerceAtLeast(0)
@@ -90,6 +93,7 @@ class ChainRouter(
 
         var hedged = false
         var firstTokenMs: Long? = null
+        var lastTokenAt = 0L
         var nextEntryIdx = 1
         var result: ChainResult? = null
 
@@ -113,6 +117,8 @@ class ChainRouter(
                     }
                     override fun onComplete(usage: Map<String, Any>?) {
                         a.receivedEvent = true
+                        val tail = a.stripper.flush()
+                        if (tail.isNotEmpty()) a.channel.trySend(AttemptEvent.VisibleToken(tail, a))
                         a.channel.trySend(AttemptEvent.Completed(usage, a))
                     }
                     override fun onError(httpStatus: Int?, body: String?) {
@@ -125,6 +131,14 @@ class ChainRouter(
             }
             active.add(a)
             return a
+        }
+
+        /** Победитель оборвался после первых токенов: перезапуска нет, текст уже ушёл в sink. */
+        fun failWinner(winner: Attempt, cls: ErrorClass, retryAfter: Int? = null): Nothing {
+            failures.add(cls)
+            winner.lastError = cls
+            health.recordFailure(winner.entry, cls, retryAfterSeconds = retryAfter)
+            throw AllFailedException(failures.toList(), hedged, attemptReport(), partial = true)
         }
 
         fun startNext(): Boolean {
@@ -146,20 +160,34 @@ class ChainRouter(
         // цикл событий: Channel + withTimeoutOrNull (без delay(10)-опроса)
         while (result == null) {
             val now = clock()
-            if (now >= deadline) break
-            // исчерпание: активных нет, записей больше нет, победителя нет
-            if (winnerRef.get() == null && active.isEmpty() && nextEntryIdx >= entries.size) break
-            val canHedge = active.size < cfg.maxParallel && nextEntryIdx < entries.size && winnerRef.get() == null
-            val waitHedge = (hedgeAt - now).coerceAtLeast(0)
-            val timeout = if (canHedge) waitHedge else (deadline - now)
+            val winner = winnerRef.get()
+            if (winner != null) {
+                // дедлайн только до первого токена; дальше ограничен простой стрима
+                if (now - lastTokenAt >= cfg.streamIdleTimeoutMs) failWinner(winner, ErrorClass.NETWORK_ERROR)
+            } else {
+                if (now >= deadline) break
+                // исчерпание: активных нет, записей больше нет, победителя нет
+                if (active.isEmpty() && nextEntryIdx >= entries.size) break
+            }
+            val canHedge = winner == null && active.size < cfg.maxParallel && nextEntryIdx < entries.size
+            val timeout = when {
+                winner != null -> lastTokenAt + cfg.streamIdleTimeoutMs - now
+                canHedge -> minOf((hedgeAt - now).coerceAtLeast(0), deadline - now)
+                else -> deadline - now
+            }
 
-            val event = if (timeout > 0) withTimeoutOrNull(timeout) { eventChannel.receive() } else null
+            // select, а не withTimeoutOrNull { receive() }: отмена по таймауту не теряет событие
+            val event = if (timeout > 0) {
+                select<AttemptEvent?> {
+                    eventChannel.onReceive { it }
+                    onTimeout(timeout) { null }
+                }
+            } else {
+                null
+            }
 
             if (event == null) {
-                if (canHedge && clock() >= hedgeAt) {
-                    startNext()
-                    hedged = true
-                }
+                if (canHedge && clock() >= hedgeAt && startNext()) hedged = true
                 continue
             }
 
@@ -169,6 +197,7 @@ class ChainRouter(
                     // атомарный выбор победителя: только первый successful CAS становится победителем
                     if (winnerRef.compareAndSet(null, a)) {
                         firstTokenMs = clock()
+                        lastTokenAt = clock()
                         sink.onFirstToken(event.text)
                         // отменить проигравших и освободить их пробы (без записи сбоя)
                         active.filter { it !== a }.forEach { loser ->
@@ -177,6 +206,7 @@ class ChainRouter(
                         }
                         active.removeAll { it !== a }
                     } else if (a === winnerRef.get()) {
+                        lastTokenAt = clock()
                         sink.onToken(event.text)
                     }
                 }
@@ -190,7 +220,7 @@ class ChainRouter(
                         result = ChainResult(a.entry, hedged, (firstTokenMs ?: clock()) - startMs, failures, attemptReport())
                         // победитель завершился — убрать из active, чтобы finally его не отменял
                         active.remove(a)
-                    } else {
+                    } else if (winnerRef.get() == null) {
                         active.remove(a)
                         failures.add(ErrorClass.EMPTY_RESPONSE)
                         health.recordFailure(a.entry, ErrorClass.EMPTY_RESPONSE)
@@ -199,14 +229,23 @@ class ChainRouter(
                 }
                 is AttemptEvent.Errored -> {
                     val a = event.attempt
+                    val currentWinner = winnerRef.get()
+                    // поздняя ошибка отменённого проигравшего — не сбой записи
+                    if (currentWinner != null && a !== currentWinner) continue
                     active.remove(a)
+                    if (a === currentWinner) {
+                        val cls = CloudErrorClassifier.classify(event.httpStatus, event.body)
+                        failWinner(a, cls, CloudErrorClassifier.parseRetryAfterSeconds(event.body))
+                    }
                     if (event.httpStatus == 400) {
                         // следующий кандидат параметров той же записи — не сбой здоровья
                         val key = "${a.entry.providerId}/${a.entry.modelId}"
                         val next = a.paramIndex + 1
                         if (next < a.entry.paramCandidates.size) {
                             acceptedParamIndex[key] = next
-                            launchAttempt(a.entry, next)
+                            // проба полуоткрытой записи ещё числится за этой попыткой
+                            health.releaseProbe(a.entry)
+                            if (launchAttempt(a.entry, next) == null && active.isEmpty()) startNext()
                         } else {
                             failures.add(ErrorClass.BAD_REQUEST)
                             health.recordFailure(a.entry, ErrorClass.BAD_REQUEST, paramsExhausted = true)
@@ -235,16 +274,14 @@ class ChainRouter(
         }
 
         if (result == null) {
-            // дедлайн: записям с незавершённым вызовом без ответа — NETWORK_ERROR (deadline_no_response),
+            // дедлайн без видимого токена: всем активным NETWORK_ERROR (в т.ч. «думали» без ответа),
             // чтобы failures не был пустым; отмена активных и освобождение проб
             val nowMs = clock()
             active.forEach { a ->
-                if (!a.receivedEvent) {
-                    failures.add(ErrorClass.NETWORK_ERROR)
-                    a.lastError = ErrorClass.NETWORK_ERROR
-                    if (a.startedAtMs <= 0) a.startedAtMs = nowMs
-                    health.recordFailure(a.entry, ErrorClass.NETWORK_ERROR)
-                }
+                failures.add(ErrorClass.NETWORK_ERROR)
+                a.lastError = ErrorClass.NETWORK_ERROR
+                if (a.startedAtMs <= 0) a.startedAtMs = nowMs
+                health.recordFailure(a.entry, ErrorClass.NETWORK_ERROR)
             }
             // отчёт: пометить повисшие попытки как NETWORK_ERROR@мс (deadline_no_response)
             val report = allAttempts.map { a ->
@@ -276,4 +313,6 @@ class AllFailedException(
     val hedged: Boolean = false,
     /** Отчёт по записям «provider/model=класс@мс» для диагностики и логов. */
     val attemptReport: List<String> = emptyList(),
+    /** Сбой после первых токенов: часть ответа уже передана в sink. */
+    val partial: Boolean = false,
 ) : RuntimeException("AllFailed")

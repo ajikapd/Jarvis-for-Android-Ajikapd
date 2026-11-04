@@ -551,17 +551,18 @@ class ChainRouterTest {
     @Test
     fun winnerWithoutComplete_deadlineSafe_noNpe() = runBlocking {
         val e1 = entry("noc")
-        // победитель даёт первый токен, но Complete не приходит — дедлайн
+        // победитель даёт первый токен, но Complete не приходит — таймаут простоя
         val call = FakeCall(mapOf(
             "m-noc" to listOf({ l -> runBlocking { delay(10); l.onFirstToken("tok") } /* нет onComplete */ })
         ))
-        val cfg = ChainConfig(hedgeAfterMs = 50, totalDeadlineMs = 300, maxParallel = 2)
+        val cfg = ChainConfig(hedgeAfterMs = 50, totalDeadlineMs = 300, maxParallel = 2, streamIdleTimeoutMs = 200)
         try {
             ChainRouter(config = cfg).run(req, listOf(e1), health(), call, RecordingSink())
-            fail("expected AllFailedException on deadline")
+            fail("expected AllFailedException on idle timeout")
         } catch (e: AllFailedException) {
-            // дедлайн: победитель был, но не завершился — AllFailed без NPE
-            assertNotNull(e)
+            // победитель был, но не завершился — AllFailed без NPE, с причиной
+            assertTrue(e.partial)
+            assertEquals(listOf(ErrorClass.NETWORK_ERROR), e.failures)
         }
     }
 
@@ -599,5 +600,122 @@ class ChainRouterTest {
             val winnerId = r.entry.modelId
             assertTrue("iter=$iter tokens not from winner: $tokens", tokens.all { it.contains(winnerId) })
         }
+    }
+
+    @Test
+    fun midStreamError_endsImmediately_partial() = runBlocking {
+        val e1 = entry("cut")
+        val call = FakeCall(mapOf(
+            "m-cut" to listOf({ l -> l.onFirstToken("начало"); l.onError(null, "connection reset") })
+        ))
+        val cfg = ChainConfig(hedgeAfterMs = 5_000, totalDeadlineMs = 3_000)
+        val sink = RecordingSink()
+        val h = health()
+        val t0 = System.currentTimeMillis()
+        try {
+            ChainRouter(config = cfg).run(req, listOf(e1, entry("next")), h, call, sink)
+            fail("expected AllFailedException")
+        } catch (e: AllFailedException) {
+            assertTrue(e.partial)
+            assertEquals(listOf(ErrorClass.NETWORK_ERROR), e.failures)
+            assertTrue(e.attemptReport.toString(), e.attemptReport.single().contains("NETWORK_ERROR"))
+        }
+        assertTrue(System.currentTimeMillis() - t0 < 1_000)
+        assertEquals(listOf("начало"), sink.first)
+        assertEquals(1, call.starts.size) // перезапуска нет
+        assertEquals(1, h.snapshot().getValue("p-cut/m-cut").consecutiveFailures)
+    }
+
+    @Test
+    fun runningStream_notCutByTotalDeadline() = runBlocking {
+        val e1 = entry("long")
+        val call = FakeCall(mapOf(
+            "m-long" to listOf({ l ->
+                l.onFirstToken("0")
+                for (i in 1..5) { Thread.sleep(100); l.onToken("$i") }
+                l.onComplete(null)
+            })
+        ))
+        val cfg = ChainConfig(hedgeAfterMs = 5_000, totalDeadlineMs = 300, streamIdleTimeoutMs = 400)
+        val sink = RecordingSink()
+        ChainRouter(config = cfg).run(req, listOf(e1), health(), call, sink)
+        assertEquals("012345", (sink.first + sink.tokens).joinToString(""))
+    }
+
+    @Test
+    fun deadline_holdsWhenHedgeLongerThanDeadline() = runBlocking {
+        val call = FakeCall(mapOf())
+        val cfg = ChainConfig(hedgeAfterMs = 5_000, totalDeadlineMs = 200)
+        val t0 = System.currentTimeMillis()
+        try {
+            ChainRouter(config = cfg).run(req, listOf(entry("a"), entry("b")), health(), call, RecordingSink())
+            fail("expected AllFailedException")
+        } catch (e: AllFailedException) {
+            assertFalse(e.partial)
+        }
+        assertTrue(System.currentTimeMillis() - t0 < 1_000)
+    }
+
+    @Test
+    fun deadline_thoughtOnly_failuresNotEmpty() = runBlocking {
+        val call = FakeCall(mapOf("m-t" to listOf({ l -> l.onFirstToken("<think>думаю") })))
+        val cfg = ChainConfig(hedgeAfterMs = 5_000, totalDeadlineMs = 200)
+        try {
+            ChainRouter(config = cfg).run(req, listOf(entry("t")), health(), call, RecordingSink())
+            fail("expected AllFailedException")
+        } catch (e: AllFailedException) {
+            assertEquals(listOf(ErrorClass.NETWORK_ERROR), e.failures)
+        }
+    }
+
+    @Test
+    fun lateLoserEvents_noHealthFailure() = runBlocking {
+        val e1 = entry("slow")
+        val e2 = entry("fast")
+        val finishLoser = java.util.concurrent.CountDownLatch(1)
+        val call = FakeCall(mapOf(
+            "m-slow" to listOf({ l ->
+                finishLoser.await(2, java.util.concurrent.TimeUnit.SECONDS)
+                l.onError(503, "overloaded")
+                l.onComplete(null)
+            }),
+            "m-fast" to listOf({ l ->
+                delay10()
+                l.onFirstToken("ok")
+                finishLoser.countDown()
+                Thread.sleep(50)
+                l.onComplete(null)
+            })
+        ))
+        val cfg = ChainConfig(hedgeAfterMs = 20, totalDeadlineMs = 2_000)
+        val h = health()
+        val r = ChainRouter(config = cfg).run(req, listOf(e1, e2), h, call, RecordingSink())
+        assertEquals("m-fast", r.entry.modelId)
+        assertTrue(r.failures.toString(), r.failures.isEmpty())
+        assertEquals(0, h.snapshot().getValue("p-slow/m-slow").consecutiveFailures)
+    }
+
+    private fun delay10() = Thread.sleep(10)
+
+    @Test
+    fun partialTagAtEnd_flushedBeforeComplete() = runBlocking {
+        val call = FakeCall(mapOf("m-a" to listOf({ l -> l.onFirstToken("Итог"); l.onToken("<"); l.onComplete(null) })))
+        val sink = RecordingSink()
+        ChainRouter(config = fastCfg).run(req, listOf(entry("a")), health(), call, sink)
+        assertEquals("Итог<", (sink.first + sink.tokens).joinToString(""))
+    }
+
+    @Test
+    fun halfOpenEntry_badParams_triesNextCandidate() = runBlocking {
+        val e1 = entry("half")
+        val cfg = ChainConfig(hedgeAfterMs = 80, totalDeadlineMs = 2_000, circuitOpenMs = 1, circuitFailureThreshold = 1)
+        val h = ChainHealth(clock = { System.currentTimeMillis() }, config = cfg)
+        h.recordFailure(e1, ErrorClass.SERVER_ERROR)
+        Thread.sleep(5)
+        val call = FakeCall(mapOf(
+            "m-half" to listOf({ l -> l.onError(400, "bad param") }, { l -> l.onFirstToken("ok"); l.onComplete(null) })
+        ))
+        val r = ChainRouter(config = cfg).run(req, listOf(e1), h, call, RecordingSink())
+        assertEquals("m-half", r.entry.modelId)
     }
 }

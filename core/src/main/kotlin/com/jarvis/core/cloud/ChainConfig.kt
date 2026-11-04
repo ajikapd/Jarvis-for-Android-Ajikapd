@@ -10,7 +10,9 @@ data class ChainConfig(
     val rateLimitedDefaultSeconds: Int = 20,
     val rateLimitedMaxSeconds: Int = 60,
     val circuitOpenMs: Long = 5 * 60 * 1000L,
-    val circuitFailureThreshold: Int = 3
+    val circuitFailureThreshold: Int = 3,
+    /** После первого токена дедлайна нет: стрим обрывается только если токены перестали идти. */
+    val streamIdleTimeoutMs: Long = 8_000
 ) {
     companion object {
         val Default = ChainConfig()
