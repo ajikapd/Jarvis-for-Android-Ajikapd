@@ -189,7 +189,11 @@ class ChainRouter(
                     } else {
                         val cls = CloudErrorClassifier.classify(event.httpStatus, event.body)
                         failures.add(cls)
-                        health.recordFailure(a.entry, cls)
+                        // Retry-After из тела ошибки (Gemini retryDelay / Groq try again in)
+                        val retryAfter = if (cls == ErrorClass.RATE_LIMITED) {
+                            CloudErrorClassifier.parseRetryAfterSeconds(event.body)
+                        } else null
+                        health.recordFailure(a.entry, cls, retryAfterSeconds = retryAfter)
                         if (cls == ErrorClass.AUTH_OR_REGION || cls == ErrorClass.BLOCKED_BY_CLOUDFLARE) {
                             health.reset(a.entry.providerId)
                         }

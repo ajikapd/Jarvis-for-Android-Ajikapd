@@ -41,6 +41,35 @@ class CloudChainTests {
         assertEquals(ErrorClass.NETWORK_ERROR, CloudErrorClassifier.classify(null, "x"))
     }
 
+    @Test fun parseRetryAfter_table() {
+        // Gemini
+        assertEquals(20, CloudErrorClassifier.parseRetryAfterSeconds("""{"error":{"retryDelay":"20s"}}"""))
+        // целые секунды не округляются вверх зря
+        assertEquals(7, CloudErrorClassifier.parseRetryAfterSeconds("""{"retryDelay":"7s"}"""))
+        // Groq: дробные секунды — вверх
+        assertEquals(8, CloudErrorClassifier.parseRetryAfterSeconds("Please try again in 7.5s"))
+        // Groq: минуты+секунды
+        assertEquals(64, CloudErrorClassifier.parseRetryAfterSeconds("try again in 1m3.5s"))
+        // Groq: только минуты
+        assertEquals(120, CloudErrorClassifier.parseRetryAfterSeconds("try again in 2m"))
+        // нет паттерна
+        assertNull(CloudErrorClassifier.parseRetryAfterSeconds("no retry info"))
+        assertNull(CloudErrorClassifier.parseRetryAfterSeconds(null))
+        assertNull(CloudErrorClassifier.parseRetryAfterSeconds(""))
+    }
+
+    @Test fun health_rateLimited_usesParsedRetryAfter() {
+        var now = 0L
+        val h = ChainHealth(clock = { now })
+        val e = DefaultCloudChain.entries()[0]
+        // "try again in 7.5s" -> 8 сек (ceil)
+        h.recordFailure(e, ErrorClass.RATE_LIMITED, retryAfterSeconds = CloudErrorClassifier.parseRetryAfterSeconds("try again in 7.5s"))
+        now = 7_500
+        assertFalse(h.isAvailable(e)) // 7.5с ещё мало (округлено до 8)
+        now = 8_001
+        assertTrue(h.isAvailable(e))
+    }
+
     @Test fun health_dailyExhausted() {
         var now = 0L
         val h = ChainHealth(clock = { now })
