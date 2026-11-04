@@ -90,6 +90,37 @@ class AssistantOrchestratorTest {
         )
     }
 
+    private fun semanticCalls(online: Boolean, preferCloud: Boolean): Int {
+        val calls = java.util.concurrent.atomic.AtomicInteger(0)
+        val registry = ToolRegistry().apply { register(FakeFlashlightTool()) }
+        AssistantOrchestrator(
+            brainRouter = TestRouter(),
+            skillRetriever = SkillRetriever(SkillManifestRegistry(), k = 6),
+            toolRegistry = registry,
+            toolExecutor = DefaultToolExecutor(registry),
+            toolPolicy = RiskBasedPolicy(),
+            context = ConversationContext(),
+            longTermMemory = FakeMemory(),
+            dialogue = FakeDialogue(),
+            fastSemantic = com.jarvis.core.runtime.semantic.SemanticInterpreter { null },
+            llmSemantic = com.jarvis.core.runtime.semantic.SemanticInterpreter { calls.incrementAndGet(); null },
+            isOnlineForAi = { online },
+            preferCloudForAi = { preferCloud },
+        ).process(UserRequest("назови столицу канады"))
+        return calls.get()
+    }
+
+    @Test
+    fun `local semantic llm skipped when cloud is available`() {
+        assertEquals(0, semanticCalls(online = true, preferCloud = true))
+    }
+
+    @Test
+    fun `local semantic llm used when cloud is not an option`() {
+        assertEquals(1, semanticCalls(online = false, preferCloud = true))
+        assertEquals(1, semanticCalls(online = true, preferCloud = false))
+    }
+
     @Test
     fun `known flashlight request produces PROCESSED response`() {
         val response = orchestrator(FakeFlashlightTool()).process(UserRequest("включи фонарик"))

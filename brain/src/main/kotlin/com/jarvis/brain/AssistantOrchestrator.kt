@@ -455,17 +455,28 @@ class AssistantOrchestrator(
                 fast
             } else {
                 trace.llmRequired = true
-                llmSemantic?.interpret(input) ?: fast
+                interpretWithLlm(input) ?: fast
             }
         } else {
             // No fast hit → try LLM semantic once (optional); else null → legacy BrainRouter
             trace.llmRequired = true
-            llmSemantic?.interpret(input)
+            interpretWithLlm(input)
         }
         val tSem1 = com.jarvis.core.runtime.LatencyClock.elapsedMs()
         lat?.semanticEndAt = tSem1
         lat?.routeEndAt = tSem1
         return result
+    }
+
+    /**
+     * Семантика идёт на локальной модели (5+ с на устройстве). При доступном облаке она не
+     * стоит этой задержки: legacy-маршрут разбирает запрос за миллисекунды, ответ даст облако.
+     */
+    private fun interpretWithLlm(
+        input: com.jarvis.core.runtime.semantic.SemanticInput,
+    ): com.jarvis.core.runtime.semantic.SemanticUnderstanding? {
+        if (isOnlineForAi() && preferCloudForAi()) return null
+        return llmSemantic?.interpret(input)
     }
 
     private fun needsLlmSemanticFallback(
