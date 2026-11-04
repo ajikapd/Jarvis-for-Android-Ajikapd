@@ -340,4 +340,67 @@ class ChainCloudProviderTest {
         p.complete(req)
         assertTrue("запись должна быть вызвана после сброса health", fc.starts.get() >= 1)
     }
+
+    // 15. (9б-2c D) приватность: номер карты маскируется до отправки в облако.
+    // Реальный CloudChainCall + фейк-транспорт: тело запроса, события и текст не содержат исходный номер.
+    @Test
+    fun cardNumber_maskedInRequestBodyAndEvents() {
+        val card = "4111 1111 1111 1111"
+        val bodies = java.util.Collections.synchronizedList(mutableListOf<String>())
+        val okSse = listOf(
+            "data: {\"choices\":[{\"delta\":{\"content\":\"готово\"}}]}",
+            "data: [DONE]",
+        )
+        // CloudChainCall использует streamTransport = transport as? CloudLlmStreamTransport;
+        // фейк должен реализовать оба интерфейса
+        val dual = object : com.jarvis.brain.aiprovider.CloudLlmHttpTransport,
+            com.jarvis.brain.aiprovider.CloudLlmStreamTransport {
+            override fun postJson(url: String, headers: Map<String, String>, body: String, connectTimeoutMs: Int, readTimeoutMs: Int) =
+                com.jarvis.brain.aiprovider.CloudLlmHttpResponse(200, "")
+            override fun postJsonStream(url: String, headers: Map<String, String>, body: String, connectTimeoutMs: Int, readTimeoutMs: Int, onLine: (String) -> Boolean): Int {
+                bodies.add(body)
+                okSse.forEach { if (!onLine(it)) return 200 } // false = [DONE]: нормальное завершение
+                return 200
+            }
+        }
+        val health = ChainHealth(clock = { System.currentTimeMillis() }, config = cfg)
+        val router = ChainRouter(clock = { System.currentTimeMillis() }, config = cfg)
+        val p = ChainCloudProvider(
+            legacy = CloudLLMProvider(),
+            router = router,
+            health = health,
+            keyFor = { "KEY-${it.uppercase()}-0123456789" },
+            providersWithKeys = { setOf("groq") },
+            transport = dual,
+            clock = { System.currentTimeMillis() },
+            config = cfg,
+            allFailedCooldownMs = 100,
+            callFactory = null, // реальный CloudChainCall с фейк-транспортом
+        )
+        val events = java.util.Collections.synchronizedList(mutableListOf<AIStreamEvent>())
+        val done = CountDownLatch(1)
+        p.stream(
+            AICompletionRequest("card-r1", "оплати заказ картой $card пожалуйста"),
+            { e ->
+                events.add(e)
+                if (e.type == AIStreamEventType.COMPLETE || e.type == AIStreamEventType.ERROR) done.countDown()
+            },
+        )
+        assertTrue(done.await(5, TimeUnit.SECONDS))
+        // 1) тело запроса: номер замаскирован, исходного номера нет
+        assertTrue("no request bodies captured", bodies.isNotEmpty())
+        bodies.forEach { b ->
+            assertFalse("raw card number leaked into request body: $b", b.contains(card))
+            assertFalse("raw card digits leaked: $b", b.contains("4111111111111111"))
+            assertTrue("mask missing in body: $b", b.contains(com.jarvis.core.privacy.SensitivityClassifier.MASK))
+        }
+        // 2) события TEXT: исходного номера нет
+        events.filter { it.type == AIStreamEventType.TEXT }.forEach { e ->
+            assertFalse("raw card number leaked into events: ${e.text}", e.text.contains(card))
+            assertFalse("raw card digits leaked into events: ${e.text}", e.text.contains("4111111111111111"))
+        }
+        // 3) итоговый текст успешен и не содержит номер
+        val complete = events.first { it.type == AIStreamEventType.COMPLETE }
+        assertEquals("готово", events.filter { it.type == AIStreamEventType.TEXT }.joinToString("") { it.text })
+    }
 }
