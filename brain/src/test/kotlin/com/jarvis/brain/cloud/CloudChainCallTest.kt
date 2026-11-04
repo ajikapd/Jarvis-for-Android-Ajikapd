@@ -134,6 +134,42 @@ class CloudChainCallTest {
     }
 
     @Test
+    fun cancelMidStream_noFurtherCallbacks() {
+        // транспорт выдаёт строки с паузой после первой: cancel успевает до хвоста
+        val firstTokenLatch = CountDownLatch(1)
+        val l = object : CallListener {
+            val first = mutableListOf<String>()
+            val tokens = mutableListOf<String>()
+            var usage: Map<String, Any>? = null
+            var errCode: Int? = null
+            override fun onFirstToken(text: String) { first.add(text); firstTokenLatch.countDown() }
+            override fun onToken(text: String) { tokens.add(text) }
+            override fun onComplete(usage: Map<String, Any>?) { this.usage = usage }
+            override fun onError(httpStatus: Int?, body: String?) { errCode = httpStatus }
+        }
+        val streamT: CloudLlmStreamTransport = CloudLlmStreamTransport { _, _, _, _, _, onLine ->
+            for (i in okLines.indices) {
+                if (!onLine(okLines[i])) return@CloudLlmStreamTransport 200
+                if (i == 0) Thread.sleep(250) // окно для cancel
+            }
+            200
+        }
+        val c = call(t = streamT)
+        val handle = c.start(entry, 0, l)
+        // первый токен пришёл
+        assertTrue(firstTokenLatch.await(5, TimeUnit.SECONDS))
+        assertEquals(1, l.first.size)
+        // отмена посреди потока
+        handle.cancel()
+        val before = l.first.size + l.tokens.size
+        Thread.sleep(500) // хвост потока должен быть подавлен
+        val after = l.first.size + l.tokens.size
+        assertEquals("callbacks arrived after cancel", before, after)
+        assertNull("onComplete after cancel", l.usage)
+        assertNull("onError after cancel", l.errCode)
+    }
+
+    @Test
     fun noKey_401() {
         val l = RecordingListener()
         call(key = null, t = transport(okLines)).start(entry, 0, l)
