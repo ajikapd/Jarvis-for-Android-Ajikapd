@@ -12,6 +12,7 @@ import com.jarvis.core.cloud.CloudCall
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * CloudChainCall (9б-2): адаптер ChainEntry + CloudCall поверх
@@ -31,22 +32,22 @@ class CloudChainCall(
     private val executor: ExecutorService = DEFAULT_EXECUTOR,
 ) : CloudCall {
 
-    private val cancelled = AtomicBoolean(false)
-    private var firstTokenSent = false
-    @Volatile private var activeKey: String? = null
-
+    /**
+     * Один экземпляр обслуживает все попытки одного запуска цепочки, поэтому всё
+     * изменяемое состояние — на попытку: отмена проигравшего не задевает победителя.
+     */
     override fun start(entry: ChainEntry, paramCandidateIndex: Int, listener: CallListener): CancelHandle {
-        cancelled.set(false)
-        firstTokenSent = false
+        val cancelled = AtomicBoolean(false)
+        val abortConnection = AtomicReference<(() -> Unit)?>(null)
         val params = entry.paramCandidates.getOrNull(paramCandidateIndex) ?: emptyMap()
         executor.execute {
             if (cancelled.get()) return@execute
             val key = keyFor(entry.providerId)
-            activeKey = key
             if (key.isNullOrBlank()) {
-                safeError(listener, 401, "api key missing")
+                safeError(listener, cancelled, null, 401, "api key missing")
                 return@execute
             }
+            var firstTokenSent = false
             val client = OpenAiCompatibleCloudClient(
                 baseUrlProvider = { entry.baseUrl },
                 apiKeyProvider = { key },
@@ -62,6 +63,11 @@ class CloudChainCall(
                 maxTokens = maxTokens,
                 extraBody = params,
                 isCancelled = { cancelled.get() },
+                onAbortable = { abort ->
+                    abortConnection.set(abort)
+                    // отмена могла прийти раньше, чем появилось соединение
+                    if (cancelled.get()) abort()
+                },
             ) { delta ->
                 if (cancelled.get()) return@streamChat
                 if (!firstTokenSent) {
@@ -73,31 +79,33 @@ class CloudChainCall(
             }
             if (cancelled.get()) return@execute
             when {
-                result.code == null -> safeError(listener, null, result.errorBody)
+                result.code == null -> safeError(listener, cancelled, key, null, result.errorBody)
                 result.code in 200..299 -> {
                     if (cancelled.get()) return@execute
                     listener.onComplete(result.usage)
                 }
-                else -> safeError(listener, result.code, result.errorBody)
+                else -> safeError(listener, cancelled, key, result.code, result.errorBody)
             }
         }
         return object : CancelHandle {
-            override fun cancel() { cancelled.set(true) }
+            override fun cancel() {
+                cancelled.set(true)
+                abortConnection.get()?.invoke()
+            }
         }
     }
 
-    private fun safeError(listener: CallListener, code: Int?, body: String?) {
+    private fun safeError(listener: CallListener, cancelled: AtomicBoolean, key: String?, code: Int?, body: String?) {
         if (cancelled.get()) return
-        val redacted = redactKey(body)
+        val redacted = redactKey(body, key)
         listener.onError(code, redacted)
         SafeLog.w(TAG, "chainCall error code=$code body=${redacted?.take(120)}")
     }
 
     /** Убирает значение ключа из текста ошибки (лучшее усилие). */
-    private fun redactKey(body: String?): String? {
+    private fun redactKey(body: String?, key: String?): String? {
         if (body == null) return null
-        val k = activeKey ?: return body
-        return if (k.isNotBlank()) body.replace(k, "[REDACTED]") else body
+        return if (!key.isNullOrBlank()) body.replace(key, "[REDACTED]") else body
     }
 
     companion object {

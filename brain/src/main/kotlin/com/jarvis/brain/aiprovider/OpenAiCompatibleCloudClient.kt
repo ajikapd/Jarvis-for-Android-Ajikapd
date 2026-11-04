@@ -57,6 +57,21 @@ fun interface CloudLlmStreamTransport {
         readTimeoutMs: Int,
         onLine: (String) -> Boolean,
     ): Int
+
+    /**
+     * Как [postJsonStream], но отдаёт в [onAbortable] действие, которое обрывает соединение
+     * из другого потока (HttpURLConnection не прерывает readLine иначе).
+     * По умолчанию обрыва нет: отмена сработает на следующей строке.
+     */
+    fun postJsonStreamAbortable(
+        url: String,
+        headers: Map<String, String>,
+        body: String,
+        connectTimeoutMs: Int,
+        readTimeoutMs: Int,
+        onAbortable: (abort: () -> Unit) -> Unit,
+        onLine: (String) -> Boolean,
+    ): Int = postJsonStream(url, headers, body, connectTimeoutMs, readTimeoutMs, onLine)
 }
 
 /**
@@ -101,6 +116,16 @@ class UrlConnectionCloudLlmTransport : CloudLlmHttpTransport, CloudLlmStreamTran
         connectTimeoutMs: Int,
         readTimeoutMs: Int,
         onLine: (String) -> Boolean,
+    ): Int = postJsonStreamAbortable(url, headers, body, connectTimeoutMs, readTimeoutMs, {}, onLine)
+
+    override fun postJsonStreamAbortable(
+        url: String,
+        headers: Map<String, String>,
+        body: String,
+        connectTimeoutMs: Int,
+        readTimeoutMs: Int,
+        onAbortable: (abort: () -> Unit) -> Unit,
+        onLine: (String) -> Boolean,
     ): Int {
         val conn = (java.net.URI(url).toURL().openConnection() as java.net.HttpURLConnection).apply {
             requestMethod = "POST"
@@ -113,6 +138,7 @@ class UrlConnectionCloudLlmTransport : CloudLlmHttpTransport, CloudLlmStreamTran
             setRequestProperty("User-Agent", NaraRouterDefaults.USER_AGENT)
             headers.forEach { (k, v) -> setRequestProperty(k, v) }
         }
+        onAbortable { conn.disconnect() }
         try {
             conn.outputStream.use { os ->
                 os.write(body.toByteArray(Charsets.UTF_8))
@@ -268,6 +294,7 @@ class OpenAiCompatibleCloudClient(
         maxTokens: Int = NaraRouterDefaults.MAX_OUTPUT_TOKENS,
         extraBody: Map<String, Any> = emptyMap(),
         isCancelled: () -> Boolean = { false },
+        onAbortable: (abort: () -> Unit) -> Unit = {},
         onDelta: (String) -> Unit,
     ): StreamChatResult {
         val key = apiKeyProvider()?.trim().orEmpty()
@@ -282,7 +309,7 @@ class OpenAiCompatibleCloudClient(
         val errBody = StringBuilder()
         var usage: Map<String, Any>? = null
         return try {
-            val code = streamTransport.postJsonStream(
+            val code = streamTransport.postJsonStreamAbortable(
                 url = url,
                 headers = mapOf(
                     "Authorization" to "Bearer $key",
@@ -292,17 +319,18 @@ class OpenAiCompatibleCloudClient(
                 body = body,
                 connectTimeoutMs = connectTimeoutMs,
                 readTimeoutMs = readTimeoutMs,
+                onAbortable = onAbortable,
             ) { line ->
-                if (isCancelled()) return@postJsonStream false
+                if (isCancelled()) return@postJsonStreamAbortable false
                 // не-data строки при не-2xx ответе идут в тело ошибки
                 val payload = parseSseDataLine(line)
                 if (payload == null) {
                     if (errBody.length < MAX_ERROR_BODY_CHARS) {
                         errBody.append(line).append('\n')
                     }
-                    return@postJsonStream true
+                    return@postJsonStreamAbortable true
                 }
-                if (payload == "[DONE]") return@postJsonStream false
+                if (payload == "[DONE]") return@postJsonStreamAbortable false
                 // usage из чанка (best-effort)
                 val chunkUsage = extractStreamUsage(payload)
                 if (chunkUsage != null) usage = chunkUsage

@@ -275,4 +275,74 @@ class CloudChainCallTest {
         assertTrue("elapsed=${elapsed}ms should be ~4s, not 12s", elapsed in 3900..8000)
         assertNull("connection error → errCode null", l.errCode)
     }
+
+    /** Отмена одной попытки не должна задевать другую попытку того же экземпляра (хедж). */
+    @Test
+    fun cancelOneAttempt_doesNotKillOther() {
+        val secondEntry = entry.copy(modelId = "second")
+        val release = CountDownLatch(1)
+        val t = CloudLlmStreamTransport { _, _, body, _, _, onLine ->
+            if (body.contains("second")) {
+                release.await(2, TimeUnit.SECONDS)
+                okLines.forEach { if (!onLine(it)) return@CloudLlmStreamTransport 200 }
+            }
+            200
+        }
+        val c = CloudChainCall(
+            systemPrompt = "sys", history = emptyList(), userText = "go", maxTokens = 64,
+            keyFor = { "SECRET-KEY-1234567890" }, transport = DualTransport(t),
+        )
+        val loser = RecordingListener()
+        val winner = RecordingListener()
+        val loserHandle = c.start(entry, 0, loser)
+        c.start(secondEntry, 0, winner)
+        loserHandle.cancel()
+        release.countDown()
+        winner.await()
+        assertEquals(listOf("Привет"), winner.first)
+        assertEquals(listOf(", мир"), winner.tokens)
+        assertEquals(5, winner.usage!!["prompt_tokens"])
+    }
+
+    /** Каждая попытка получает свой onFirstToken, даже когда идут параллельно. */
+    @Test
+    fun eachAttempt_getsOwnFirstToken() {
+        val c = call(t = transport(okLines))
+        val a = RecordingListener()
+        val b = RecordingListener()
+        c.start(entry, 0, a)
+        a.await()
+        c.start(entry, 0, b)
+        b.await()
+        assertEquals(listOf("Привет"), b.first)
+    }
+
+    /** Отмена обрывает соединение, заблокированное в чтении, а не ждёт следующей строки. */
+    @Test
+    fun cancel_abortsBlockedRead() {
+        val aborted = CountDownLatch(1)
+        val inRead = CountDownLatch(1)
+        val t = object : CloudLlmHttpTransport, CloudLlmStreamTransport {
+            override fun postJson(url: String, headers: Map<String, String>, body: String, connectTimeoutMs: Int, readTimeoutMs: Int) =
+                CloudLlmHttpResponse(500, "")
+            override fun postJsonStream(url: String, headers: Map<String, String>, body: String, connectTimeoutMs: Int, readTimeoutMs: Int, onLine: (String) -> Boolean): Int = 200
+            override fun postJsonStreamAbortable(url: String, headers: Map<String, String>, body: String, connectTimeoutMs: Int, readTimeoutMs: Int, onAbortable: (() -> Unit) -> Unit, onLine: (String) -> Boolean): Int {
+                onAbortable { aborted.countDown() }
+                inRead.countDown()
+                aborted.await(2, TimeUnit.SECONDS)
+                throw java.io.IOException("socket closed")
+            }
+        }
+        val l = RecordingListener()
+        val c = CloudChainCall(
+            systemPrompt = "sys", history = emptyList(), userText = "go", maxTokens = 64,
+            keyFor = { "SECRET-KEY-1234567890" }, transport = t,
+        )
+        val h = c.start(entry, 0, l)
+        assertTrue(inRead.await(2, TimeUnit.SECONDS))
+        h.cancel()
+        assertTrue("connection not aborted on cancel", aborted.await(1, TimeUnit.SECONDS))
+        Thread.sleep(50)
+        assertNull("no error callback after cancel", l.errCode)
+    }
 }
