@@ -12,7 +12,9 @@ data class ChainConfig(
     val circuitOpenMs: Long = 5 * 60 * 1000L,
     val circuitFailureThreshold: Int = 3,
     /** После первого токена дедлайна нет: стрим обрывается только если токены перестали идти. */
-    val streamIdleTimeoutMs: Long = 8_000
+    val streamIdleTimeoutMs: Long = 8_000,
+    /** Пауза записи после 403: блокировка региона/сети снимается сменой сети, а не ключа. */
+    val blockedCooldownMs: Long = 5 * 60 * 1000L
 ) {
     companion object {
         val Default = ChainConfig()

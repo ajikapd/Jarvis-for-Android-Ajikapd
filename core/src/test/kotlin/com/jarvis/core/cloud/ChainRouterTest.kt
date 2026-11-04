@@ -288,6 +288,25 @@ class ChainRouterTest {
         val r = ChainRouter(config = fastCfg).run(req, listOf(e1, e2), h, call, RecordingSink())
         assertEquals("m-ok", r.entry.modelId)
         assertEquals(1, r.failures.count { it == ErrorClass.AUTH_OR_REGION })
+        assertFalse("entry must stay disabled until key change", h.isAvailable(e1))
+        h.reset(e1.providerId)
+        assertTrue(h.isAvailable(e1))
+    }
+
+    @Test
+    fun forbidden403_blocksTemporarily() = runBlocking {
+        val e1 = entry("region")
+        val e2 = entry("ok")
+        var now = 1_000L
+        val call = FakeCall(mapOf(
+            "m-region" to listOf({ l -> l.onError(403, "Forbidden") }),
+            "m-ok" to listOf({ l -> l.onFirstToken("fine"); l.onComplete(null) })
+        ))
+        val h = ChainHealth(clock = { now }, config = fastCfg)
+        ChainRouter(config = fastCfg).run(req, listOf(e1, e2), h, call, RecordingSink())
+        assertFalse(h.isAvailable(e1))
+        now += fastCfg.blockedCooldownMs + 1
+        assertTrue("403 must not outlive the network change", h.isAvailable(e1))
     }
 
     @Test

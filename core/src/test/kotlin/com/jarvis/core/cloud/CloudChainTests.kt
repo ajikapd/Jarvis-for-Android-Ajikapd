@@ -32,6 +32,8 @@ class CloudChainTests {
     @Test fun classify_table() {
         assertEquals(ErrorClass.BLOCKED_BY_CLOUDFLARE, CloudErrorClassifier.classify(403, "error 1010"))
         assertEquals(ErrorClass.AUTH_OR_REGION, CloudErrorClassifier.classify(401, "x"))
+        assertEquals(ErrorClass.FORBIDDEN, CloudErrorClassifier.classify(403, "x"))
+        assertEquals(ErrorClass.AUTH_OR_REGION, CloudErrorClassifier.classify(403, "API key not valid"))
         assertEquals(ErrorClass.AUTH_OR_REGION, CloudErrorClassifier.classify(400, "API key not valid"))
         assertEquals(ErrorClass.RATE_LIMITED_DAILY, CloudErrorClassifier.classify(429, "PerDay limit"))
         assertEquals(ErrorClass.RATE_LIMITED, CloudErrorClassifier.classify(429, "minute"))

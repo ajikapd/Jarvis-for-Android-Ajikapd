@@ -7,6 +7,7 @@ class ChainHealth(
     data class State(
         val dailyExhaustedUntil: Long = 0,
         val rateLimitedUntil: Long = 0,
+        val blockedUntil: Long = 0,
         val consecutiveFailures: Int = 0,
         val circuitOpenUntil: Long = 0,
         val circuitHalfOpen: Boolean = false,
@@ -29,6 +30,7 @@ class ChainHealth(
         if (s.disabled) return false
         if (s.dailyExhaustedUntil > now) return false
         if (s.rateLimitedUntil > now) return false
+        if (s.blockedUntil > now) return false
         if (s.circuitOpenUntil > now) return false
         if (s.circuitOpenUntil <= now && s.consecutiveFailures >= config.circuitFailureThreshold && !s.circuitHalfOpen) {
             set(entry, s.copy(circuitHalfOpen = true, circuitProbeInFlight = false))
@@ -56,8 +58,11 @@ class ChainHealth(
                 val seconds = (retryAfterSeconds ?: config.rateLimitedDefaultSeconds).coerceIn(1, config.rateLimitedMaxSeconds)
                 set(entry, s.copy(rateLimitedUntil = now + seconds * 1000L))
             }
-            ErrorClass.AUTH_OR_REGION, ErrorClass.BLOCKED_BY_CLOUDFLARE -> {
+            ErrorClass.AUTH_OR_REGION -> {
                 set(entry, s.copy(disabled = true))
+            }
+            ErrorClass.FORBIDDEN, ErrorClass.BLOCKED_BY_CLOUDFLARE -> {
+                set(entry, s.copy(blockedUntil = now + config.blockedCooldownMs))
             }
             ErrorClass.BAD_REQUEST -> {
                 if (paramsExhausted) {

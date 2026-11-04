@@ -260,9 +260,6 @@ class ChainRouter(
                             CloudErrorClassifier.parseRetryAfterSeconds(event.body)
                         } else null
                         health.recordFailure(a.entry, cls, retryAfterSeconds = retryAfter)
-                        if (cls == ErrorClass.AUTH_OR_REGION || cls == ErrorClass.BLOCKED_BY_CLOUDFLARE) {
-                            health.reset(a.entry.providerId)
-                        }
                         // падение до первого токена → следующая запись сразу
                         if (winnerRef.get() == null && active.isEmpty()) startNext()
                         else if (winnerRef.get() == null && active.size < cfg.maxParallel) {

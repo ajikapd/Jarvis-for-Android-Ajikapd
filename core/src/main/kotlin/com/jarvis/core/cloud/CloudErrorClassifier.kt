@@ -4,6 +4,8 @@ enum class ErrorClass {
     RATE_LIMITED,
     RATE_LIMITED_DAILY,
     AUTH_OR_REGION,
+    /** 403 без признака неверного ключа: чаще регион/сеть, проходит со сменой сети. */
+    FORBIDDEN,
     BLOCKED_BY_CLOUDFLARE,
     OVERLOADED,
     SERVER_ERROR,
@@ -57,12 +59,15 @@ object CloudErrorClassifier {
         if (httpStatus == 403 && text.contains("1010")) {
             return ErrorClass.BLOCKED_BY_CLOUDFLARE
         }
-        if (httpStatus == 401 || httpStatus == 403) {
+        if (httpStatus == 401) {
+            return ErrorClass.AUTH_OR_REGION
+        }
+        if (httpStatus == 403) {
             val lower = text.lowercase()
             if (lower.contains("api key not valid") || lower.contains("api_key_invalid")) {
                 return ErrorClass.AUTH_OR_REGION
             }
-            return ErrorClass.AUTH_OR_REGION
+            return ErrorClass.FORBIDDEN
         }
         if (httpStatus == 429) {
             return if (DAILY_RE.containsMatchIn(text)) ErrorClass.RATE_LIMITED_DAILY else ErrorClass.RATE_LIMITED
