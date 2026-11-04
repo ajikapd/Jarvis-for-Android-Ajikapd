@@ -419,13 +419,7 @@ object BrainGraph {
                     com.jarvis.brain.aiprovider.RoutedChatLlmEngine(
                         localProvider = { chatLlmOrNull(ctx) },
                         routerProvider = { aiRouter() },
-                        isOnline = {
-                            val cm = ctx.getSystemService(android.content.Context.CONNECTIVITY_SERVICE)
-                                as? android.net.ConnectivityManager
-                            val net = cm?.activeNetwork ?: return@RoutedChatLlmEngine false
-                            val caps = cm.getNetworkCapabilities(net) ?: return@RoutedChatLlmEngine false
-                            caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                        },
+                        isOnline = { CloudAsrFactory.isOnline(ctx) },
                         preferCloud = {
                             JarvisSettings.preferCloudLlm(ctx) && JarvisSettings.cloudConfigured(ctx)
                         },
@@ -473,39 +467,21 @@ object BrainGraph {
             chatPersona = { JarvisSettings.persona(ctx) },
             chatProfile = { JarvisSettings.chatProfile(ctx) },
             cloudMemoryAllowed = {
-                val online = runCatching {
-                    val cm = ctx.getSystemService(android.content.Context.CONNECTIVITY_SERVICE)
-                        as? android.net.ConnectivityManager
-                    val net = cm?.activeNetwork ?: return@runCatching false
-                    val caps = cm.getNetworkCapabilities(net) ?: return@runCatching false
-                    caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                }.getOrDefault(false)
+                val online = runCatching { CloudAsrFactory.isOnline(ctx) }.getOrDefault(false)
                 !(online && JarvisSettings.preferCloudLlm(ctx) && JarvisSettings.cloudConfigured(ctx))
             },
             fastSemantic = com.jarvis.core.runtime.semantic.FastSemanticClassifier(),
             llmSemantic = com.jarvis.brain.semantic.LlmStructuredSemanticInterpreter(
                 chatLlm = { chatLlmOrNull(ctx) },
                 routerProvider = { aiRouter() },
-                isOnline = {
-                    val cm = ctx.getSystemService(android.content.Context.CONNECTIVITY_SERVICE)
-                        as? android.net.ConnectivityManager
-                    val net = cm?.activeNetwork ?: return@LlmStructuredSemanticInterpreter false
-                    val caps = cm.getNetworkCapabilities(net) ?: return@LlmStructuredSemanticInterpreter false
-                    caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                },
+                isOnline = { CloudAsrFactory.isOnline(ctx) },
                 preferCloud = {
                     // Structured semantic prefers local; cloud only if explicitly preferred AND no local
                     false
                 },
             ),
             chatStreamPipeline = aiRouter()?.let { com.jarvis.brain.aiprovider.ChatStreamPipeline(it) },
-            isOnlineForAi = {
-                val cm = ctx.getSystemService(android.content.Context.CONNECTIVITY_SERVICE)
-                    as? android.net.ConnectivityManager
-                val net = cm?.activeNetwork ?: return@AssistantOrchestrator false
-                val caps = cm.getNetworkCapabilities(net) ?: return@AssistantOrchestrator false
-                caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            },
+            isOnlineForAi = { CloudAsrFactory.isOnline(ctx) },
             preferCloudForAi = {
                 JarvisSettings.preferCloudLlm(ctx) && JarvisSettings.cloudConfigured(ctx)
             },
