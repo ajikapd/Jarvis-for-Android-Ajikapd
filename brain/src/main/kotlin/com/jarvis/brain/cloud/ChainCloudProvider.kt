@@ -11,19 +11,16 @@ import com.jarvis.brain.aiprovider.AIProviderKind
 import com.jarvis.brain.aiprovider.CloudLLMProvider
 import com.jarvis.brain.aiprovider.CloudLlmHttpTransport
 import com.jarvis.brain.aiprovider.StreamingAIProvider
-import com.jarvis.core.cloud.CallListener
-import com.jarvis.core.cloud.CancelHandle
-import com.jarvis.core.cloud.ChainEntry
 import com.jarvis.core.cloud.ChainConfig
 import com.jarvis.core.cloud.ChainHealth
 import com.jarvis.core.cloud.ChainRouter
 import com.jarvis.core.cloud.CloudCall
 import com.jarvis.core.cloud.DefaultCloudChain
 import com.jarvis.core.cloud.ErrorClass
-import com.jarvis.core.cloud.ThoughtStripper
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -57,7 +54,7 @@ class ChainCloudProvider(
     @Volatile var lastFailures: List<ErrorClass> = emptyList()
         private set
 
-    private var allFailedUntil: Long = 0
+    @Volatile private var allFailedUntil: Long = 0
     private var cachedKeys: Set<String>? = null
     private var cachedKeysAt: Long = 0
     private val keysCacheTtlMs = 2_000L
@@ -147,7 +144,7 @@ class ChainCloudProvider(
                 ttftKind = com.jarvis.core.runtime.TtftKind.REAL,
             )
         } catch (e: com.jarvis.core.cloud.AllFailedException) {
-            allFailedUntil = clock() + allFailedCooldownMs
+            if (!e.partial) allFailedUntil = clock() + allFailedCooldownMs
             lastFailures = e.failures
             SafeLog.i(
                 TAG,
@@ -174,23 +171,22 @@ class ChainCloudProvider(
             false -> AIProviderErrorCategory.NETWORK
         }
 
+    /**
+     * Блокирующий, как у [CloudLLMProvider]: возвращается, когда все события уже доставлены.
+     * [com.jarvis.brain.aiprovider.ChatStreamPipeline] читает результат сразу после возврата.
+     */
     override fun stream(
         request: AICompletionRequest,
         listener: com.jarvis.brain.aiprovider.AIStreamListener,
         cancelFlag: AtomicBoolean,
     ): com.jarvis.brain.aiprovider.AIStreamHandle {
-        val started = clock()
-        val requestId = request.requestId
-        val cancelled = AtomicBoolean(false)
-
-        val thread = Thread({ runStream(request, listener, cancelFlag, started, cancelled) }, "chain-cloud-stream")
-        thread.isDaemon = true
-        thread.start()
-
+        if (chainKeys().isEmpty()) return legacy.stream(request, listener, cancelFlag)
+        if (request.cancelRequested) cancelFlag.set(true)
+        runStream(request, listener, cancelFlag)
         return object : com.jarvis.brain.aiprovider.AIStreamHandle {
-            override val requestId: String = requestId
-            override fun cancel() { cancelled.set(true) }
-            override fun isCancelled(): Boolean = cancelled.get()
+            override val requestId: String = request.requestId
+            override fun cancel() { cancelFlag.set(true) }
+            override fun isCancelled(): Boolean = cancelFlag.get()
         }
     }
 
@@ -198,12 +194,10 @@ class ChainCloudProvider(
         request: AICompletionRequest,
         listener: com.jarvis.brain.aiprovider.AIStreamListener,
         cancelFlag: AtomicBoolean,
-        started: Long,
-        cancelled: AtomicBoolean,
     ) {
+        val started = clock()
         val requestId = request.requestId
-        fun emit(type: com.jarvis.brain.aiprovider.AIStreamEventType, text: String = "", modelId: String? = null, errorCode: String? = null, errorMessage: String? = null) {
-            if (cancelled.get()) return
+        fun send(type: com.jarvis.brain.aiprovider.AIStreamEventType, text: String = "", modelId: String? = null, errorCode: String? = null, errorMessage: String? = null) {
             listener.onEvent(
                 com.jarvis.brain.aiprovider.AIStreamEvent(
                     type = type, text = text, requestId = requestId, providerId = id,
@@ -212,88 +206,70 @@ class ChainCloudProvider(
                 ),
             )
         }
+        fun emit(type: com.jarvis.brain.aiprovider.AIStreamEventType, text: String = "", modelId: String? = null, errorCode: String? = null, errorMessage: String? = null) {
+            if (!cancelFlag.get()) send(type, text, modelId, errorCode, errorMessage)
+        }
         try {
             emit(com.jarvis.brain.aiprovider.AIStreamEventType.START)
-            val keys = chainKeys()
-            if (keys.isEmpty()) {
-                emit(com.jarvis.brain.aiprovider.AIStreamEventType.ERROR, errorCode = "CHAIN_NO_STREAM_LEGACY", errorMessage = "no chain keys; legacy does not support stream")
-                return
-            }
-            val entries = DefaultCloudChain.availableEntries(DefaultCloudChain.entries(), keys)
+            val entries = DefaultCloudChain.availableEntries(DefaultCloudChain.entries(), chainKeys())
             var chunks = 0
-            val stripper = ThoughtStripper()
             val sink = object : com.jarvis.core.cloud.TokenSink {
                 override fun onFirstToken(text: String) {
                     chunks++
-                    emit(com.jarvis.brain.aiprovider.AIStreamEventType.TEXT, stripper.strip(text))
+                    emit(com.jarvis.brain.aiprovider.AIStreamEventType.TEXT, text)
                 }
                 override fun onToken(text: String) {
                     chunks++
-                    emit(com.jarvis.brain.aiprovider.AIStreamEventType.TEXT, stripper.strip(text))
+                    emit(com.jarvis.brain.aiprovider.AIStreamEventType.TEXT, text)
                 }
-                override fun onComplete(usage: Map<String, Any>?) {
-                    val flushed = stripper.flush()
-                    if (flushed.isNotEmpty()) emit(com.jarvis.brain.aiprovider.AIStreamEventType.TEXT, flushed)
-                }
+                override fun onComplete(usage: Map<String, Any>?) = Unit
             }
-            val cancellableCall = CancellableCloudCall(buildCloudCall(request))
-            // корутина опроса cancelFlag (каждые 50 мс): эмитит CANCELLED сразу
-            val runJob = kotlinx.coroutines.GlobalScope.launch {
-                val deadline = started + config.totalDeadlineMs + 1_000
-                while (!cancelled.get() && clock() < deadline) {
-                    if (cancelFlag.get()) {
-                        // отменить активный вызов у CloudCall, затем событие и флаг
-                        cancellableCall.handle.get()?.cancel()
-                        // сначала событие, потом флаг (emit подавляет после cancel)
-                        listener.onEvent(
-                            com.jarvis.brain.aiprovider.AIStreamEvent(
-                                type = com.jarvis.brain.aiprovider.AIStreamEventType.CANCELLED,
-                                requestId = requestId,
-                                providerId = id,
-                                atElapsedMs = clock() - started,
-                            ),
-                        )
-                        cancelled.set(true)
-                        break
-                    }
-                    Thread.sleep(50)
+            val call = buildCloudCall(request)
+            val result = runBlocking {
+                val run = async(Dispatchers.Default) {
+                    runCatching { router.run(ChainRouter.Request(), entries, health, call, sink) }
                 }
+                // отмена корутины роутера гасит все попытки без записи сбоев
+                while (withTimeoutOrNull(CANCEL_POLL_MS) { run.join() } == null) {
+                    if (cancelFlag.get()) run.cancel()
+                }
+                run.await().getOrThrow()
             }
-            try {
-                val result = runBlocking {
-                    router.run(ChainRouter.Request(), entries, health, cancellableCall, sink)
-                }
-                runJob.cancel()
-                if (cancelled.get()) {
-                    emit(com.jarvis.brain.aiprovider.AIStreamEventType.CANCELLED)
-                    return
-                }
-                lastWinner = "${result.entry.providerId}/${result.entry.modelId}"
-                lastHedged = result.hedged
-                lastFailures = result.failures
-                emit(com.jarvis.brain.aiprovider.AIStreamEventType.COMPLETE, modelId = result.entry.modelId)
-                emit(
-                    com.jarvis.brain.aiprovider.AIStreamEventType.METADATA,
-                    text = "ttftMs=${result.timeToFirstTokenMs};chunks=$chunks;latencyMs=${clock() - started};hedged=${result.hedged};entry=${result.entry.providerId}/${result.entry.modelId}",
-                    modelId = result.entry.modelId,
-                )
-                SafeLog.i(
-                    TAG,
-                    "stream requestId=${request.requestId} winner=$lastWinner hedged=${result.hedged} " +
-                        "ttftMs=${result.timeToFirstTokenMs} totalMs=${clock() - started} chunks=$chunks " +
-                        "attempts=[${result.attemptReport.joinToString()}]",
-                )
-            } finally {
-                runJob.cancel()
+            if (cancelFlag.get()) {
+                send(com.jarvis.brain.aiprovider.AIStreamEventType.CANCELLED)
+                return
             }
+            lastWinner = "${result.entry.providerId}/${result.entry.modelId}"
+            lastHedged = result.hedged
+            lastFailures = result.failures
+            emit(com.jarvis.brain.aiprovider.AIStreamEventType.COMPLETE, modelId = result.entry.modelId)
+            emit(
+                com.jarvis.brain.aiprovider.AIStreamEventType.METADATA,
+                text = "ttftMs=${result.timeToFirstTokenMs};chunks=$chunks;latencyMs=${clock() - started};hedged=${result.hedged};entry=${result.entry.providerId}/${result.entry.modelId}",
+                modelId = result.entry.modelId,
+            )
+            SafeLog.i(
+                TAG,
+                "stream requestId=${request.requestId} winner=$lastWinner hedged=${result.hedged} " +
+                    "ttftMs=${result.timeToFirstTokenMs} totalMs=${clock() - started} chunks=$chunks " +
+                    "attempts=[${result.attemptReport.joinToString()}]",
+            )
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            SafeLog.i(TAG, "stream requestId=${request.requestId} cancelled totalMs=${clock() - started}")
+            send(com.jarvis.brain.aiprovider.AIStreamEventType.CANCELLED)
         } catch (e: com.jarvis.core.cloud.AllFailedException) {
-            allFailedUntil = clock() + allFailedCooldownMs
+            if (cancelFlag.get()) {
+                send(com.jarvis.brain.aiprovider.AIStreamEventType.CANCELLED)
+                return
+            }
+            // обрыв посреди ответа — не повод уводить следующие запросы с облака
+            if (!e.partial) allFailedUntil = clock() + allFailedCooldownMs
             lastFailures = e.failures
             SafeLog.i(
                 TAG,
-                "stream requestId=${request.requestId} allFailed winner=null hedged=${e.hedged} " +
+                "stream requestId=${request.requestId} allFailed winner=null hedged=${e.hedged} partial=${e.partial} " +
                     "ttftMs=null totalMs=${clock() - started} failures=${e.failures} " +
-                    "attempts=[${e.attemptReport.joinToString()}] cooldownMs=$allFailedCooldownMs",
+                    "attempts=[${e.attemptReport.joinToString()}] cooldownMs=${if (e.partial) 0 else allFailedCooldownMs}",
             )
             emit(
                 com.jarvis.brain.aiprovider.AIStreamEventType.ERROR,
@@ -317,19 +293,8 @@ class ChainCloudProvider(
             readTimeoutMs = config.totalDeadlineMs.toInt(),
         )
 
-    /** Обёртка над CloudCall, фиксирующая CancelHandle, чтобы по cancelFlag можно было отменить активный вызов. */
-    private class CancellableCloudCall(
-        private val delegate: CloudCall
-    ) : CloudCall {
-        val handle = java.util.concurrent.atomic.AtomicReference<CancelHandle?>(null)
-        override fun start(entry: ChainEntry, paramCandidateIndex: Int, listener: CallListener): CancelHandle {
-            val h = delegate.start(entry, paramCandidateIndex, listener)
-            handle.set(h)
-            return h
-        }
-    }
-
     private companion object {
         const val TAG = "Jarvis.CloudChain"
+        const val CANCEL_POLL_MS = 50L
     }
 }

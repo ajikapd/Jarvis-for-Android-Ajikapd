@@ -403,4 +403,50 @@ class ChainCloudProviderTest {
         val complete = events.first { it.type == AIStreamEventType.COMPLETE }
         assertEquals("готово", events.filter { it.type == AIStreamEventType.TEXT }.joinToString("") { it.text })
     }
+
+    // stream блокирующий: к возврату все события уже доставлены
+    @Test
+    fun stream_blocksUntilEventsDelivered() {
+        val fc = FakeCall().apply { behavior = { _, l -> Thread { successBehavior(com.jarvis.core.cloud.DefaultCloudChain.entries()[0], l) }.start() } }
+        val (p, _) = provider(keys = { setOf("groq") }, fakeCall = fc)
+        val events = java.util.Collections.synchronizedList(mutableListOf<AIStreamEventType>())
+        p.stream(req, { e -> events.add(e.type) })
+        assertTrue("events=$events", AIStreamEventType.COMPLETE in events)
+        assertTrue("events=$events", AIStreamEventType.METADATA in events)
+    }
+
+    // отмена, когда запись висит без ответа: быстро, без сбоя здоровья и cooldown
+    @Test
+    fun stream_cancelWhileHanging_noFalseFailure() {
+        val (p, _) = provider(keys = { setOf("groq", "gemini") }, fakeCall = FakeCall())
+        val flag = java.util.concurrent.atomic.AtomicBoolean(false)
+        val types = java.util.Collections.synchronizedList(mutableListOf<AIStreamEventType>())
+        Thread { Thread.sleep(100); flag.set(true) }.start()
+        val t0 = System.currentTimeMillis()
+        p.stream(req, { types.add(it.type) }, flag)
+        assertTrue(System.currentTimeMillis() - t0 < 1_000)
+        assertTrue("types=$types", AIStreamEventType.CANCELLED in types)
+        assertEquals(AIProviderAvailability.AVAILABLE, p.availability())
+        assertTrue(p.health.snapshot().values.all { it.consecutiveFailures == 0 })
+    }
+
+    // без ключей цепочки stream идёт в legacy, как и complete
+    @Test
+    fun stream_noChainKeys_delegatesToLegacy() {
+        val lines = listOf("data: {\"choices\":[{\"delta\":{\"content\":\"legacy\"}}]}", "data: [DONE]")
+        val client = com.jarvis.brain.aiprovider.OpenAiCompatibleCloudClient(
+            baseUrlProvider = { "https://custom.example/v1" },
+            apiKeyProvider = { "custom-key-1234567890" },
+            transport = com.jarvis.brain.aiprovider.CloudLlmHttpTransport { _, _, _, _, _ -> CloudLlmHttpResponse(500, "") },
+            streamTransport = com.jarvis.brain.aiprovider.CloudLlmStreamTransport { _, _, _, _, _, onLine ->
+                lines.forEach { if (!onLine(it)) return@CloudLlmStreamTransport 200 }
+                200
+            },
+        )
+        val (p, fc) = provider(keys = { setOf("custom") }, legacy = CloudLLMProvider(client = client))
+        val text = StringBuilder()
+        p.stream(req, { e -> if (e.type == AIStreamEventType.TEXT) text.append(e.text) })
+        assertEquals("legacy", text.toString())
+        assertEquals(0, (fc as FakeCall).starts.get())
+    }
 }
