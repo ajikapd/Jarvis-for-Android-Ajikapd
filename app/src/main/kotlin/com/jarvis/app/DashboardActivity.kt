@@ -2716,6 +2716,7 @@ class DashboardActivity : AppCompatActivity() {
             if (!hasFocus) {
                 val key = cloudKeyInput.text?.toString().orEmpty()
                 JarvisSettings.setCloudApiKey(this, key)
+                BrainGraph.onCloudKeyChanged("custom")
                 BrainGraph.invalidate()
                 refreshCloudHint()
             }
@@ -2754,6 +2755,7 @@ class DashboardActivity : AppCompatActivity() {
                 store.setKey(providerId, clean)
                 input.setText("")
                 refreshStatus()
+                BrainGraph.onCloudKeyChanged(providerId)
                 BrainGraph.invalidate()
                 android.widget.Toast.makeText(ctx, R.string.cloud_key_saved, android.widget.Toast.LENGTH_SHORT).show()
             }
@@ -2761,6 +2763,7 @@ class DashboardActivity : AppCompatActivity() {
                 store.clearKey(providerId)
                 input.setText("")
                 refreshStatus()
+                BrainGraph.onCloudKeyChanged(providerId)
                 BrainGraph.invalidate()
                 android.widget.Toast.makeText(ctx, R.string.cloud_key_deleted, android.widget.Toast.LENGTH_SHORT).show()
             }

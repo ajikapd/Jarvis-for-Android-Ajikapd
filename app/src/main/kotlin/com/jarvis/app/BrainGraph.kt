@@ -72,6 +72,7 @@ object BrainGraph {
     @Volatile private var catalogToolRegistry: com.jarvis.core.execution.CatalogToolRegistry? = null
     @Volatile private var catalogToolDiscovery: com.jarvis.core.discovery.CatalogToolDiscovery? = null
     @Volatile private var aiProviderRegistry: com.jarvis.brain.aiprovider.AIProviderRegistry? = null
+    @Volatile private var chainCloudProvider: com.jarvis.brain.cloud.ChainCloudProvider? = null
     @Volatile private var aiRouter: com.jarvis.brain.aiprovider.AIRouter? = null
     @Volatile private var aiPlanner: com.jarvis.core.planner.AIPlanner? = null
     @Volatile private var agentExecutionLoop: com.jarvis.core.agent.AgentExecutionLoop? = null
@@ -347,12 +348,20 @@ object BrainGraph {
             baseUrlProvider = { JarvisSettings.cloudBaseUrl(ctx) },
             apiKeyProvider = { JarvisSettings.cloudApiKey(ctx) },
         )
-        aiReg.register(
-            com.jarvis.brain.aiprovider.CloudLLMProvider(
+        // 9б-2b: ChainCloudProvider поверх цепочки (legacy = CloudLLMProvider как fallback; не регистрируем CloudLLMProvider напрямую)
+        val keyStore = SecureKeyStore(ctx)
+        val chainProvider = com.jarvis.brain.cloud.ChainCloudProvider(
+            legacy = com.jarvis.brain.aiprovider.CloudLLMProvider(
                 client = cloudClient,
                 modelProvider = { JarvisSettings.cloudModelForProfile(ctx) },
             ),
+            router = com.jarvis.core.cloud.ChainRouter(clock = { System.currentTimeMillis() }),
+            health = com.jarvis.core.cloud.ChainHealth(clock = { System.currentTimeMillis() }),
+            keyFor = { keyStore.getKey(it) },
+            providersWithKeys = { keyStore.providersWithKeys() },
         )
+        chainCloudProvider = chainProvider
+        aiReg.register(chainProvider)
         chatLlmOrNull(ctx)?.let { engine ->
             aiReg.register(com.jarvis.brain.aiprovider.LocalLLMProvider(engine))
         }
@@ -604,6 +613,7 @@ object BrainGraph {
             catalogToolRegistry = null
             catalogToolDiscovery = null
             aiProviderRegistry = null
+            chainCloudProvider = null
             aiRouter = null
             aiPlanner = null
             agentExecutionLoop = null
@@ -626,6 +636,11 @@ object BrainGraph {
 
     fun invalidateChatLlm() {
         shutdownChatLlm()
+    }
+
+    /** Вызывается из DashboardActivity после сохранения/удаления облачного ключа: сбрасывает health записи и кэш ключей. */
+    fun onCloudKeyChanged(providerId: String) {
+        chainCloudProvider?.onKeyChanged(providerId)
     }
 
     fun chatLlmOrNull(context: Context): ChatLlmEngine? {
