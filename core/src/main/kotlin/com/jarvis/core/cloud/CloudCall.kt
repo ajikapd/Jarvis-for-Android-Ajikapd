@@ -19,5 +19,7 @@ data class ChainResult(
     val entry: ChainEntry,
     val hedged: Boolean,
     val timeToFirstTokenMs: Long,
-    val failures: List<ErrorClass>
+    val failures: List<ErrorClass>,
+    /** Отчёт по записям «provider/model=класс@мс» для диагностики и логов. */
+    val attemptReport: List<String> = emptyList(),
 )

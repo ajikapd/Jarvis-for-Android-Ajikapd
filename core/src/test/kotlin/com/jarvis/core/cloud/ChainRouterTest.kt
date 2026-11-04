@@ -143,10 +143,37 @@ class ChainRouterTest {
             ChainRouter(config = cfg).run(req, listOf(e1), health(), call, RecordingSink())
             fail("expected AllFailedException")
         } catch (e: AllFailedException) {
-            // дедлайн: failures пуст (записи не падали, просто молчали), hedged false
-            assertEquals(0, e.failures.size)
+            // 9б-2c A1: запись висела без ответа до дедлайна → NETWORK_ERROR, failures не пуст
+            assertEquals(listOf(ErrorClass.NETWORK_ERROR), e.failures)
             assertFalse(e.hedged)
         }
+    }
+
+    @Test
+    fun totalDeadline_noResponse_markedNetworkErrorAndReport() = runBlocking {
+        val e1 = entry("hang1")
+        val e2 = entry("hang2")
+        val call = FakeCall(mapOf(
+            "m-hang1" to listOf({ l -> runBlocking { delay(10_000); l.onFirstToken("late") } }),
+            "m-hang2" to listOf({ l -> runBlocking { delay(10_000); l.onFirstToken("late") } }),
+        ))
+        val h = health()
+        val cfg = ChainConfig(hedgeAfterMs = 50, totalDeadlineMs = 300, maxParallel = 2)
+        try {
+            ChainRouter(config = cfg).run(req, listOf(e1, e2), h, call, RecordingSink())
+            fail("expected AllFailedException")
+        } catch (e: AllFailedException) {
+            // обе записи молчали: NETWORK_ERROR × 2 (deadline_no_response)
+            assertEquals(listOf(ErrorClass.NETWORK_ERROR, ErrorClass.NETWORK_ERROR), e.failures)
+            // отчёт помечает повисшие попытки
+            assertTrue("report=${e.attemptReport}", e.attemptReport.size == 2)
+            assertTrue(e.attemptReport.all { it.contains("NETWORK_ERROR(deadline_no_response)") })
+            assertTrue(e.attemptReport.all { it.startsWith("p-hang") })
+        }
+        // health: повисшая запись получила обычный NETWORK_ERROR-сбой
+        // (consecutiveFailures вырос; для проверки — запись теперь имеет состояние)
+        val snap = h.snapshot()
+        assertTrue(snap.isNotEmpty())
     }
 
     @Test

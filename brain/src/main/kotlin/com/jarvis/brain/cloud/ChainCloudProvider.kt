@@ -129,7 +129,12 @@ class ChainCloudProvider(
             lastWinner = "${result.entry.providerId}/${result.entry.modelId}"
             lastHedged = result.hedged
             lastFailures = result.failures
-            SafeLog.i(TAG, "complete winner=$lastWinner hedged=${result.hedged} ttftMs=${result.timeToFirstTokenMs} failures=${result.failures}")
+            SafeLog.i(
+                TAG,
+                "complete requestId=${request.requestId} winner=$lastWinner hedged=${result.hedged} " +
+                    "ttftMs=${result.timeToFirstTokenMs} totalMs=${clock() - started} " +
+                    "attempts=[${result.attemptReport.joinToString()}]",
+            )
             AICompletionResult(
                 requestId = request.requestId,
                 providerId = id,
@@ -144,7 +149,12 @@ class ChainCloudProvider(
         } catch (e: com.jarvis.core.cloud.AllFailedException) {
             allFailedUntil = clock() + allFailedCooldownMs
             lastFailures = e.failures
-            SafeLog.i(TAG, "allFailed failures=${e.failures} cooldownMs=$allFailedCooldownMs")
+            SafeLog.i(
+                TAG,
+                "complete requestId=${request.requestId} allFailed winner=null hedged=${e.hedged} " +
+                    "ttftMs=null totalMs=${clock() - started} failures=${e.failures} " +
+                    "attempts=[${e.attemptReport.joinToString()}] cooldownMs=$allFailedCooldownMs",
+            )
             AICompletionResult(
                 requestId = request.requestId,
                 providerId = id,
@@ -267,14 +277,24 @@ class ChainCloudProvider(
                     text = "ttftMs=${result.timeToFirstTokenMs};chunks=$chunks;latencyMs=${clock() - started};hedged=${result.hedged};entry=${result.entry.providerId}/${result.entry.modelId}",
                     modelId = result.entry.modelId,
                 )
-                SafeLog.i(TAG, "stream winner=$lastWinner hedged=${result.hedged} chunks=$chunks")
+                SafeLog.i(
+                    TAG,
+                    "stream requestId=${request.requestId} winner=$lastWinner hedged=${result.hedged} " +
+                        "ttftMs=${result.timeToFirstTokenMs} totalMs=${clock() - started} chunks=$chunks " +
+                        "attempts=[${result.attemptReport.joinToString()}]",
+                )
             } finally {
                 runJob.cancel()
             }
         } catch (e: com.jarvis.core.cloud.AllFailedException) {
             allFailedUntil = clock() + allFailedCooldownMs
             lastFailures = e.failures
-            SafeLog.i(TAG, "stream allFailed failures=${e.failures}")
+            SafeLog.i(
+                TAG,
+                "stream requestId=${request.requestId} allFailed winner=null hedged=${e.hedged} " +
+                    "ttftMs=null totalMs=${clock() - started} failures=${e.failures} " +
+                    "attempts=[${e.attemptReport.joinToString()}] cooldownMs=$allFailedCooldownMs",
+            )
             emit(
                 com.jarvis.brain.aiprovider.AIStreamEventType.ERROR,
                 errorCode = "CHAIN_ALL_FAILED",
@@ -293,6 +313,7 @@ class ChainCloudProvider(
             maxTokens = capabilities.maxOutputTokens.coerceAtLeast(16),
             keyFor = keyFor,
             transport = realTransport,
+            connectTimeoutMs = config.connectTimeoutMs.toInt(),
             readTimeoutMs = config.totalDeadlineMs.toInt(),
         )
 

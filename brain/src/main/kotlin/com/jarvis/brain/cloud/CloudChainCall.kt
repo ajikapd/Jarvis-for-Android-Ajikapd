@@ -26,6 +26,8 @@ class CloudChainCall(
     private val keyFor: (providerId: String) -> String?,
     private val transport: CloudLlmHttpTransport = UrlConnectionCloudLlmTransport(),
     private val readTimeoutMs: Int = ChainConfig.Default.totalDeadlineMs.toInt(),
+    /** Таймаут подключения (9б-2c A2): «висящее» подключение отваливается за ~4 с, а не 12. */
+    private val connectTimeoutMs: Int = ChainConfig.Default.connectTimeoutMs.toInt(),
     private val executor: ExecutorService = DEFAULT_EXECUTOR,
 ) : CloudCall {
 
@@ -49,6 +51,7 @@ class CloudChainCall(
                 baseUrlProvider = { entry.baseUrl },
                 apiKeyProvider = { key },
                 transport = transport,
+                connectTimeoutMs = connectTimeoutMs,
                 readTimeoutMs = readTimeoutMs,
             )
             val result = client.streamChat(

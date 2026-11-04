@@ -237,4 +237,42 @@ class CloudChainCallTest {
         assertTrue("url=$urlsCap", urlsCap.first() == "https://base.example/v1/chat/completions")
         assertEquals("Bearer SECRET-KEY-1234567890", headersCap.first()["Authorization"])
     }
+
+    // 9б-2c A2: таймаут подключения ограничен ChainConfig.connectTimeoutMs (по умолчанию 4 с)
+
+    @Test
+    fun connectTimeoutMs_default4s_passedToTransport() {
+        val caps = mutableListOf<Int>() // (connectTimeout, readTimeout)
+        val t: CloudLlmStreamTransport = CloudLlmStreamTransport { _, _, _, connectTimeoutMs, readTimeoutMs, onLine ->
+            caps.add(connectTimeoutMs * 1000 + readTimeoutMs)
+            okLines.forEach { if (!onLine(it)) return@CloudLlmStreamTransport 200 }
+            200
+        }
+        val l = RecordingListener()
+        call(t = t).start(entry, 0, l)
+        l.await()
+        // connectTimeout = 4000 (ChainConfig.Default.connectTimeoutMs), readTimeout = 15000 (totalDeadline)
+        assertEquals(4000 * 1000 + 15000, caps.first())
+    }
+
+    @Test
+    fun hangingConnect_failsAfterConnectTimeout_not12s() {
+        // транспорт «висит» на подключении: спит дольше connectTimeout, но меньше 12 с
+        val observedConnectTimeout = java.util.concurrent.atomic.AtomicInteger(0)
+        val hanging: CloudLlmStreamTransport = CloudLlmStreamTransport { _, _, _, connectTimeoutMs, _, _ ->
+            observedConnectTimeout.set(connectTimeoutMs)
+            // эмулируем поведение HttpURLConnection.connectTimeout: спим connectTimeout+запас → SocketTimeoutException
+            Thread.sleep(connectTimeoutMs + 100L)
+            throw java.net.SocketTimeoutException("connect timed out")
+        }
+        val l = RecordingListener()
+        val t0 = System.currentTimeMillis()
+        call(t = hanging).start(entry, 0, l)
+        l.await()
+        val elapsed = System.currentTimeMillis() - t0
+        // реальный connectTimeout в этом тесте — дефолтные 4 с: ошибка приходит за ~4 с, а не за 12
+        assertEquals(4000, observedConnectTimeout.get())
+        assertTrue("elapsed=${elapsed}ms should be ~4s, not 12s", elapsed in 3900..8000)
+        assertNull("connection error → errCode null", l.errCode)
+    }
 }
