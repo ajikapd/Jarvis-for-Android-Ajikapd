@@ -9,17 +9,17 @@ class DefaultCloudChainTest {
 
     @Test
     fun entriesReturnsFourProvidersInOrder() {
-        val chain = DefaultCloudChain
         val entries = DefaultCloudChain.entries()
         assertEquals(4, entries.size)
+        // порядок по бенчу: groq120b, gemini3.5-lite, groq qwen, gemini3.1-lite
         assertEquals("groq", entries[0].providerId)
         assertEquals("openai/gpt-oss-120b", entries[0].modelId)
         assertEquals("https://api.groq.com/openai/v1", entries[0].baseUrl)
-        assertEquals("groq", entries[1].providerId)
-        assertEquals("qwen/qwen3.8-27b", entries[1].modelId)
-        assertEquals("gemini", entries[2].providerId)
-        assertEquals("gemini-3.5-flash-lite", entries[2].modelId)
-        assertEquals("https://generativelanguage.googleapis.com/v1beta/openai", entries[2].baseUrl)
+        assertEquals("gemini", entries[1].providerId)
+        assertEquals("gemini-3.5-flash-lite", entries[1].modelId)
+        assertEquals("https://generativelanguage.googleapis.com/v1beta/openai", entries[1].baseUrl)
+        assertEquals("groq", entries[2].providerId)
+        assertEquals("qwen/qwen3.8-27b", entries[2].modelId)
         assertEquals("gemini", entries[3].providerId)
         assertEquals("gemini-3.1-flash-lite", entries[3].modelId)
     }

@@ -10,6 +10,7 @@ data class ChainEntry(
 
 object DefaultCloudChain {
     fun entries(): List<ChainEntry> = listOf(
+        // Порядок по результатам бенча (9б-2b): groq 120b → gemini 3.5-lite → groq qwen → gemini 3.1-lite
         ChainEntry(
             providerId = "groq",
             modelId = "openai/gpt-oss-120b",
@@ -22,6 +23,17 @@ object DefaultCloudChain {
             )
         ),
         ChainEntry(
+            providerId = "gemini",
+            modelId = "gemini-3.5-flash-lite",
+            label = "gemini 3.5 flash lite",
+            baseUrl = "https://generativelanguage.googleapis.com/v1beta/openai",
+            paramCandidates = listOf(
+                mapOf("reasoning_effort" to "minimal"),
+                mapOf("reasoning_effort" to "none"),
+                emptyMap()
+            )
+        ),
+        ChainEntry(
             providerId = "groq",
             modelId = "qwen/qwen3.8-27b",
             label = "groq qwen3.8-27b",
@@ -30,17 +42,6 @@ object DefaultCloudChain {
                 mapOf("reasoning_effort" to "none", "reasoning_format" to "hidden"),
                 mapOf("reasoning_effort" to "none"),
                 mapOf("reasoning_format" to "hidden"),
-                emptyMap()
-            )
-        ),
-        ChainEntry(
-            providerId = "gemini",
-            modelId = "gemini-3.5-flash-lite",
-            label = "gemini 3.5 flash lite",
-            baseUrl = "https://generativelanguage.googleapis.com/v1beta/openai",
-            paramCandidates = listOf(
-                mapOf("reasoning_effort" to "minimal"),
-                mapOf("reasoning_effort" to "none"),
                 emptyMap()
             )
         ),
