@@ -3,6 +3,7 @@ package com.jarvis.core.llm
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -92,6 +93,29 @@ class CloudKeyValidatorTest {
     @Test
     fun envelope_rejectsInvalidBase64() {
         assertNull(CloudKeyValidator.decodeEnvelope("not-base64:also-not-base64"))
+    }
+
+    // 9б-2c B: hasKey/providersWithKeys определяют наличие по конверту без расшифровки;
+    // вот крайние случаи конверта, которые должны отвергаться как «нет ключа»
+
+    @Test
+    fun envelope_rejectsSeparatorAtEndAndBlankValue() {
+        assertNull(CloudKeyValidator.decodeEnvelope(""))
+        assertNull(CloudKeyValidator.decodeEnvelope("   "))
+        // сепаратор в начале → iv пустая часть → null
+        assertNull(CloudKeyValidator.decodeEnvelope(":YWJj"))
+    }
+
+    @Test
+    fun envelope_acceptsTypicalIvCiphertext() {
+        // типичный AES/GCM конверт: 12-байтный iv, непустой ciphertext
+        val iv = ByteArray(12) { it.toByte() }
+        val ct = ByteArray(48) { (it * 3).toByte() }
+        val encoded = CloudKeyValidator.encodeEnvelope(iv, ct)
+        val decoded = CloudKeyValidator.decodeEnvelope(encoded)
+        assertNotNull(decoded)
+        assertEquals(12, decoded!!.first.size)
+        assertEquals(48, decoded.second.size)
     }
 }
 

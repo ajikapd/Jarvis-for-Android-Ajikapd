@@ -45,23 +45,31 @@ class SecureKeyStore(context: Context) {
             val secretKey = getOrCreateSecretKey() ?: return@runCatching null
             val cipher = Cipher.getInstance(TRANSFORMATION)
             cipher.init(Cipher.DECRYPT_MODE, secretKey, GCMParameterSpec(GCM_TAG_LENGTH, iv))
-            String(cipher.doFinal(ciphertext), Charsets.UTF_8).also {
-                Log.d(TAG, "decrypt ok")
-            }
+            String(cipher.doFinal(ciphertext), Charsets.UTF_8)
         }.getOrElse {
             Log.w(TAG, "Unable to decrypt provider key")
             null
         }
     }
 
-    fun hasKey(providerId: String): Boolean = getKey(providerId) != null
+    /**
+     * Наличие ключа без расшифровки (9б-2c B): достаточно prefs-записи, которая
+     * декодируется как валидный конверт (iv:ciphertext). AndroidKeyStore не трогаем.
+     */
+    fun hasKey(providerId: String): Boolean {
+        val id = CloudKeyValidator.normalizeProviderId(providerId)
+        if (id.isBlank()) return false
+        return CloudKeyValidator.decodeEnvelope(prefs.getString(id, null)) != null
+    }
 
     fun clearKey(providerId: String) {
         val id = CloudKeyValidator.normalizeProviderId(providerId)
         if (id.isNotBlank()) prefs.edit().remove(id).apply()
     }
 
-    fun providersWithKeys(): Set<String> = prefs.all.keys.filterTo(mutableSetOf()) { hasKey(it) }
+    /** Провайдеры с сохранёнными ключами — без расшифровки (по конверту). */
+    fun providersWithKeys(): Set<String> =
+        prefs.all.keys.filterTo(mutableSetOf()) { CloudKeyValidator.decodeEnvelope(prefs.getString(it, null)) != null }
 
     private fun getOrCreateSecretKey(): SecretKey? = runCatching {
         val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
