@@ -14,12 +14,25 @@ object NaraRouterDefaults {
     const val CONNECT_TIMEOUT_MS = 12_000
     const val READ_TIMEOUT_MS = 45_000
     const val MAX_OUTPUT_TOKENS = 256
+    /** UA для всех облачных запросов (некоторые шлюзы режут дефолтный Java-UA). */
+    const val USER_AGENT = "Jarvis/1.0 (Android; personal assistant)"
 }
 
 data class CloudLlmHttpResponse(
     val code: Int,
     val body: String,
 )
+
+/** Результат streamChat: код, тело ошибки (≤2 КБ), накопленный текст, usage. */
+data class StreamChatResult(
+    val code: Int?,
+    val errorBody: String,
+    val text: String,
+    val usage: Map<String, Any>?,
+)
+
+/** Максимум захвата тела ошибки. */
+internal const val MAX_ERROR_BODY_CHARS = 2048
 
 fun interface CloudLlmHttpTransport {
     fun postJson(
@@ -64,6 +77,7 @@ class UrlConnectionCloudLlmTransport : CloudLlmHttpTransport, CloudLlmStreamTran
             connectTimeout = connectTimeoutMs
             readTimeout = readTimeoutMs
             setRequestProperty("Content-Type", "application/json; charset=utf-8")
+            setRequestProperty("User-Agent", NaraRouterDefaults.USER_AGENT)
             headers.forEach { (k, v) -> setRequestProperty(k, v) }
         }
         try {
@@ -96,6 +110,7 @@ class UrlConnectionCloudLlmTransport : CloudLlmHttpTransport, CloudLlmStreamTran
             readTimeout = readTimeoutMs
             setRequestProperty("Content-Type", "application/json; charset=utf-8")
             setRequestProperty("Accept", "text/event-stream")
+            setRequestProperty("User-Agent", NaraRouterDefaults.USER_AGENT)
             headers.forEach { (k, v) -> setRequestProperty(k, v) }
         }
         try {
@@ -140,6 +155,7 @@ class OpenAiCompatibleCloudClient(
         userText: String,
         history: List<String>,
         maxTokens: Int = NaraRouterDefaults.MAX_OUTPUT_TOKENS,
+        extraBody: Map<String, Any> = emptyMap(),
     ): Result<String> {
         val key = apiKeyProvider()?.trim().orEmpty()
         if (key.isBlank()) {
@@ -148,11 +164,14 @@ class OpenAiCompatibleCloudClient(
         val base = baseUrlProvider().trim().trimEnd('/')
         val url = "$base/chat/completions"
         val messages = buildMessages(systemPrompt, history, userText)
-        val body = buildJsonBody(model, messages, maxTokens, stream = false)
+        val body = buildJsonBody(model, messages, maxTokens, stream = false, extraBody = extraBody)
         return try {
             val response = transport.postJson(
                 url = url,
-                headers = mapOf("Authorization" to "Bearer $key"),
+                headers = mapOf(
+                    "Authorization" to "Bearer $key",
+                    "User-Agent" to NaraRouterDefaults.USER_AGENT,
+                ),
                 body = body,
                 connectTimeoutMs = connectTimeoutMs,
                 readTimeoutMs = readTimeoutMs,
@@ -184,6 +203,7 @@ class OpenAiCompatibleCloudClient(
         userText: String,
         history: List<String>,
         maxTokens: Int = NaraRouterDefaults.MAX_OUTPUT_TOKENS,
+        extraBody: Map<String, Any> = emptyMap(),
         isCancelled: () -> Boolean = { false },
         onDelta: (String) -> Unit,
     ): Result<String> {
@@ -194,7 +214,7 @@ class OpenAiCompatibleCloudClient(
         val base = baseUrlProvider().trim().trimEnd('/')
         val url = "$base/chat/completions"
         val messages = buildMessages(systemPrompt, history, userText)
-        val body = buildJsonBody(model, messages, maxTokens, stream = true)
+        val body = buildJsonBody(model, messages, maxTokens, stream = true, extraBody = extraBody)
         val acc = StringBuilder()
         return try {
             val code = streamTransport.postJsonStream(
@@ -202,6 +222,7 @@ class OpenAiCompatibleCloudClient(
                 headers = mapOf(
                     "Authorization" to "Bearer $key",
                     "Accept" to "text/event-stream",
+                    "User-Agent" to NaraRouterDefaults.USER_AGENT,
                 ),
                 body = body,
                 connectTimeoutMs = connectTimeoutMs,
@@ -232,6 +253,94 @@ class OpenAiCompatibleCloudClient(
         } catch (t: Throwable) {
             Result.failure(t)
         }
+    }
+
+    /**
+     * Streaming chat для цепочки (9б-2): возвращает код HTTP, тело ошибки
+     * (все не-data строки при коде не 2xx, до 2 КБ), накопленный текст и
+     * usage (best-effort, из chunk с полем usage; null если нет).
+     */
+    fun streamChat(
+        model: String,
+        systemPrompt: String,
+        userText: String,
+        history: List<String>,
+        maxTokens: Int = NaraRouterDefaults.MAX_OUTPUT_TOKENS,
+        extraBody: Map<String, Any> = emptyMap(),
+        isCancelled: () -> Boolean = { false },
+        onDelta: (String) -> Unit,
+    ): StreamChatResult {
+        val key = apiKeyProvider()?.trim().orEmpty()
+        if (key.isBlank()) {
+            return StreamChatResult(401, "api key missing", "", null)
+        }
+        val base = baseUrlProvider().trim().trimEnd('/')
+        val url = "$base/chat/completions"
+        val messages = buildMessages(systemPrompt, history, userText)
+        val body = buildJsonBody(model, messages, maxTokens, stream = true, extraBody = extraBody)
+        val acc = StringBuilder()
+        val errBody = StringBuilder()
+        var usage: Map<String, Any>? = null
+        return try {
+            val code = streamTransport.postJsonStream(
+                url = url,
+                headers = mapOf(
+                    "Authorization" to "Bearer $key",
+                    "Accept" to "text/event-stream",
+                    "User-Agent" to NaraRouterDefaults.USER_AGENT,
+                ),
+                body = body,
+                connectTimeoutMs = connectTimeoutMs,
+                readTimeoutMs = readTimeoutMs,
+            ) { line ->
+                if (isCancelled()) return@postJsonStream false
+                // не-data строки при не-2xx ответе идут в тело ошибки
+                val payload = parseSseDataLine(line)
+                if (payload == null) {
+                    if (errBody.length < MAX_ERROR_BODY_CHARS) {
+                        errBody.append(line).append('\n')
+                    }
+                    return@postJsonStream true
+                }
+                if (payload == "[DONE]") return@postJsonStream false
+                // usage из чанка (best-effort)
+                val chunkUsage = extractStreamUsage(payload)
+                if (chunkUsage != null) usage = chunkUsage
+                val delta = extractStreamDelta(payload)
+                if (!delta.isNullOrEmpty()) {
+                    acc.append(delta)
+                    onDelta(delta)
+                }
+                true
+            }
+            if (isCancelled()) {
+                return StreamChatResult(0, "", acc.toString(), null)
+            }
+            if (code !in 200..299) {
+                return StreamChatResult(code, errBody.toString().take(MAX_ERROR_BODY_CHARS), "", null)
+            }
+            StreamChatResult(code, "", acc.toString(), usage)
+        } catch (t: Throwable) {
+            StreamChatResult(null, t.message.orEmpty().take(MAX_ERROR_BODY_CHARS), "", null)
+        }
+    }
+
+    /** Best-effort parse поля usage из стрим-чанка (без org.json — regex-fallback). */
+    internal fun extractStreamUsage(json: String): Map<String, Any>? {
+        if (json.isBlank() || json == "[DONE]") return null
+        val promptM = Regex("\"prompt_tokens\"\\s*:\\s*(\\d+)").find(json) ?: return null
+        val completionM = Regex("\"completion_tokens\"\\s*:\\s*(\\d+)").find(json)
+        val out = mutableMapOf<String, Any>(
+            "prompt_tokens" to promptM.groupValues[1].toInt(),
+        )
+        if (completionM != null) {
+            out["completion_tokens"] = completionM.groupValues[1].toInt()
+        }
+        val reasoningM = Regex("\"reasoning_tokens\"\\s*:\\s*(\\d+)").find(json)
+        if (reasoningM != null) {
+            out["reasoning_tokens"] = reasoningM.groupValues[1].toInt()
+        }
+        return out
     }
 
     internal fun parseSseDataLine(line: String): String? {
@@ -299,6 +408,7 @@ class OpenAiCompatibleCloudClient(
         messages: List<Pair<String, String>>,
         maxTokens: Int,
         stream: Boolean,
+        extraBody: Map<String, Any> = emptyMap(),
     ): String {
         val sb = StringBuilder(512)
         sb.append('{')
@@ -314,9 +424,28 @@ class OpenAiCompatibleCloudClient(
             sb.append("\"content\":").append(jsonString(content))
             sb.append('}')
         }
-        sb.append("]}")
+        sb.append(']')
+        // extraBody: значения String/Boolean/Number верхнего уровня;
+        // ключи model/messages/stream/max_tokens/temperature не перекрываются
+        extraBody
+            .filterKeys { it !in PROTECTED_BODY_KEYS }
+            .filterValues { it is String || it is Boolean || it is Number }
+            .forEach { (k, v) ->
+                sb.append(',')
+                sb.append(jsonString(k)).append(':')
+                when (v) {
+                    is String -> sb.append(jsonString(v))
+                    is Boolean -> sb.append(v)
+                    is Number -> sb.append(v)
+                    else -> sb.append("null")
+                }
+            }
+        sb.append('}')
         return sb.toString()
     }
+
+    /** Ключи JSON-тела, которые extraBody не может перекрыть. */
+    internal val PROTECTED_BODY_KEYS = setOf("model", "messages", "stream", "max_tokens", "temperature")
 
     private fun jsonString(s: String): String {
         val escaped = s
