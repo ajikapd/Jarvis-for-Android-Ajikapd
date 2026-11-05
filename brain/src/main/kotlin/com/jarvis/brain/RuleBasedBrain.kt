@@ -7,6 +7,7 @@ import com.jarvis.core.common.model.Slot
 import com.jarvis.core.common.model.UserRequest
 import com.jarvis.core.nlp.RuNumbers
 import com.jarvis.core.nlp.ContactPhraseNormalizer
+import com.jarvis.core.reminder.ReminderParser
 
 /**
  * Детерминированный Brain (JARVIS_BRAIN_ARCHITECTURE §6, deterministic-first).
@@ -42,6 +43,7 @@ class RuleBasedBrain(
         // ── яркость экрана ─────────────────────────────────────────
         brightness(words, request)?.let { return it }
         // ── будильник / таймер ─────────────────────────────────────
+        reminder(words, request)?.let { return it }
         timer(words, request)?.let { return it }
         // ── Telegram: «напиши … в телеграмме» (до SMS) ─────────────
         sendTelegram(words, request)?.let { return it }
@@ -237,6 +239,32 @@ class RuleBasedBrain(
             ),
             confidence = 0.9f
         )
+    }
+
+    private fun reminder(words: List<String>, request: UserRequest): BrainResult? {
+        val text = words.joinToString(" ")
+        val noun = words.any { it.startsWith("напоминан") }
+        if (noun && words.any { it in TIMER_CANCEL_VERBS }) return cancelReminder(words, text)
+        if (noun && (words.any { it in REMINDER_LIST_WORDS })) {
+            return skill(IntentType.REMINDER, mapOf("action" to "list"), text, 0.94f)
+        }
+        if (!noun && words.none { it in REMIND_VERBS || it == "напоминай" || it == "напоминалку" }) return null
+        val parsed = ReminderParser.parse(request.text, java.time.LocalDateTime.now())
+        // «напомни через 10 минут» без текста — обычный таймер.
+        if (parsed.text.isBlank() && words.contains("через")) return null
+        return skill(IntentType.REMINDER, mapOf("action" to "add", "phrase" to request.text), text, 0.94f)
+    }
+
+    private fun cancelReminder(words: List<String>, text: String): BrainResult {
+        val query = words.filter {
+            it !in TIMER_CANCEL_VERBS && !it.startsWith("напоминан") && it !in REMINDER_QUERY_FILLERS
+        }.joinToString(" ")
+        val slots = buildMap<String, Any> {
+            put("action", "cancel")
+            if (words.any { it == "все" || it == "всё" }) put("all", true)
+            if (query.isNotEmpty()) put("query", query)
+        }
+        return skill(IntentType.REMINDER, slots, text, 0.94f)
     }
 
     private fun timer(words: List<String>, request: UserRequest): BrainResult? {
@@ -1096,6 +1124,8 @@ class RuleBasedBrain(
             "сколько заряда", "какой заряд", "уровень заряда", "заряд батареи", "сколько батареи",
             "сколько памяти", "сколько места", "свободной памяти", "свободного места",
         )
+        private val REMINDER_LIST_WORDS = setOf("какие", "мои", "список", "покажи", "есть", "прочитай")
+        private val REMINDER_QUERY_FILLERS = setOf("все", "всё", "мне", "про", "о", "об", "пожалуйста", "моё", "мое")
         private val REMIND_VERBS = setOf("напомни", "напомнить", "напоминание")
         private val MINUTE_WORDS = setOf("минут", "минуту", "минуты", "минута")
         private val SECOND_WORDS = setOf("секунд", "секунду", "секунды", "секунда")

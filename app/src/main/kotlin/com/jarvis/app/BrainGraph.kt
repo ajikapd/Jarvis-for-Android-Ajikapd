@@ -258,6 +258,9 @@ object BrainGraph {
             register(UiWaitTool(ctx))
             register(WeatherTool(ctx))
             register(com.jarvis.tools.SystemStatusTool(ctx))
+            val reminders = AndroidReminderBook(ctx)
+            reminders.rearm()
+            register(com.jarvis.tools.ReminderTool(reminders))
             register(MusicTool(ctx))
             register(KnowledgeTool())
         }

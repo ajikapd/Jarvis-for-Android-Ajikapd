@@ -438,6 +438,7 @@ class LlmBrain(
         skillId.contains("brightness", true) -> IntentType.BRIGHTNESS
         skillId.contains("timer", true) -> IntentType.TIMER
         skillId.contains("system.status", true) -> IntentType.SYSTEM_STATUS
+        skillId.contains("reminder", true) -> IntentType.REMINDER
         skillId.contains("event", true) || skillId.contains("calendar", true) -> IntentType.CREATE_EVENT
         skillId.contains("sms", true) -> IntentType.SEND_SMS
         skillId.contains("telegram", true) -> IntentType.SEND_TELEGRAM

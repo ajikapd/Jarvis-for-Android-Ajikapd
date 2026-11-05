@@ -8,6 +8,29 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RuleBasedBrainTest {
+    private fun reminderSlots(say: String): Map<String, Any?> {
+        val r = RuleBasedBrain().route(UserRequest(say), emptyList(), emptyList()) as BrainResult.SkillCall
+        assertEquals(say, IntentType.REMINDER, r.intent.type)
+        return r.intent.slots.mapValues { it.value.value }
+    }
+
+    @org.junit.Test
+    fun `reminder phrases`() {
+        assertEquals("add", reminderSlots("напомни завтра в девять позвонить маме")["action"])
+        assertEquals("add", reminderSlots("напомни через двадцать минут выключить плиту")["action"])
+        assertEquals("add", reminderSlots("поставь напоминание на завтра")["action"])
+        assertEquals("list", reminderSlots("какие у меня напоминания")["action"])
+        assertEquals("cancel", reminderSlots("отмени напоминание")["action"])
+        assertEquals(true, reminderSlots("удали все напоминания")["all"])
+        assertEquals("хлеб", reminderSlots("отмени напоминание про хлеб")["query"])
+    }
+
+    @org.junit.Test
+    fun `remind without text stays a timer`() {
+        val r = RuleBasedBrain().route(UserRequest("напомни через десять минут"), emptyList(), emptyList())
+        assertEquals(IntentType.TIMER, (r as BrainResult.SkillCall).intent.type)
+    }
+
     @org.junit.Test
     fun `system status phrases`() {
         for (say in listOf("статус систем", "сколько заряда", "какой заряд батареи", "отчёт о системах", "сколько свободной памяти")) {
@@ -182,9 +205,9 @@ class RuleBasedBrainTest {
     }
 
     @Test
-    fun `reminder with duration is a timer not an event`() {
+    fun `reminder with duration keeps its text and is not an event`() {
         val c = asSkill(call("напомни про встречу через час"))
-        assertEquals(IntentType.TIMER, c.intent.type)
+        assertEquals(IntentType.REMINDER, c.intent.type)
     }
 
     // ── chat fallback ────────────────────────────────────────────

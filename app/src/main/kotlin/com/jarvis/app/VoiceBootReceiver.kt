@@ -8,6 +8,7 @@ import android.content.Intent
 class VoiceBootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
+        AndroidReminderBook(context).rearm()
         val wanted = JarvisSettings.voiceWanted(context)
         VoiceHealthLog.write(context, "boot voiceWanted=$wanted")
         if (wanted) VoiceController.start(context)

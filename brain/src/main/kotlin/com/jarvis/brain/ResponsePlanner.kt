@@ -218,6 +218,9 @@ object ToolCallFactory {
                 )
             }
 
+            IntentType.REMINDER ->
+                ToolCall(requestId = requestId, toolId = "reminder", arguments = slotsToArgs(intent))
+
             IntentType.SYSTEM_STATUS ->
                 ToolCall(requestId = requestId, toolId = "system.status", arguments = emptyMap())
 

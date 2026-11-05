@@ -26,6 +26,9 @@ class FastSemanticClassifier : SemanticInterpreter {
             )
         }
 
+        // Напоминание разбирает Brain: «напомни купить хлеб и молоко» — не план из шагов.
+        if (t.contains("напомни") || t.contains("напоминан")) return null
+
         // Pronouns / vague without resolveable context → CLARIFY
         pronounAmbiguity(t, input)?.let { return it.copy(rawInput = raw, normalizedInput = norm) }
 

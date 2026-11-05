@@ -9,6 +9,22 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FollowUpResolverTest {
+    @org.junit.Test
+    fun `reminder time answer completes the phrase`() {
+        val last = com.jarvis.core.common.model.ToolCall(toolId = "reminder", requestId = "1", arguments = mapOf("action" to "add", "phrase" to "напомни купить хлеб"))
+        org.junit.Assert.assertEquals(
+            "напомни купить хлеб завтра в девять",
+            FollowUpResolver.resolve("завтра в девять", last)?.arguments?.get("phrase"),
+        )
+        org.junit.Assert.assertNull(FollowUpResolver.resolve("выключи фонарик", last))
+    }
+
+    @org.junit.Test
+    fun `finished reminder takes no follow up`() {
+        val last = com.jarvis.core.common.model.ToolCall(toolId = "reminder", requestId = "1", arguments = mapOf("phrase" to "напомни завтра в 9 купить хлеб"))
+        org.junit.Assert.assertNull(FollowUpResolver.resolve("завтра в девять", last))
+    }
+
 
     private fun weather(city: String? = "Москва", day: Int? = null) = ToolCall(
         requestId = "r1",

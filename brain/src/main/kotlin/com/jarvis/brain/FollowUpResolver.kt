@@ -1,6 +1,7 @@
 package com.jarvis.brain
 
 import com.jarvis.core.common.model.ToolCall
+import com.jarvis.core.reminder.ReminderParser
 import java.util.UUID
 
 /**
@@ -24,6 +25,7 @@ object FollowUpResolver {
         musicFollowUp(t, last)?.let { return it }
         timerFollowUp(t, last)?.let { return it }
         launcherFollowUp(t, last)?.let { return it }
+        reminderFollowUp(text, last)?.let { return it }
 
         // Knowledge follow-up можно без «а …» («почему их считают умными»)
         knowledgeFollowUp(t, last)?.let { return it }
@@ -228,6 +230,17 @@ object FollowUpResolver {
             return null
         }
         return s
+    }
+
+    /** «Когда напомнить?» — «завтра в девять»: ответ дополняет прошлую фразу. */
+    private fun reminderFollowUp(text: String, last: ToolCall): ToolCall? {
+        if (last.toolId != "reminder") return null
+        val phrase = last.arguments["phrase"]?.toString() ?: return null
+        val now = java.time.LocalDateTime.now()
+        if (ReminderParser.parse(phrase, now).at != null) return null
+        val answer = ReminderParser.parse(text, now)
+        if (answer.at == null || answer.text.isNotBlank()) return null
+        return last.copy(requestId = newId(), arguments = last.arguments + ("phrase" to "$phrase $text"))
     }
 
     private fun timerFollowUp(t: String, last: ToolCall): ToolCall? {
