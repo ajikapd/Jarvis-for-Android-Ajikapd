@@ -410,7 +410,10 @@ class DebugCommandReceiver : BroadcastReceiver() {
         when (intent.getStringExtra(EXTRA_ACTION)) {
             "start" -> startVoice(context)
             "stop" -> stopVoice(context)
-            else -> Log.d(TAG, "voice: known action expected (start|stop)")
+            "dump_start" -> if (BuildConfig.DEBUG) WakeAudioDump.start(context.applicationContext)
+            "dump_stop" -> if (BuildConfig.DEBUG) WakeAudioDump.stop()
+            "dump_delete" -> if (BuildConfig.DEBUG) WakeAudioDump.delete(context.applicationContext)
+            else -> Log.d(TAG, "voice: known action expected (start|stop|dump_start|dump_stop|dump_delete)")
         }
     }
 

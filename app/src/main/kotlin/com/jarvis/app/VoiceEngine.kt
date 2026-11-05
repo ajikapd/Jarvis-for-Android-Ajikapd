@@ -300,6 +300,10 @@ class VoiceEngine(
 
     /** V2-08 wake path: KWS untouched; cloud command only when CLOUD_PREFERRED. */
     private fun handleWakeChunk(samples: FloatArray) {
+        if (WakeAudioDump.isActive) {
+            WakeAudioDump.write(samples)
+            return
+        }
         val kws = kwsSpotter ?: return
         val engine = wakeWordEngine ?: return
         val bridge = hybridAsr
