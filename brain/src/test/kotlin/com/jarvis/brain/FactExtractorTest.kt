@@ -1,6 +1,7 @@
 package com.jarvis.brain
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -185,5 +186,21 @@ class FactExtractorTest {
     fun keywordInsideAnotherWordIsNotSecret() {
         // «клюква», «кодекс» не должны давать отказ.
         assertEquals("Пользователь любит клюкву", saved("запомни что я люблю клюкву"))
+    }
+
+    /** Команды из реального прогона на телефоне: все осели в памяти как «факты». */
+    @Test
+    fun commandsAreNotFacts() {
+        listOf(
+            "домой", "поставь на паузу", "хочу зайти в telegram", "хочу тишины на телефоне",
+            "напомни через две минуты", "да хочу",
+        ).forEach { assertNull(it, FactExtractor.extract(it)) }
+    }
+
+    @Test
+    fun stableFactsStillSaved() {
+        assertNotNull(FactExtractor.extract("я люблю зелёный чай"))
+        assertNotNull(FactExtractor.extract("мой день рождения в мае"))
+        assertNotNull(FactExtractor.extract("запомни что хочу в отпуск летом"))
     }
 }

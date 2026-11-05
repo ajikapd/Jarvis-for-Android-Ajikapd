@@ -28,13 +28,18 @@ object FactExtractor {
         data object Refused : Decision
     }
 
+    /**
+     * Только устойчивые сведения о пользователе. «хочу», «напомни», «поставь на» сюда нельзя:
+     * это просьбы, и они копили в памяти команды вроде «Поставь на паузу».
+     */
     private val factMarkers = listOf(
         "люблю", "предпочитаю", "ненавижу", "не люблю", "мне нравится",
-        "мой", "моя", "моё", "мои", "у меня", "я обычно", "обычно я",
-        "всегда", "никогда", "не хочу", "хочу", "напомни", "мой будильник",
-        "мне не нравится", "поставь на", "я встаю в", "я ложусь в",
-        "день рождения", "родился", "живу в", "работаю", "учусь в"
+        "у меня", "я обычно", "обычно я", "мне не нравится", "я встаю в", "я ложусь в",
+        "день рождения", "родился", "живу в", "работаю", "учусь в",
     )
+
+    /** Отдельно и целым словом: подстрока «мой» есть в слове «домой». */
+    private val possessiveRegex = Regex("(?<![а-яё])(?:мой|моя|моё|мое|мои)(?![а-яё])", RegexOption.IGNORE_CASE)
 
     /** «запомни», «запомни, что», «не забудь что», «имей в виду», «remember that». */
     private val leadInRegex = Regex(
@@ -111,7 +116,7 @@ object FactExtractor {
         body = body.trim().trim(',', ':', ';', '.', '!', '?', '—', '–', '-', ' ')
 
         val lower = raw.lowercase()
-        val hasMarker = factMarkers.any { lower.contains(it) }
+        val hasMarker = factMarkers.any { lower.contains(it) } || possessiveRegex.containsMatchIn(lower)
         val hasTemplate = templates.any { it.regex.matches(body) }
         // Вопрос — не факт: сохранять нечего, но и отказом это не считаем.
         if (isQuestionForm(raw, body)) return null
