@@ -5,6 +5,7 @@ import com.jarvis.core.common.model.Intent
 import com.jarvis.core.common.model.IntentType
 import com.jarvis.core.common.model.Slot
 import com.jarvis.core.common.model.UserRequest
+import com.jarvis.core.nlp.RuNumbers
 import com.jarvis.core.nlp.ContactPhraseNormalizer
 
 /**
@@ -42,6 +43,7 @@ class RuleBasedBrain : BrainRouter {
         sendTelegram(words, request)?.let { return it }
         // ── сообщение SMS ──────────────────────────────────────────
         sendSms(words, request)?.let { return it }
+        screenshot(words, request)?.let { return it }
         // ── погода / музыка / знания (до launcher — «включи песню») ─
         weather(words, request)?.let { return it }
         music(words, request)?.let { return it }
@@ -52,7 +54,6 @@ class RuleBasedBrain : BrainRouter {
         launchApp(words, request)?.let { return it }
         // ── UI раньше контактов: «найди маму» на экране vs «найди контакт» ──
         uiActions(words, request)?.let { return it }
-        screenshot(words, request)?.let { return it }
         clipboard(words, request)?.let { return it }
         notifications(words, request)?.let { return it }
         // ── событие в календаре ────────────────────────────────────
@@ -75,6 +76,7 @@ class RuleBasedBrain : BrainRouter {
         val text = words.joinToString(" ")
         val hit = text.contains("история звон") || text.contains("историю звон") ||
             text.contains("последние звон") || text.contains("кто звонил") ||
+            text.contains("кто мне звонил") ||
             text.contains("пропущенные") ||
             (words.any { it.startsWith("истор") } && words.any { it.startsWith("звон") })
         if (!hit) return null
@@ -133,10 +135,12 @@ class RuleBasedBrain : BrainRouter {
     }
 
     private fun flashLight(words: List<String>, request: UserRequest): BrainResult? {
-        val noun = words.any { it in LIGHT_NOUNS }
+        val text = words.joinToString(" ")
+        val freeOn = text == "посвети" || text == "подсвети" || text.contains("сделай светло")
+        val noun = words.any { it in LIGHT_NOUNS } || freeOn
         if (!noun) return null
-        val on = words.any { it in ON_VERBS }
-        val off = words.any { it in OFF_VERBS }
+        val on = words.any { it in ON_VERBS } || freeOn
+        val off = words.any { it in OFF_VERBS } || words.contains("убери")
 
         val action = when {
             on && !off -> "on"
@@ -173,12 +177,13 @@ class RuleBasedBrain : BrainRouter {
             else -> return null
         }
 
-        val percent = words.firstOrNull { it.endsWith("%") }
-            ?.trimEnd('%')?.toIntOrNull()
-
-        val slots = mutableMapOf("direction" to Slot("direction", direction))
-        if (percent != null && direction == "down") {
-            // "тише на треть" или "уменьши до 50%" — обрабатываем как заданный уровень
+        val percent = percentOf(words)
+        val target = percent != null && !mute && !unmute && !max &&
+            words.any { it.startsWith("громкост") || it.startsWith("звук") }
+        val slots = mutableMapOf(
+            "direction" to Slot("direction", if (target) "set" else direction),
+        )
+        if (percent != null && (target || direction == "down")) {
             slots["percent"] = Slot("percent", percent)
         }
 
@@ -199,8 +204,10 @@ class RuleBasedBrain : BrainRouter {
         if (!isBright) return null
         val up = words.any { it in BRIGHT_UP }
         val down = words.any { it in BRIGHT_DOWN }
+        val percent = percentOf(words)
 
         val direction = when {
+            percent != null -> "set"
             up && !down -> "up"
             down && !up -> "down"
             else -> return null
@@ -210,7 +217,10 @@ class RuleBasedBrain : BrainRouter {
             intent = Intent(
                 type = IntentType.BRIGHTNESS,
                 normalizedText = words.joinToString(" "),
-                slots = mapOf("direction" to Slot("direction", direction)),
+                slots = buildMap {
+                    put("direction", Slot("direction", direction))
+                    if (percent != null) put("percent", Slot("percent", percent))
+                },
                 confidence = 0.9f,
                 confidenceLevel = ConfidenceLevel.HIGH
             ),
@@ -219,8 +229,17 @@ class RuleBasedBrain : BrainRouter {
     }
 
     private fun timer(words: List<String>, request: UserRequest): BrainResult? {
-        val isTimer = words.any { it in TIMER_NOUNS } || words.any { it in REMIND_VERBS }
+        val isTimer = words.any { it in TIMER_NOUNS } || words.any { it in REMIND_VERBS } ||
+            (words.contains("засеки") && words.any { it in MINUTE_WORDS || it in SECOND_WORDS || it in HOUR_WORDS })
         if (!isTimer) return null
+        val text = words.joinToString(" ")
+        if (words.contains("будильник")) return alarm(words)
+        if (words.any { it in TIMER_CANCEL_VERBS }) {
+            return skill(IntentType.TIMER, mapOf("action" to "cancel"), text, 0.94f)
+        }
+        if (text.contains("сколько") || text.contains("осталось")) {
+            return skill(IntentType.TIMER, mapOf("action" to "status"), text, 0.94f)
+        }
         val minutes = extractMinutes(words)
         val seconds = extractSeconds(words)
         if (minutes == null && seconds == null) {
@@ -242,6 +261,31 @@ class RuleBasedBrain : BrainRouter {
             ),
             confidence = 0.94f
         )
+    }
+
+    /** «будильник на семь утра», «на 7 30», «на восемь вечера», «на семь тридцать». */
+    private fun alarm(words: List<String>): BrainResult {
+        val na = words.indexOfFirst { it == "на" || it == "в" }
+        val numberEnds = (na + 1 until words.size).filter { i ->
+            RuNumbers.endingAt(words, i) != null && RuNumbers.endingAt(words, i + 1) == null
+        }
+        val first = (na + 1 until words.size).firstOrNull { RuNumbers.endingAt(words, it) != null }
+            ?: return BrainResult.Clarify(question = "На какое время поставить будильник?", confidence = 0.5f)
+        val hourRaw = RuNumbers.endingAt(words, first) ?: 0
+        val minute = numberEnds.lastOrNull()?.takeIf { it > first }?.let { RuNumbers.endingAt(words, it) } ?: 0
+        val pm = words.any { it in ALARM_PM_WORDS }
+        val hour = if (pm && hourRaw in 1..11) hourRaw + 12 else hourRaw
+        return skill(
+            IntentType.TIMER,
+            mapOf("action" to "alarm", "hour" to hour, "minute" to minute),
+            words.joinToString(" "),
+            0.94f,
+        )
+    }
+
+    private fun percentOf(words: List<String>): Int? {
+        words.firstOrNull { it.endsWith("%") }?.trimEnd('%')?.toIntOrNull()?.let { return it }
+        return RuNumbers.before(words, PERCENT_WORDS)
     }
 
     private fun sendTelegram(words: List<String>, request: UserRequest): BrainResult? {
@@ -481,6 +525,11 @@ class RuleBasedBrain : BrainRouter {
             return null
         }
         val text = words.joinToString(" ")
+        if (text.contains("настройк")) {
+            SETTINGS_SECTIONS.entries.firstOrNull { (key, _) -> text.contains(key) }?.let { (_, section) ->
+                return skill(IntentType.SYSTEM_SETTING, mapOf("name" to section, "value" to "open"), text, 0.9f)
+            }
+        }
         val name = when {
             words.any { it in WIFI_WORDS } || text.contains("вай") -> "wifi"
             words.any { it in BT_WORDS } || text.contains("bluetooth") || text.contains("блютус") -> "bluetooth"
@@ -667,6 +716,10 @@ class RuleBasedBrain : BrainRouter {
                 (words.contains("что") && words.any { it in MUSIC_NOUNS }) ->
                 return skill(IntentType.MUSIC, mapOf("action" to "status"), text, 0.9f)
 
+            // «включи музыку» без названия: продолжить то, что играло последним
+            words.any { it in MUSIC_PLAY_VERBS } && words.size == 2 && words.any { it in MUSIC_NOUNS } ->
+                return skill(IntentType.MUSIC, mapOf("action" to "resume"), text, 0.92f)
+
             // избранное / любимые / мои треки
             words.any { it in ON_VERBS } && (
                 text.contains("избранн") || text.contains("любим") ||
@@ -761,9 +814,9 @@ class RuleBasedBrain : BrainRouter {
             }
 
             // «включи queen / metallica / блатной» — без слова «песню»
-            words.any { it in ON_VERBS } && words.size >= 2 -> {
+            words.any { it in MUSIC_PLAY_VERBS } && words.size >= 2 -> {
                 val query = words
-                    .dropWhile { it !in ON_VERBS }
+                    .dropWhile { it !in MUSIC_PLAY_VERBS }
                     .drop(1)
                     .filterNot { it in setOf("мне", "пожалуйста", "сейчас", "пожалуйста") }
                     .joinToString(" ")
@@ -965,23 +1018,15 @@ class RuleBasedBrain : BrainRouter {
     // ── helpers ────────────────────────────────────────────────────
 
     private fun extractMinutes(words: List<String>): Int? {
-        // «на час» / «час» → 60 минут
-        if (words.any { it in HOUR_WORDS }) return 60
-        // «через 5 минут», «на 10 минут»
-        val idx = words.indexOfFirst { it in MINUTE_WORDS }
-        if (idx > 0) {
-            return words.getOrNull(idx - 1)?.toIntOrNull()
-        }
-        return null
+        val hours = if (words.any { it in HOUR_WORDS }) RuNumbers.before(words, HOUR_WORDS) ?: 1 else 0
+        val half = if (words.contains("полчаса")) 30 else 0
+        // «через 5 минут», «на десять минут», «на минуту»
+        val minutes = if (words.any { it in MINUTE_WORDS }) RuNumbers.before(words, MINUTE_WORDS) ?: 1 else 0
+        return (hours * 60 + half + minutes).takeIf { it > 0 }
     }
 
-    private fun extractSeconds(words: List<String>): Int? {
-        val idx = words.indexOfFirst { it in SECOND_WORDS }
-        if (idx > 0) {
-            return words.getOrNull(idx - 1)?.toIntOrNull()
-        }
-        return null
-    }
+    private fun extractSeconds(words: List<String>): Int? =
+        if (words.any { it in SECOND_WORDS }) RuNumbers.before(words, SECOND_WORDS) ?: 1 else null
 
     private fun looksLikeCommand(words: List<String>): Boolean =
         words.any { it in COMMAND_VERBS }
@@ -1017,7 +1062,21 @@ class RuleBasedBrain : BrainRouter {
         private val BRIGHT_DOWN = setOf("темнее", "тусклее", "уменьши", "уменьшить", "приглуши", "приглушить")
 
         // таймер/будильник
-        private val TIMER_NOUNS = setOf("таймер", "будильник", "секундомер")
+        private val TIMER_NOUNS = setOf("таймер", "таймера", "таймере", "будильник", "секундомер")
+        private val TIMER_CANCEL_VERBS = setOf(
+            "отмени", "отменить", "сбрось", "останови", "выключи", "убери", "удали", "отключи",
+        )
+        private val ALARM_PM_WORDS = setOf("вечера", "вечером", "дня", "днём", "днем")
+        private val PERCENT_WORDS = setOf("процент", "процента", "процентов")
+        /** Отдельно от ON_VERBS: там «сделай» и «дай», а это не просьба включить трек. */
+        private val MUSIC_PLAY_VERBS = setOf("включи", "включить", "включите", "поставь", "запусти", "играй")
+        private val SETTINGS_SECTIONS = linkedMapOf(
+            "батаре" to "battery", "экран" to "display", "дисплей" to "display", "звук" to "sound",
+            "памят" to "storage", "хранилищ" to "storage", "приложени" to "apps",
+            "геолокац" to "location", "местоположен" to "location", "уведомлен" to "notifications",
+            "безопасност" to "security", "блютус" to "bluetooth", "блютуз" to "bluetooth",
+            "bluetooth" to "bluetooth",
+        )
         private val REMIND_VERBS = setOf("напомни", "напомнить", "напоминание")
         private val MINUTE_WORDS = setOf("минут", "минуту", "минуты", "минута")
         private val SECOND_WORDS = setOf("секунд", "секунду", "секунды", "секунда")
@@ -1032,7 +1091,9 @@ class RuleBasedBrain : BrainRouter {
         private val TG_WRITE_VERBS = setOf("напиши", "напечатай", "отправь", "передай")
 
         // приложения
-        private val LAUNCH_VERBS = setOf("открой", "открыть", "запусти", "запустить", "включи приложение")
+        private val LAUNCH_VERBS = setOf(
+            "открой", "открыть", "запусти", "запустить", "включи приложение", "зайди", "перейди",
+        )
 
         private val CALL_VERBS = setOf("позвони", "набери", "вызови", "звонок")
         private val CONTACT_WORDS = setOf("контакт", "контакты", "контактe")

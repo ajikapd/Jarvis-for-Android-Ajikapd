@@ -69,11 +69,11 @@ class WeatherTool(private val context: Context) : Tool {
                 val reply = if (tmax != null && tmin != null) {
                     String.format(
                         Locale.US,
-                        "В %s %s от %.0f° до %.0f°. %s.",
+                        "%s, %s: от %.0f° до %.0f°. %s.",
                         place.name, label, tmin, tmax, desc,
                     )
                 } else {
-                    "В ${place.name} $label: $desc."
+                    "${place.name}, $label: $desc."
                 }
                 return ToolResult(
                     call.requestId, definition.id, ToolResultStatus.SUCCESS, reply,
@@ -94,7 +94,7 @@ class WeatherTool(private val context: Context) : Tool {
             val humPart = if (humidity >= 0) " Влажность $humidity%." else ""
             val reply = String.format(
                 Locale.US,
-                "В %s сейчас %.0f°, ощущается как %.0f°. %s. Ветер %.0f м/с.%s%s",
+                "%s, сейчас %.0f°, ощущается как %.0f°. %s. Ветер %.0f м/с.%s%s",
                 place.name, temp, feels, desc, wind, humPart, dayPart,
             )
             ToolResult(

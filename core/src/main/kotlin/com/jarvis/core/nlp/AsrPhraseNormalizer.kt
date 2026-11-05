@@ -83,6 +83,8 @@ object AsrPhraseNormalizer {
             MUSIC_FRAME_WORDS.any { m -> w == m || w.startsWith(m) }
         }
         if (markerIdx < 0) return false
+        // «включи музыку» — законченная команда; ждать название надо только у «включи песню».
+        if (content[markerIdx].startsWith("музык")) return false
         val hasVerb = content.any { it in BARE_COMMAND_VERBS }
         if (!hasVerb) return false
         return content.drop(markerIdx + 1).isEmpty()

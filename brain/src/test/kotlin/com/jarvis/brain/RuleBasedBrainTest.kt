@@ -209,4 +209,58 @@ class RuleBasedBrainTest {
         assertEquals(IntentType.WEATHER, c.intent.type)
         assertEquals(2, c.intent.slots["day"]?.value)
     }
+
+    // ── свободная речь: фразы из прогона на телефоне ─────────
+
+    private fun slots(text: String): Map<String, Any?> =
+        asSkill(call(text)).intent.slots.mapValues { it.value.value }
+
+    @Test
+    fun `free phrases control flashlight`() {
+        assertEquals("on", slots("посвети")["action"])
+        assertEquals("on", slots("сделай светло")["action"])
+        assertEquals("off", slots("убери свет")["action"])
+    }
+
+    @Test
+    fun `volume and brightness percent in words`() {
+        assertEquals(mapOf("direction" to "set", "percent" to 40), slots("громкость на сорок процентов"))
+        assertEquals(mapOf("direction" to "set", "percent" to 50), slots("яркость на пятьдесят процентов"))
+    }
+
+    @Test
+    fun `timer words seconds cancel status`() {
+        assertEquals(10, slots("поставь таймер на десять секунд")["seconds"])
+        assertEquals(2, slots("засеки две минуты")["minutes"])
+        assertEquals(25, slots("таймер на двадцать пять минут")["minutes"])
+        assertEquals(30, slots("таймер на полчаса")["minutes"])
+        assertEquals("cancel", slots("отмени таймер")["action"])
+        assertEquals("status", slots("сколько осталось на таймере")["action"])
+    }
+
+    @Test
+    fun `alarm time`() {
+        assertEquals(mapOf("action" to "alarm", "hour" to 7, "minute" to 0), slots("поставь будильник на семь утра"))
+        assertEquals(mapOf("action" to "alarm", "hour" to 20, "minute" to 0), slots("будильник на восемь вечера"))
+        assertEquals(mapOf("action" to "alarm", "hour" to 7, "minute" to 30), slots("будильник на семь тридцать"))
+    }
+
+    @Test
+    fun `screenshot is not music`() {
+        assertEquals(IntentType.SCREENSHOT, asSkill(call("сделай скриншот")).intent.type)
+    }
+
+    @Test
+    fun `music without title`() {
+        assertEquals("resume", slots("включи музыку")["action"])
+        assertEquals("pause", slots("выключи музыку")["action"])
+    }
+
+    @Test
+    fun `settings sections and call history`() {
+        assertEquals("battery", slots("открой настройки батареи")["name"])
+        assertEquals("bluetooth", slots("открой настройки блютуз")["name"])
+        assertEquals("history", slots("кто мне звонил")["action"])
+        assertEquals(IntentType.LAUNCH_APP, asSkill(call("зайди в телеграм")).intent.type)
+    }
 }

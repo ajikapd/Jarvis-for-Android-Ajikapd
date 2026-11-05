@@ -58,10 +58,13 @@ object ToolCallFactory {
 
             IntentType.BRIGHTNESS -> {
                 val direction = intent.slots["direction"]?.value as? String ?: return null
-                ToolCall(requestId = requestId, toolId = "brightness", arguments = mapOf("direction" to direction))
+                ToolCall(requestId = requestId, toolId = "brightness", arguments = slotsToArgs(intent))
             }
 
             IntentType.TIMER -> {
+                if (intent.slots.containsKey("action")) {
+                    return ToolCall(requestId = requestId, toolId = "timer", arguments = slotsToArgs(intent))
+                }
                 val minutes = intent.slots["minutes"]?.value as? Int ?: 0
                 val seconds = intent.slots["seconds"]?.value as? Int ?: 0
                 if (minutes == 0 && seconds == 0) null

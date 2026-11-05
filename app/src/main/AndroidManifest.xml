@@ -39,6 +39,7 @@
     <!-- ── Foreground Service (Android 14+ requires explicit type) ─────── -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <!-- ── Auto-start after reboot ─────────────────────────────────────── -->

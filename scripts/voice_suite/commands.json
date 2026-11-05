@@ -1,0 +1,501 @@
+[
+{
+"group": "torch",
+"id": "torch1",
+"say": "включи фонарик",
+"route": "FAST_SKILL",
+"reply": "Включ"
+},
+{
+"group": "torch",
+"id": "torch2",
+"say": "выключи фонарик",
+"route": "FAST_SKILL",
+"reply": "Выключ"
+},
+{
+"group": "torch",
+"id": "torch3",
+"say": "посвети",
+"route": "FAST_SKILL",
+"reply": "Включ"
+},
+{
+"group": "torch",
+"id": "torch4",
+"say": "убери свет",
+"route": "FAST_SKILL",
+"reply": "Выключ"
+},
+{
+"group": "torch",
+"id": "torch5",
+"say": "сделай светло",
+"route": "FAST_SKILL",
+"reply": "Включ"
+},
+{
+"group": "torch",
+"id": "torch6",
+"say": "погаси фонарь",
+"route": "FAST_SKILL",
+"reply": "Выключ"
+},
+{
+"group": "volume",
+"id": "volume1",
+"say": "сделай громче",
+"probe": "volume",
+"want": "up"
+},
+{
+"group": "volume",
+"id": "volume2",
+"say": "сделай тише",
+"probe": "volume",
+"want": "down"
+},
+{
+"group": "volume",
+"id": "volume3",
+"say": "прибавь звук",
+"probe": "volume",
+"want": "up"
+},
+{
+"group": "volume",
+"id": "volume4",
+"say": "убавь звук",
+"probe": "volume",
+"want": "down"
+},
+{
+"group": "volume",
+"id": "volume5",
+"say": "громкость на максимум",
+"probe": "volume",
+"want": "up"
+},
+{
+"group": "volume",
+"id": "volume6",
+"say": "громкость на сорок процентов",
+"probe": "volume",
+"want": "down"
+},
+{
+"group": "volume",
+"id": "volume7",
+"say": "потише пожалуйста",
+"probe": "volume",
+"want": "down"
+},
+{
+"group": "volume",
+"id": "volume8",
+"say": "не слышно, сделай погромче",
+"probe": "volume",
+"want": "up"
+},
+{
+"group": "bright",
+"id": "bright1",
+"say": "сделай экран ярче",
+"probe": "brightness",
+"want": "changed"
+},
+{
+"group": "bright",
+"id": "bright2",
+"say": "убавь яркость",
+"probe": "brightness",
+"want": "changed"
+},
+{
+"group": "bright",
+"id": "bright3",
+"say": "яркость на пятьдесят процентов",
+"probe": "brightness",
+"want": "changed"
+},
+{
+"group": "bright",
+"id": "bright4",
+"say": "слишком ярко",
+"probe": "brightness",
+"want": "changed"
+},
+{
+"group": "apps",
+"id": "apps1",
+"say": "открой телеграм",
+"probe": "top",
+"want": "telegram",
+"home": true
+},
+{
+"group": "apps",
+"id": "apps2",
+"say": "открой настройки",
+"probe": "top",
+"want": "settings",
+"home": true
+},
+{
+"group": "apps",
+"id": "apps3",
+"say": "открой камеру",
+"probe": "top",
+"want": "camera",
+"home": true
+},
+{
+"group": "apps",
+"id": "apps4",
+"say": "открой ютуб",
+"probe": "top",
+"want": "youtube",
+"home": true
+},
+{
+"group": "apps",
+"id": "apps5",
+"say": "открой калькулятор",
+"probe": "top",
+"want": "calc",
+"home": true
+},
+{
+"group": "apps",
+"id": "apps6",
+"say": "открой браузер",
+"probe": "top",
+"want": "chrome",
+"home": true
+},
+{
+"group": "apps",
+"id": "apps7",
+"say": "открой галерею",
+"probe": "top",
+"want": "gallery",
+"home": true
+},
+{
+"group": "apps",
+"id": "apps8",
+"say": "запусти телеграм",
+"probe": "top",
+"want": "telegram",
+"home": true
+},
+{
+"group": "apps",
+"id": "apps9",
+"say": "зайди в настройки",
+"probe": "top",
+"want": "settings",
+"home": true
+},
+{
+"group": "info",
+"id": "info1",
+"say": "который час",
+"reply": "\\d{1,2}[:\\s]\\d{2}"
+},
+{
+"group": "info",
+"id": "info2",
+"say": "сколько времени",
+"reply": "\\d{1,2}[:\\s]\\d{2}"
+},
+{
+"group": "info",
+"id": "info3",
+"say": "какое сегодня число",
+"reply": "ноябр|\\d"
+},
+{
+"group": "info",
+"id": "info4",
+"say": "какой сегодня день недели",
+"reply": "понедельник|вторник|сред|четверг|пятниц|суббот|воскресень"
+},
+{
+"group": "info",
+"id": "info5",
+"say": "сколько процентов батареи",
+"reply": "\\d+\\s*%|\\d+ процент"
+},
+{
+"group": "weather",
+"id": "weather1",
+"say": "какая погода",
+"reply": "°|градус|тепло|холод|ясно|облачно|дожд|снег"
+},
+{
+"group": "weather",
+"id": "weather2",
+"say": "что с погодой завтра",
+"reply": "завтра|°|градус"
+},
+{
+"group": "weather",
+"id": "weather3",
+"say": "погода в москве",
+"reply": "москв|°|градус"
+},
+{
+"group": "weather",
+"id": "weather4",
+"say": "нужен ли зонт",
+"reply": "зонт|дожд|осадк"
+},
+{
+"group": "timer",
+"id": "timer1",
+"say": "поставь таймер на десять секунд",
+"reply": "таймер|секунд"
+},
+{
+"group": "timer",
+"id": "timer2",
+"say": "засеки две минуты",
+"reply": "таймер|минут"
+},
+{
+"group": "timer",
+"id": "timer3",
+"say": "сколько осталось на таймере",
+"no_reply": "не (могу|знаю|понял)"
+},
+{
+"group": "timer",
+"id": "timer4",
+"say": "отмени таймер",
+"no_reply": "не (могу|понял)"
+},
+{
+"group": "music",
+"id": "music1",
+"say": "включи музыку",
+"probe": "music",
+"want": "playing",
+"timeout": 20,
+"settle": 3
+},
+{
+"group": "music",
+"id": "music2",
+"say": "пауза",
+"probe": "music",
+"want": "stopped",
+"settle": 2
+},
+{
+"group": "music",
+"id": "music3",
+"say": "продолжи",
+"probe": "music",
+"want": "playing",
+"settle": 2
+},
+{
+"group": "music",
+"id": "music4",
+"say": "следующий трек",
+"settle": 2
+},
+{
+"group": "music",
+"id": "music5",
+"say": "что сейчас играет",
+"no_reply": "не (могу|знаю|понял)"
+},
+{
+"group": "music",
+"id": "music6",
+"say": "выключи музыку",
+"probe": "music",
+"want": "stopped",
+"settle": 2
+},
+{
+"group": "confirm",
+"id": "confirm1",
+"say": "позвони жене",
+"reply": "\\?|подтверд|уточни|кому|контакт|нашёл|нашел|не наш",
+"then": [
+"нет"
+],
+"private": true
+},
+{
+"group": "confirm",
+"id": "confirm2",
+"say": "напиши жене привет",
+"reply": "\\?|подтверд|уточни|контакт|отправ|не наш",
+"then": [
+"нет"
+],
+"private": true
+},
+{
+"group": "confirm",
+"id": "confirm3",
+"say": "напиши в телеграм жене привет",
+"reply": "\\?|подтверд|уточни|контакт|отправ|не наш",
+"then": [
+"нет"
+],
+"private": true
+},
+{
+"group": "data",
+"id": "data1",
+"say": "какие у меня уведомления",
+"private": true,
+"no_reply": "не (могу|понял)"
+},
+{
+"group": "data",
+"id": "data2",
+"say": "кто мне звонил",
+"private": true,
+"no_reply": "не (могу|понял)"
+},
+{
+"group": "data",
+"id": "data3",
+"say": "покажи контакт жена",
+"private": true,
+"no_reply": "не понял"
+},
+{
+"group": "data",
+"id": "data4",
+"say": "что на экране",
+"private": true,
+"no_reply": "не (могу|понял)"
+},
+{
+"group": "data",
+"id": "data5",
+"say": "сделай скриншот",
+"reply": "скриншот|снимок|готово"
+},
+{
+"group": "system",
+"id": "system1",
+"say": "открой настройки вайфая",
+"probe": "top",
+"want": "settings",
+"home": true
+},
+{
+"group": "system",
+"id": "system2",
+"say": "открой настройки блютуз",
+"probe": "top",
+"want": "settings",
+"home": true
+},
+{
+"group": "system",
+"id": "system3",
+"say": "открой настройки батареи",
+"probe": "top",
+"want": "settings",
+"home": true
+},
+{
+"group": "memory",
+"id": "memory1",
+"say": "как меня зовут",
+"no_reply": "не знаю"
+},
+{
+"group": "memory",
+"id": "memory2",
+"say": "что ты про меня знаешь",
+"no_reply": "не понял"
+},
+{
+"group": "context",
+"id": "context1",
+"say": "какая столица франции",
+"reply": "париж"
+},
+{
+"group": "context",
+"id": "context2",
+"say": "а сколько там жителей",
+"reply": "млн|миллион|\\d"
+},
+{
+"group": "context",
+"id": "context3",
+"say": "расскажи про неё подробнее",
+"no_reply": "не понял|о чём"
+},
+{
+"group": "chat",
+"id": "chat1",
+"say": "что такое чёрная дыра",
+"no_reply": "нет данных|уточни"
+},
+{
+"group": "chat",
+"id": "chat2",
+"say": "переведи на английский добрый вечер",
+"reply": "good evening"
+},
+{
+"group": "chat",
+"id": "chat3",
+"say": "посчитай двести тридцать умножить на семь",
+"reply": "1610|тысяч[аи]? шестьсот десять"
+},
+{
+"group": "chat",
+"id": "chat4",
+"say": "придумай имя для кота",
+"no_reply": "нет данных"
+},
+{
+"group": "chat",
+"id": "chat5",
+"say": "кто ты",
+"no_reply": "не понял"
+},
+{
+"group": "chat",
+"id": "chat6",
+"say": "что ты умеешь",
+"no_reply": "не понял"
+},
+{
+"group": "chain",
+"id": "chain1",
+"say": "включи фонарик и сделай потише",
+"route": "FAST_SKILL",
+"reply": "Включ"
+},
+{
+"group": "chain",
+"id": "chain2",
+"say": "выключи фонарик и открой настройки",
+"probe": "top",
+"want": "settings",
+"home": true
+},
+{
+"group": "chain",
+"id": "chain3",
+"say": "открой телеграм и найди избранное",
+"probe": "top",
+"want": "telegram",
+"home": true,
+"timeout": 40
+}
+]

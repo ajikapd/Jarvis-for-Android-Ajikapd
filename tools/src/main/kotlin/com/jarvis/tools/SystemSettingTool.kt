@@ -56,6 +56,7 @@ class SystemSettingTool(private val context: Context) : Tool {
             "wifi" -> handleWifi(call.requestId, value)
             "bluetooth" -> handleBluetooth(call.requestId, value)
             "airplane", "flight", "aero" -> handleAirplane(call.requestId, value)
+            in SECTIONS -> openSection(call.requestId, SECTIONS.getValue(name))
             else -> ToolResult(
                 call.requestId,
                 definition.id,
@@ -63,6 +64,13 @@ class SystemSettingTool(private val context: Context) : Tool {
                 "Неизвестная настройка «$name». Доступны: wifi, bluetooth, airplane.",
             )
         }
+    }
+
+    private fun openSection(requestId: String, action: String): ToolResult = try {
+        context.startActivity(Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        ToolResult(requestId, definition.id, ToolResultStatus.SUCCESS, "Открыл настройки.")
+    } catch (t: Throwable) {
+        ToolResult(requestId, definition.id, ToolResultStatus.FAILED, t.message)
     }
 
     private fun handleWifi(requestId: String, value: String): ToolResult {
@@ -131,5 +139,18 @@ class SystemSettingTool(private val context: Context) : Tool {
         } catch (t: Throwable) {
             ToolResult(requestId, definition.id, ToolResultStatus.FAILED, t.message)
         }
+    }
+
+    private companion object {
+        val SECTIONS = mapOf(
+            "battery" to Intent.ACTION_POWER_USAGE_SUMMARY,
+            "display" to Settings.ACTION_DISPLAY_SETTINGS,
+            "sound" to Settings.ACTION_SOUND_SETTINGS,
+            "storage" to Settings.ACTION_INTERNAL_STORAGE_SETTINGS,
+            "apps" to Settings.ACTION_APPLICATION_SETTINGS,
+            "location" to Settings.ACTION_LOCATION_SOURCE_SETTINGS,
+            "notifications" to Settings.ACTION_NOTIFICATION_ASSISTANT_SETTINGS,
+            "security" to Settings.ACTION_SECURITY_SETTINGS,
+        )
     }
 }
