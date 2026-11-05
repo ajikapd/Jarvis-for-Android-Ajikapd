@@ -6,14 +6,13 @@ import ai.onnxruntime.OrtSession
 import android.content.Context
 import android.util.Log
 import kotlin.math.max
-import kotlin.math.min
 
 /**
  * Offline KWS «Джарвис» (openWakeWord):
  * melspectrogram → embedding → djarvis.onnx.
  *
- * Пороги подобраны под реальные mic-скоры модели (часто 0.15–0.35 на голосе),
- * а не под synthetic/loopback ~0.9.
+ * Сигнал идёт в модель как есть: усиление по чанкам портит слово (замер на записи голоса).
+ * Скор на словах доходит до 0.99, на тишине и чужой речи не выше 0.003.
  */
 class OwwWakeSpotter(
     context: Context,
@@ -34,15 +33,6 @@ class OwwWakeSpotter(
     private var lastScoreLogAtMs = 0L
     private var peakScore = 0f
     private var lastScore = 0f
-    /** Плавный AGC: тихий/дальний «джарвис» поднимаем до целевого RMS. */
-    private var agcGain = 1f
-    /** EMA шума для адаптивного порога (тише комната → легче сработку). */
-    private var noiseEma = 0.008f
-
-    /** Кольцо последних скоров (~0.8 с) — ловим короткий/тихий пик. */
-    private val scoreRing = FloatArray(SCORE_RING) { 0f }
-    private var scoreRingPos = 0
-    private var scoreRingFilled = 0
 
     @Volatile private var armed = true
     @Volatile private var armAfterMs = 0L
@@ -78,7 +68,6 @@ class OwwWakeSpotter(
         threshold = thresholdFromLevel(level)
         patience = patienceFromLevel(level)
         aboveCount = 0
-        clearScoreRing()
         Log.i(TAG, "sensitivity=$level thr=$threshold patience=$patience")
     }
 
@@ -89,11 +78,8 @@ class OwwWakeSpotter(
     fun process(samples: FloatArray): Boolean {
         if (samples.isEmpty()) return false
 
-        val boosted = applyAgc(samples)
         // OWW ждёт float в шкале int16; без toInt — меньше потери на тихой речи.
-        val pcm = FloatArray(boosted.size) { i ->
-            (boosted[i] * 32768f).coerceIn(-32768f, 32767f)
-        }
+        val pcm = FloatArray(samples.size) { i -> samples[i] * 32768f }
 
         // Даже в cooldown кормим фичи — иначе после паузы «слепой» буфер.
         val prepared = features.accept(pcm)
@@ -113,28 +99,18 @@ class OwwWakeSpotter(
         val score = predictScore(prepared)
         lastScore = score
         peakScore = max(peakScore, score)
-        pushScore(score)
-        val windowMax = windowMax()
-
-        // Адаптивный пол: в тишине порог ещё ниже фиксированного high.
-        if (score < threshold * 0.45f) {
-            noiseEma = noiseEma * 0.97f + score * 0.03f
-        }
-        val effectiveThr = max(MIN_TRIGGER, min(threshold, noiseEma * 4.5f + 0.012f))
 
         if (now - lastScoreLogAtMs >= SCORE_LOG_MS) {
             lastScoreLogAtMs = now
             Log.i(
                 TAG,
-                "score=${"%.3f".format(score)} win=${"%.3f".format(windowMax)} " +
-                    "peak=${"%.3f".format(peakScore)} thr=${"%.3f".format(effectiveThr)} " +
-                    "base=$threshold agc=${"%.1f".format(agcGain)}x armed=$armed",
+                "score=${"%.3f".format(score)} peak=${"%.3f".format(peakScore)} " +
+                    "thr=$threshold armed=$armed",
             )
             peakScore = 0f
         }
 
-        val trigger = windowMax >= effectiveThr
-        if (trigger) {
+        if (score >= threshold) {
             aboveCount++
         } else {
             aboveCount = 0
@@ -146,68 +122,13 @@ class OwwWakeSpotter(
         lastHitAtMs = now
         aboveCount = 0
         armed = false
-        clearScoreRing()
-        Log.i(
-            TAG,
-            "HIT «джарвис» score=${"%.3f".format(score)} win=${"%.3f".format(windowMax)} " +
-                "thr=${"%.3f".format(effectiveThr)} agc=${"%.1f".format(agcGain)}x → disarm",
-        )
+        Log.i(TAG, "HIT «джарвис» score=${"%.3f".format(score)} thr=$threshold → disarm")
         return true
-    }
-
-    /**
-     * Подъём только тихих/дальних чанков. Громкую речь в упор не трогаем —
-     * иначе AGC на шуме уходит в 10×+ и клиппит «джарвис» → 2–3 повтора.
-     */
-    private fun applyAgc(samples: FloatArray): FloatArray {
-        var sumSq = 0.0
-        var peak = 0f
-        for (s in samples) {
-            val a = if (s < 0f) -s else s
-            if (a > peak) peak = a
-            sumSq += (s * s).toDouble()
-        }
-        val rms = kotlin.math.sqrt(sumSq / samples.size).toFloat()
-
-        // Громко / в упор — быстро сбрасываем усиление, почти raw.
-        if (peak >= 0.22f || rms >= 0.06f) {
-            val desired = when {
-                peak >= 0.65f -> 1f
-                peak >= 0.40f -> (0.45f / peak).coerceIn(1f, 2.2f)
-                else -> (AGC_TARGET_RMS / rms.coerceAtLeast(1e-4f)).coerceIn(1f, 3f)
-            }
-            agcGain += (desired - agcGain) * 0.55f
-            if (agcGain <= 1.12f) {
-                agcGain = 1f
-                return samples
-            }
-            val g = agcGain
-            return FloatArray(samples.size) { i ->
-                (samples[i] * g).coerceIn(-0.98f, 0.98f)
-            }
-        }
-
-        // Тишина — не накачиваем gain (иначе следующий громкий кадр в клип).
-        if (rms < AGC_SILENCE_RMS || peak < AGC_SILENCE_RMS * 2f) {
-            agcGain += (1f - agcGain) * 0.12f
-            return samples
-        }
-
-        // Тихая/дальняя речь — поднимаем к целевому пику.
-        val desired = (AGC_TARGET_PEAK / peak.coerceAtLeast(1e-4f)).coerceIn(1f, AGC_MAX_GAIN)
-        val alpha = if (desired > agcGain) 0.28f else 0.20f
-        agcGain += (desired - agcGain) * alpha
-        if (agcGain <= 1.12f) return samples
-        val g = agcGain
-        return FloatArray(samples.size) { i ->
-            (samples[i] * g).coerceIn(-0.98f, 0.98f)
-        }
     }
 
     fun disarm() {
         armed = false
         aboveCount = 0
-        clearScoreRing()
     }
 
     /**
@@ -220,9 +141,6 @@ class OwwWakeSpotter(
         aboveCount = 0
         lastScore = 0f
         peakScore = 0f
-        agcGain = 1f
-        noiseEma = 0.008f
-        clearScoreRing()
         armAfterMs = System.currentTimeMillis() + cooldownMs.coerceAtLeast(0L)
         armed = true
         Log.i(TAG, "armed for next wake cooldown=${cooldownMs}ms thr=$threshold")
@@ -234,28 +152,6 @@ class OwwWakeSpotter(
         aboveCount = 0
         lastScore = 0f
         peakScore = 0f
-        agcGain = 1f
-        noiseEma = 0.008f
-        clearScoreRing()
-    }
-
-    private fun pushScore(score: Float) {
-        scoreRing[scoreRingPos] = score
-        scoreRingPos = (scoreRingPos + 1) % SCORE_RING
-        if (scoreRingFilled < SCORE_RING) scoreRingFilled++
-    }
-
-    private fun windowMax(): Float {
-        var m = 0f
-        val n = scoreRingFilled
-        for (i in 0 until n) m = max(m, scoreRing[i])
-        return m
-    }
-
-    private fun clearScoreRing() {
-        scoreRing.fill(0f)
-        scoreRingPos = 0
-        scoreRingFilled = 0
     }
 
     private fun predictScore(prepared: Int): Float {
@@ -324,23 +220,16 @@ class OwwWakeSpotter(
         private const val EMB_MODEL = "embedding_model.onnx"
         private const val CLF_MODEL = "djarvis.onnx"
 
-        /** Максимально мягкий high — пользователь всё ещё ловит промахи в упор. */
-        const val DEFAULT_THRESHOLD = 0.06f
+        const val DEFAULT_THRESHOLD = 0.05f
         private const val DEFAULT_PATIENCE = 1
         private const val WARMUP_FRAMES = 2
         private const val DEDUP_MS = 900L
         private const val SCORE_LOG_MS = 600L
-        private const val SCORE_RING = 14
         const val POST_SESSION_COOLDOWN_MS = 700L
-        private const val MIN_TRIGGER = 0.015f
-        private const val AGC_TARGET_RMS = 0.09f
-        private const val AGC_TARGET_PEAK = 0.35f
-        private const val AGC_SILENCE_RMS = 0.003f
-        private const val AGC_MAX_GAIN = 8f
 
         fun thresholdFromLevel(level: Int): Float = when (level) {
-            0 -> 0.12f
-            2 -> 0.02f
+            0 -> 0.1f
+            2 -> 0.03f
             else -> DEFAULT_THRESHOLD
         }
 

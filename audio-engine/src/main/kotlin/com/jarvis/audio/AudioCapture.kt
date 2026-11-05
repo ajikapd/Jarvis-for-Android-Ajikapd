@@ -38,7 +38,7 @@ class AudioCapture(private val context: Context) {
             SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT
         )
         // MIC без жёсткого NS: VOICE_RECOGNITION часто режет дальнюю речь.
-        // AGC для wake — в OwwWakeSpotter; ASR получает тот же сырой сигнал.
+        // Wake и ASR получают один и тот же сырой сигнал.
         audioRecord = AudioRecord(
             MediaRecorder.AudioSource.MIC,
             SAMPLE_RATE,

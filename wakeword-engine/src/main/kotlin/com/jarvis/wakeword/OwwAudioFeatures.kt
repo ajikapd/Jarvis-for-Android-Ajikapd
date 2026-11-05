@@ -16,6 +16,14 @@ import kotlin.random.Random
  *
  * https://github.com/dscripka/openWakeWord/blob/v0.6.0/openwakeword/utils.py
  */
+/**
+ * Конец окна mel для шага [stepsBack] от конца буфера. В Python срез `buf[-76+ndx : ndx]`
+ * считает отрицательный индекс от конца; здесь смещение явное, иначе шаг теряется.
+ */
+internal fun melWindowEnd(melSize: Int, stepsBack: Int): Int = melSize - EMBED_STEP * stepsBack
+
+private const val EMBED_STEP = 8
+
 internal class OwwAudioFeatures(
     private val env: OrtEnvironment,
     private val melSession: OrtSession,
@@ -79,10 +87,8 @@ internal class OwwAudioFeatures(
             val steps = accumulatedSamples / CHUNK
             // OWW: for i in arange(steps-1, -1, -1): ndx=-8*i; buf[-76+ndx : ndx]
             for (i in (steps - 1) downTo 0) {
-                var ndx = -8 * i
-                if (ndx == 0) ndx = melBuffer.size
-                val start = ndx - MEL_WINDOW
-                if (start < 0 || ndx > melBuffer.size) continue
+                val start = melWindowEnd(melBuffer.size, i) - MEL_WINDOW
+                if (start < 0) continue
                 val window = Array(MEL_WINDOW) { r -> melBuffer[start + r] }
                 val emb = embedBatch(arrayOf(window))
                 if (emb.isNotEmpty()) {
@@ -243,7 +249,6 @@ internal class OwwAudioFeatures(
         const val CHUNK = 1280
         const val MEL_WINDOW = 76
         const val MEL_BINS = 32
-        const val EMBED_STEP = 8
         const val EMB_DIM = 96
         const val FEATURE_FRAMES = 16
         private const val FEATURE_MAX = 120
