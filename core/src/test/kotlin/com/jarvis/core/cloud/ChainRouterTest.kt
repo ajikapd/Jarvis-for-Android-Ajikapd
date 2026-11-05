@@ -293,6 +293,21 @@ class ChainRouterTest {
         assertTrue(h.isAvailable(e1))
     }
 
+    /** Блокировка региона приходит кодом 400: перебирать параметры бессмысленно. */
+    @Test
+    fun regionBlock400_noParamRetry_blocksTemporarily() = runBlocking {
+        val e1 = entry("gem")
+        val e2 = entry("ok")
+        val call = FakeCall(mapOf(
+            "m-gem" to listOf({ l -> l.onError(400, "User location is not supported for the API use.") }),
+            "m-ok" to listOf({ l -> l.onFirstToken("fine"); l.onComplete(null) })
+        ))
+        val h = health()
+        ChainRouter(config = fastCfg).run(req, listOf(e1, e2), h, call, RecordingSink())
+        assertEquals(1, call.starts.count { it.first == e1 })
+        assertFalse(h.isAvailable(e1))
+    }
+
     @Test
     fun forbidden403_blocksTemporarily() = runBlocking {
         val e1 = entry("region")

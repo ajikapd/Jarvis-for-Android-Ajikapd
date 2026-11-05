@@ -237,7 +237,8 @@ class ChainRouter(
                         val cls = CloudErrorClassifier.classify(event.httpStatus, event.body)
                         failWinner(a, cls, CloudErrorClassifier.parseRetryAfterSeconds(event.body))
                     }
-                    if (event.httpStatus == 400) {
+                    val errorClass = CloudErrorClassifier.classify(event.httpStatus, event.body)
+                    if (errorClass == ErrorClass.BAD_REQUEST) {
                         // следующий кандидат параметров той же записи — не сбой здоровья
                         val key = "${a.entry.providerId}/${a.entry.modelId}"
                         val next = a.paramIndex + 1
@@ -252,7 +253,7 @@ class ChainRouter(
                             if (winnerRef.get() == null && active.isEmpty()) startNext()
                         }
                     } else {
-                        val cls = CloudErrorClassifier.classify(event.httpStatus, event.body)
+                        val cls = errorClass
                         failures.add(cls)
                         a.lastError = cls
                         // Retry-After из тела ошибки (Gemini retryDelay / Groq try again in)

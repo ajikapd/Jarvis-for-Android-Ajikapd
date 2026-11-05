@@ -83,6 +83,8 @@ object CloudErrorClassifier {
             if (lower.contains("api key not valid") || lower.contains("api_key_invalid")) {
                 return ErrorClass.AUTH_OR_REGION
             }
+            // Gemini из неподдерживаемого региона: параметры ни при чём, поможет только смена сети.
+            if (lower.contains("location is not supported")) return ErrorClass.FORBIDDEN
             return ErrorClass.BAD_REQUEST
         }
         return ErrorClass.OTHER
