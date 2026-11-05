@@ -63,6 +63,8 @@ class VoiceEngine(
     private val speechGate = WakeSpeechGate()
     private var micRestartAtMs = 0L
     private var micRestarts = 0
+    /** Когда детекторы последний раз получали звук: если давно, глух не микрофон, а конвейер. */
+    @Volatile private var wakeFedAtMs = 0L
     private var speaker: JarvisSpeaker? = null
     @Volatile private var disposed = false
     /** Пока Brain/LLM думает — не гоняем ASR (иначе tok/s падает в 2–3 раза). */
@@ -348,6 +350,7 @@ class VoiceEngine(
                 keywordSpotter?.reset()
                 return
             }
+            wakeFedAtMs = SystemClock.elapsedRealtime()
             val owwHit = kws.process(samples)
             val keywordHit = keywordSpotter?.process(samples) == true
             if (owwHit || keywordHit) {
@@ -426,7 +429,7 @@ class VoiceEngine(
                     "beat soundAgo=$soundAgo chunkAgo=$chunkAgo silenced=${capture.clientSilenced} " +
                         "readErrors=${capture.readErrors} recording=${capture.isRecording} busy=$processingBusy " +
                         "speaking=${speaker?.speaking} state=${wakeWordEngine?.state} armed=${kwsSpotter?.isArmed} " +
-                        "restarts=$micRestarts",
+                        "wakeFedAgo=${now - wakeFedAtMs} restarts=$micRestarts",
                 )
             }
             val deaf = soundAgo >= MIC_DEAF_MS || chunkAgo >= MIC_DEAF_MS || capture.clientSilenced
@@ -796,6 +799,7 @@ object VoiceController {
 
     private fun startInternal(context: Context, liveMode: Boolean, entry: String) {
         lastEntry = entry
+        JarvisSettings.setVoiceWanted(context, true)
         if (liveMode) isLiveSession = true
         val action = if (liveMode) VoiceService.ACTION_LIVE_START else VoiceService.ACTION_START
         Log.i(TAG, "pipeline start entry=$entry live=$liveMode running=$isRunning")
@@ -808,6 +812,7 @@ object VoiceController {
     }
 
     fun stop(context: Context) {
+        JarvisSettings.setVoiceWanted(context, false)
         context.startService(
             Intent(context, VoiceService::class.java).apply { action = VoiceService.ACTION_STOP }
         )

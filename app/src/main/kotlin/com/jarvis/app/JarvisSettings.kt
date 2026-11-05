@@ -47,6 +47,14 @@ object JarvisSettings {
     }
 
     /** Чувствительность вейк-ворда: low=0, medium=1, high=2. По умолчанию high. */
+    /** Голосовой контур включён пользователем: после перезагрузки поднимается сам. */
+    fun voiceWanted(context: Context): Boolean =
+        prefs(context).getBoolean("voice_wanted", false)
+
+    fun setVoiceWanted(context: Context, wanted: Boolean) {
+        prefs(context).edit().putBoolean("voice_wanted", wanted).apply()
+    }
+
     fun wakeSensitivity(context: Context): Int =
         prefs(context).getInt("wake_sensitivity", 2)
 

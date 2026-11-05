@@ -198,6 +198,14 @@
             android:theme="@style/Theme.Jarvis" />
 
         <receiver
+            android:name=".VoiceBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
             android:name=".proactive.ProactiveActionReceiver"
             android:exported="false" />
 
