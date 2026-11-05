@@ -67,6 +67,7 @@ class DebugCommandReceiver : BroadcastReceiver() {
         when (intent.action) {
             ACTION_DEBUG_COMMAND -> handleCommand(context, intent)
             ACTION_DEBUG_VOICE -> handleVoice(context, intent)
+            ACTION_DEBUG_TTS -> if (BuildConfig.DEBUG) handleTtsSample(context, intent)
             ACTION_ASR_TEST -> handleAsrTest(context, intent)
             ACTION_DEBUG_AUTONOMY -> handleAutonomy(context, intent)
             ACTION_DEBUG_SETTINGS -> handleSettings(context, intent)
@@ -406,6 +407,60 @@ class DebugCommandReceiver : BroadcastReceiver() {
         Log.d(TAG, "keys clear provider=${provider.lowercase()} configured=${SecureKeyStore(context).hasKey(provider)}")
     }
 
+    /** Проба Gemini TTS на ключе с телефона: сэмпл в files/, ключ только в заголовке, не в логе. */
+    private fun handleTtsSample(context: Context, intent: Intent) {
+        val app = context.applicationContext
+        val key = SecureKeyStore(context).getKey("gemini")
+        if (key.isNullOrBlank()) {
+            Log.d(TAG, "tts: no gemini key")
+            return
+        }
+        val model = intent.getStringExtra("model")
+        val voice = intent.getStringExtra("voice") ?: "Charon"
+        val text = intent.getStringExtra(EXTRA_TEXT).orEmpty()
+        Thread {
+            val base = "https://generativelanguage.googleapis.com/v1beta/models"
+            runCatching {
+                val conn = java.net.URI(if (model == null) base + "?pageSize=200" else "$base/$model:generateContent")
+                    .toURL().openConnection() as java.net.HttpURLConnection
+                conn.setRequestProperty("x-goog-api-key", key)
+                conn.connectTimeout = 15_000
+                conn.readTimeout = 60_000
+                if (model != null) {
+                    val body = org.json.JSONObject()
+                        .put("contents", org.json.JSONArray().put(org.json.JSONObject().put("parts",
+                            org.json.JSONArray().put(org.json.JSONObject().put("text", text)))))
+                        .put("generationConfig", org.json.JSONObject()
+                            .put("responseModalities", org.json.JSONArray().put("AUDIO"))
+                            .put("speechConfig", org.json.JSONObject().put("voiceConfig",
+                                org.json.JSONObject().put("prebuiltVoiceConfig",
+                                    org.json.JSONObject().put("voiceName", voice)))))
+                    conn.requestMethod = "POST"
+                    conn.doOutput = true
+                    conn.setRequestProperty("Content-Type", "application/json")
+                    conn.outputStream.use { it.write(body.toString().toByteArray()) }
+                }
+                val t0 = System.currentTimeMillis()
+                val code = conn.responseCode
+                val reply = (if (code in 200..299) conn.inputStream else conn.errorStream)
+                    ?.bufferedReader()?.readText().orEmpty()
+                val ms = System.currentTimeMillis() - t0
+                if (code !in 200..299) {
+                    Log.d(TAG, "tts: http=$code ms=$ms body=${reply.take(300)}")
+                } else if (model == null) {
+                    Log.d(TAG, "tts: models=" + Regex("models/[a-z0-9.-]*tts[a-z0-9.-]*").findAll(reply).map { it.value }.toSet())
+                } else {
+                    val data = org.json.JSONObject(reply).getJSONArray("candidates").getJSONObject(0)
+                        .getJSONObject("content").getJSONArray("parts").getJSONObject(0)
+                        .getJSONObject("inlineData")
+                    val pcm = android.util.Base64.decode(data.getString("data"), android.util.Base64.DEFAULT)
+                    File(app.filesDir, "gemini_$voice.pcm").writeBytes(pcm)
+                    Log.d(TAG, "tts: ok voice=$voice bytes=${pcm.size} mime=${data.optString("mimeType")} ms=$ms")
+                }
+            }.onFailure { Log.d(TAG, "tts: failed ${it.javaClass.simpleName} ${it.message?.take(160)}") }
+        }.start()
+    }
+
     private fun handleVoice(context: Context, intent: Intent) {
         when (intent.getStringExtra(EXTRA_ACTION)) {
             "start" -> startVoice(context)
@@ -645,6 +700,7 @@ class DebugCommandReceiver : BroadcastReceiver() {
         private val asrTestLock = Any()
         const val ACTION_DEBUG_COMMAND = "com.jarvis.assistant.DEBUG_COMMAND"
         const val ACTION_DEBUG_VOICE = "com.jarvis.assistant.DEBUG_VOICE"
+        const val ACTION_DEBUG_TTS = "com.jarvis.assistant.DEBUG_TTS"
         const val ACTION_ASR_TEST = "com.jarvis.assistant.ASR_TEST"
         const val ACTION_DEBUG_AUTONOMY = "com.jarvis.assistant.DEBUG_AUTONOMY"
         const val ACTION_DEBUG_SETTINGS = "com.jarvis.assistant.DEBUG_SETTINGS"
