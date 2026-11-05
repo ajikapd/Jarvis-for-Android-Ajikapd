@@ -412,8 +412,9 @@ class DebugCommandReceiver : BroadcastReceiver() {
             "stop" -> stopVoice(context)
             "dump_start" -> if (BuildConfig.DEBUG) WakeAudioDump.start(context.applicationContext)
             "dump_stop" -> if (BuildConfig.DEBUG) WakeAudioDump.stop()
+            "dump_replay" -> if (BuildConfig.DEBUG) WakeAudioDump.requestReplay()
             "dump_delete" -> if (BuildConfig.DEBUG) WakeAudioDump.delete(context.applicationContext)
-            else -> Log.d(TAG, "voice: known action expected (start|stop|dump_start|dump_stop|dump_delete)")
+            else -> Log.d(TAG, "voice: known action expected (start|stop|dump_start|dump_stop|dump_replay|dump_delete)")
         }
     }
 

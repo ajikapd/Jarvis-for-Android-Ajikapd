@@ -22,6 +22,7 @@ import com.jarvis.core.model.AssistantState
 import com.jarvis.core.nlp.CommandTextSelector
 import com.jarvis.core.voice.AsrPreference
 import com.jarvis.wakeword.WakeWordEngine
+import com.jarvis.asr.SherpaKeywordSpotter
 import com.jarvis.wakeword.OwwWakeSpotter
 import com.jarvis.wakeword.WakeWordState
 import java.io.File
@@ -56,6 +57,7 @@ class VoiceEngine(
     private var enAsr: BufferedEnAsr? = null
     private var wakeWordEngine: WakeWordEngine? = null
     private var kwsSpotter: OwwWakeSpotter? = null
+    private var keywordSpotter: SherpaKeywordSpotter? = null
     private var speaker: JarvisSpeaker? = null
     @Volatile private var disposed = false
     /** Пока Brain/LLM думает — не гоняем ASR (иначе tok/s падает в 2–3 раза). */
@@ -166,6 +168,10 @@ class VoiceEngine(
                         context = app,
                         sensitivityLevel = JarvisSettings.wakeSensitivity(app),
                     )
+                    keywordSpotter = SherpaKeywordSpotter.tryCreate(
+                        modelDir = ruDir.absolutePath,
+                        keywordsFile = File(app.cacheDir, "wake_keywords.txt"),
+                    )
                     if (kwsSpotter != null) {
                         // ASR только после wake — для распознавания команды, не для wake.
                         wakeWordEngine = WakeWordEngine(
@@ -175,7 +181,10 @@ class VoiceEngine(
                             sensitivity = JarvisSettings.wakeSensitivity(app),
                             refineWithPcm = { pcm, streaming -> refineCommandPcm(pcm, streaming) },
                         )
-                        log("wake KWS=${kwsSpotter!!.engine} (слово=джарвис, idle без ASR)")
+                        log(
+                            "wake KWS=${kwsSpotter!!.engine} + sherpa=${keywordSpotter != null} " +
+                                "(слово=джарвис, idle без ASR)",
+                        )
                     } else {
                         log("wake KWS init failed — wake отключён (ASR-wake не используем)")
                     }
@@ -304,6 +313,10 @@ class VoiceEngine(
             WakeAudioDump.write(samples)
             return
         }
+        if (WakeAudioDump.takeReplayRequest()) {
+            replayDump()
+            return
+        }
         val kws = kwsSpotter ?: return
         val engine = wakeWordEngine ?: return
         val bridge = hybridAsr
@@ -322,8 +335,12 @@ class VoiceEngine(
         }
 
         if (before == WakeWordState.IDLE) {
-            if (kws.process(samples)) {
-                log("KWS джарвис hit → listen command (KWS off)")
+            val owwHit = kws.process(samples)
+            val keywordHit = keywordSpotter?.process(samples) == true
+            if (owwHit || keywordHit) {
+                log("KWS джарвис hit oww=$owwHit sherpa=$keywordHit → listen command (KWS off)")
+                kws.disarm()
+                keywordSpotter?.reset()
                 engine.notifyExternalWake()
                 maybeStartCloudCommandAfterWake()
             }
@@ -333,10 +350,35 @@ class VoiceEngine(
             }
             if (engine.state == WakeWordState.IDLE && before != WakeWordState.IDLE) {
                 kws.armForNextWake()
+                keywordSpotter?.reset()
                 suppressLocalWakeFinals = false
                 log("session done → KWS re-armed")
             }
         }
+    }
+
+    /** Debug: прогон записанного голоса через оба детектора, с разметкой по времени записи. */
+    private fun replayDump() {
+        val kws = kwsSpotter ?: return
+        val chunk = AudioCapture.CHUNK_SAMPLES
+        val pcm = WakeAudioDump.read(app)
+        val started = SystemClock.elapsedRealtime()
+        kws.armForNextWake(cooldownMs = 0)
+        keywordSpotter?.reset()
+        var pos = 0
+        var cooldownUntil = 0
+        while (pos + chunk <= pcm.size) {
+            val samples = pcm.copyOfRange(pos, pos + chunk)
+            val oww = kws.process(samples)
+            val sherpa = keywordSpotter?.process(samples) == true
+            if (oww || sherpa) {
+                log("replay hit t=${"%.1f".format(pos / 16000f)} oww=$oww sherpa=$sherpa")
+                kws.armForNextWake(cooldownMs = 0)
+            }
+            pos += chunk
+        }
+        log("replay done seconds=${pcm.size / 16000} tookMs=${SystemClock.elapsedRealtime() - started}")
+        kws.armForNextWake()
     }
 
     private fun maybeStartCloudCommandAfterWake() {
@@ -440,6 +482,8 @@ class VoiceEngine(
         wakeWordEngine = null
         kwsSpotter?.close()
         kwsSpotter = null
+        keywordSpotter?.close()
+        keywordSpotter = null
         synchronized(livePcmLock) { livePcm.clear() }
         pendingLivePrefix = ""
         speaker?.release()

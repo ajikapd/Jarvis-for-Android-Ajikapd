@@ -18,7 +18,27 @@ object WakeAudioDump {
     @Volatile private var out: BufferedOutputStream? = null
     private var written = 0L
 
+    @Volatile private var replayRequested = false
+
     val isActive: Boolean get() = out != null
+
+    fun requestReplay() {
+        replayRequested = true
+    }
+
+    fun takeReplayRequest(): Boolean {
+        if (!replayRequested) return false
+        replayRequested = false
+        return true
+    }
+
+    fun read(context: Context): FloatArray {
+        val bytes = File(context.filesDir, FILE_NAME).readBytes()
+        return FloatArray(bytes.size / 2) { i ->
+            val low = bytes[i * 2].toInt() and 0xff
+            ((bytes[i * 2 + 1].toInt() shl 8) or low) / 32768f
+        }
+    }
 
     @Synchronized
     fun start(context: Context) {
