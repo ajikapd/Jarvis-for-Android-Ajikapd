@@ -485,6 +485,7 @@ object BrainGraph {
             preferCloudForAi = {
                 JarvisSettings.preferCloudLlm(ctx) && JarvisSettings.cloudConfigured(ctx)
             },
+            confirmationStyle = com.jarvis.core.nlp.JarvisStyle::confirmation,
         )
         cached = orchestrator
         orchestrator

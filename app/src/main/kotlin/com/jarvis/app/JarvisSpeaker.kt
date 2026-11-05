@@ -6,6 +6,7 @@ import android.os.SystemClock
 import android.util.Log
 import com.jarvis.app.tts.HybridTtsBridge
 import com.jarvis.core.voice.TtsTelemetry
+import com.jarvis.core.nlp.JarvisStyle
 import com.jarvis.core.nlp.SpeechTextNormalizer
 import com.jarvis.tts.JarvisTts
 import com.jarvis.tts.JarvisVoiceFx
@@ -61,6 +62,7 @@ class JarvisSpeaker(context: Context) {
 
     @Volatile private var _lastPlayEndAtMs = 0L
     @Volatile private var speechPlaying = false
+    private var listeningTurn = 0
 
     private fun setPlayEnd() {
         _lastPlayEndAtMs = SystemClock.elapsedRealtime()
@@ -118,7 +120,7 @@ class JarvisSpeaker(context: Context) {
         }
     }
 
-    fun sayListening() = speak("Слушаю.")
+    fun sayListening() = speak(JarvisStyle.listening(listeningTurn++))
 
     fun speakResponse(
         text: String,

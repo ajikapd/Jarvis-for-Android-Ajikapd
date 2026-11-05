@@ -121,6 +121,58 @@ class AssistantOrchestratorTest {
         assertEquals(1, semanticCalls(online = true, preferCloud = false))
     }
 
+    private class FakeWeatherTool : Tool {
+        override val definition = ToolDefinition(
+            id = "weather", name = "Погода", description = "тест", parameters = emptyList(),
+            riskLevel = RiskLevel.SAFE, onlineRequirement = OnlineRequirement.LOCAL_ONLY,
+        )
+        override fun execute(call: ToolCall) = ToolResult(
+            requestId = call.requestId, toolId = "weather", status = ToolResultStatus.SUCCESS,
+            message = "Завтра дождь.",
+        )
+    }
+
+    /** Модель сначала вызывает инструмент, потом отвечает по его данным. */
+    @Test
+    fun `data tool result goes back to the model`() {
+        val asked = mutableListOf<String>()
+        val registry = ToolRegistry().apply { register(FakeWeatherTool()) }
+        val r = AssistantOrchestrator(
+            brainRouter = object : BrainRouter {
+                override fun route(request: UserRequest, history: List<String>, topSkills: List<BrainRouter.SkillInfo>) =
+                    BrainResult.Chat(confidence = 0.9f)
+            },
+            skillRetriever = SkillRetriever(SkillManifestRegistry(), k = 6),
+            toolRegistry = registry, toolExecutor = DefaultToolExecutor(registry), toolPolicy = RiskBasedPolicy(),
+            context = ConversationContext(), longTermMemory = FakeMemory(),
+            dialogue = object : DialogueResponder(null) {
+                override fun respondDetailed(
+                    userText: String, history: List<String>, memories: String,
+                    assembled: com.jarvis.core.llm.AssembledLlmContext?,
+                ): DialogueResult {
+                    asked += userText
+                    val reply = if (asked.size == 1) "ACT {\"tool\":\"weather\",\"args\":{}}" else "Зонт пригодится, сэр."
+                    return DialogueResult(reply, DialogueResult.Kind.LLM)
+                }
+            },
+        ).process(UserRequest("нужен ли завтра зонт"))
+        assertEquals("Зонт пригодится, сэр.", r.replyText)
+        assertTrue(asked[1], asked[1].contains("Завтра дождь."))
+    }
+
+    @Test
+    fun `executed action gets the style but plain answers do not`() {
+        val registry = ToolRegistry().apply { register(FakeFlashlightTool()) }
+        val orch = AssistantOrchestrator(
+            brainRouter = TestRouter(), skillRetriever = SkillRetriever(SkillManifestRegistry(), k = 6),
+            toolRegistry = registry, toolExecutor = DefaultToolExecutor(registry), toolPolicy = RiskBasedPolicy(),
+            context = ConversationContext(), longTermMemory = FakeMemory(), dialogue = FakeDialogue(),
+            confirmationStyle = { "$it!" },
+        )
+        assertEquals("Фонарик включён.!", orch.process(UserRequest("включи фонарик")).replyText)
+        assertEquals("hello-from-fake", orch.process(UserRequest("кто ты")).replyText)
+    }
+
     private fun modelReplies(reply: String, tool: Tool): com.jarvis.core.common.model.AssistantResponse {
         val registry = ToolRegistry().apply { register(tool) }
         return AssistantOrchestrator(

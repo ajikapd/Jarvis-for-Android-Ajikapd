@@ -67,6 +67,8 @@ class AssistantOrchestrator(
     private val chatStreamPipeline: com.jarvis.brain.aiprovider.ChatStreamPipeline? = null,
     private val isOnlineForAi: () -> Boolean = { false },
     private val preferCloudForAi: () -> Boolean = { false },
+    /** Манера коротких подтверждений; в тестах ответ инструмента остаётся как есть. */
+    private val confirmationStyle: (String) -> String = { it },
 ) {
     private val execution: com.jarvis.core.runtime.ExecutionOrchestrator =
         executionOrchestrator
@@ -212,7 +214,7 @@ class AssistantOrchestrator(
         }
 
         cloudToolResponse(normalizedRequest, streamResult.fullText, startedAt, trace)?.let {
-            return finalizeTrace(it, trace, startedAt)
+            return finalizeTrace(styled(it), trace, startedAt)
         }
 
         if (streamResult.failed && streamResult.fullText.isBlank()) {
@@ -269,7 +271,16 @@ class AssistantOrchestrator(
         chatStreamPipeline?.cancelActive()
     }
 
-    fun process(request: UserRequest): AssistantResponse {
+    fun process(request: UserRequest): AssistantResponse = styled(processRequest(request))
+
+    /** Стиль только у выполненного действия: разговор и вопросы модель формулирует сама. */
+    private fun styled(response: AssistantResponse): AssistantResponse {
+        val executed = response.toolResult?.status == com.jarvis.core.common.model.ToolResultStatus.SUCCESS
+        if (!executed || response.status != AssistantResponseStatus.PROCESSED) return response
+        return response.copy(replyText = confirmationStyle(response.replyText))
+    }
+
+    private fun processRequest(request: UserRequest): AssistantResponse {
         val startedAt = System.nanoTime()
         val wallStart = com.jarvis.core.runtime.LatencyClock.elapsedMs()
         val latency = com.jarvis.core.runtime.InteractionLatency(
@@ -559,6 +570,7 @@ class AssistantOrchestrator(
         reply: String,
         startedAt: Long,
         trace: com.jarvis.core.runtime.RequestTrace?,
+        allowFollowUp: Boolean = true,
     ): AssistantResponse? {
         if (!com.jarvis.core.aioutput.CloudToolAction.isAction(reply)) return null
         val call = com.jarvis.core.aioutput.CloudToolAction.parse(reply, request.requestId)
@@ -570,7 +582,18 @@ class AssistantOrchestrator(
                 route = com.jarvis.core.runtime.RouteDecision.CHAT.name,
                 routeReason = "cloud_tool_invalid",
             )
-        return runTool(request, call, startedAt, trace = trace, routeReason = "cloud_tool")
+        val done = runTool(request, call, startedAt, trace = trace, routeReason = "cloud_tool")
+        val data = done.toolResult?.takeIf {
+            it.status == com.jarvis.core.common.model.ToolResultStatus.SUCCESS
+        }?.message
+        if (!allowFollowUp || call.toolId !in DATA_TOOLS || data.isNullOrBlank()) return done
+        // Инструмент вернул данные, а не действие: отвечает модель, один шаг, без новых вызовов.
+        val followUp = request.copy(
+            text = "${request.text}\n\nДанные: $data\nОтветь сэру по этим данным коротко, без вызова инструментов.",
+        )
+        return respondChat(followUp, startedAt, trace, allowFollowUp = false).let { reply ->
+            if (com.jarvis.core.aioutput.CloudToolAction.isAction(reply.replyText)) done else reply
+        }
     }
 
     private fun processSemanticPlan(
@@ -1555,6 +1578,7 @@ class AssistantOrchestrator(
         request: UserRequest,
         startedAt: Long,
         trace: com.jarvis.core.runtime.RequestTrace? = null,
+        allowFollowUp: Boolean = true,
     ): AssistantResponse {
         val lat = trace?.interactionLatency
         val tCtx0 = com.jarvis.core.runtime.LatencyClock.elapsedMs()
@@ -1646,8 +1670,9 @@ class AssistantOrchestrator(
                     "replyLen=${detailed.text.length} user='${SensitivityClassifier.mask(request.text).take(80)}'",
             )
         }
-        cloudToolResponse(request, detailed.text, startedAt, trace)?.let { return it }
-        val factRefused = rememberIfFact(request)
+        cloudToolResponse(request, detailed.text, startedAt, trace, allowFollowUp)?.let { return it }
+        // В уточнении текст дополнен данными инструмента: это не слова пользователя.
+        val factRefused = allowFollowUp && rememberIfFact(request)
         val finalText = if (factRefused) FactExtractor.REFUSAL else detailed.text
         rememberReply(finalText)
         state(AssistantState.READY)
@@ -1730,5 +1755,8 @@ class AssistantOrchestrator(
     companion object {
         /** Первый SkillCall + до 2 продолжений = 3 шага. */
         private const val REACT_MAX_STEPS = 3
+
+        /** Инструменты, чей результат нужно осмыслить: «нужен ли зонт» отвечает модель по прогнозу. */
+        private val DATA_TOOLS = setOf("weather", "calendar", "system.status", "contacts.search")
     }
 }
