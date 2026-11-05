@@ -23,7 +23,7 @@ class UnifiedContextBuilder {
         val rankedMem = MemoryContextRetriever.rank(
             input.userText,
             allMem,
-            memLimit,
+            if (MemoryContextRetriever.isAboutUser(input.userText)) ABOUT_USER_LIMIT else memLimit,
             input.cloudMemoryAllowed,
         )
         rankedMem.mapTo(memSources) { it.source }
@@ -154,5 +154,9 @@ class UnifiedContextBuilder {
     private fun sha256Prefix(text: String): String {
         val d = MessageDigest.getInstance("SHA-256").digest(text.toByteArray())
         return d.take(4).joinToString("") { "%02x".format(it) }
+    }
+
+    private companion object {
+        const val ABOUT_USER_LIMIT = 8
     }
 }

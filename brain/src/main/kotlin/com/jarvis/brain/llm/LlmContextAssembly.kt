@@ -35,7 +35,13 @@ class LlmContextAssembly(
         pendingContext: ConversationContext? = null,
     ): ContextBuildInput {
         val resolvedBudget = budgetFromProfile(chatProfile, budget)
-        val lt = longTermMemory?.retrieve(userText, limit = 6).orEmpty().map {
+        val found = longTermMemory?.retrieve(userText, limit = 6).orEmpty()
+        val facts = if (com.jarvis.core.llm.MemoryContextRetriever.isAboutUser(userText)) {
+            (found + longTermMemory?.all().orEmpty()).distinctBy { it.id }.take(ABOUT_USER_FACTS)
+        } else {
+            found
+        }
+        val lt = facts.map {
             MemorySnippet(
                 text = it.text,
                 source = "long_term",
@@ -87,6 +93,10 @@ class LlmContextAssembly(
             pendingAction = pendingContext?.pendingAction,
             lastToolCall = pendingContext?.lastToolCall,
         )
+    }
+
+    private companion object {
+        const val ABOUT_USER_FACTS = 12
     }
 
     private fun budgetFromProfile(profile: String, fallback: LlmContextBudget): LlmContextBudget =

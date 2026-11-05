@@ -14,8 +14,16 @@ object MemoryContextRetriever {
 
     fun needsMemory(query: String): Boolean {
         val q = query.lowercase()
-        return memoryQuestionMarkers.any { q.contains(it) }
+        return memoryQuestionMarkers.any { q.contains(it) } || isAboutUser(q)
     }
+
+    /** Вопрос о самом пользователе: по словам запроса факты не найти («что ты про меня знаешь»). */
+    fun isAboutUser(query: String): Boolean {
+        val words = query.lowercase().split(Regex("[^\\p{L}]+")).toSet()
+        return words.any { it in ABOUT_USER_WORDS }
+    }
+
+    private val ABOUT_USER_WORDS = setOf("меня", "мне", "мой", "моя", "моё", "мое", "мои", "моих", "мою", "обо")
 
     fun rank(
         query: String,
