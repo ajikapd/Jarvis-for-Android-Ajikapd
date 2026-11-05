@@ -5,7 +5,6 @@ import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
 import android.util.Log
 import java.nio.FloatBuffer
-import java.util.ArrayDeque
 import kotlin.random.Random
 
 /**
@@ -33,7 +32,8 @@ internal class OwwAudioFeatures(
     private val melInput: String = melSession.inputNames.first()
     private val embInput: String = embSession.inputNames.first()
 
-    private val rawBuffer = ArrayDeque<Float>(SAMPLE_RATE * 10)
+    /** Последние сэмплы для mel: простой массив, боксинг Float грузил GC на каждом чанке. */
+    private var rawBuffer = FloatArray(0)
     private var rawRemainder = FloatArray(0)
     private var accumulatedSamples = 0
     private var melBuffer: Array<FloatArray> = Array(MEL_WINDOW) { FloatArray(MEL_BINS) { 1f } }
@@ -45,7 +45,7 @@ internal class OwwAudioFeatures(
     }
 
     fun reset() {
-        rawBuffer.clear()
+        rawBuffer = FloatArray(0)
         rawRemainder = FloatArray(0)
         accumulatedSamples = 0
         melBuffer = Array(MEL_WINDOW) { FloatArray(MEL_BINS) { 1f } }
@@ -128,17 +128,14 @@ internal class OwwAudioFeatures(
         FloatArray(SAMPLE_RATE * 4) { Random.nextInt(-1000, 1000).toFloat() }
 
     private fun bufferRaw(data: FloatArray) {
-        while (rawBuffer.size + data.size > SAMPLE_RATE * 10 && rawBuffer.isNotEmpty()) {
-            rawBuffer.removeFirst()
-        }
-        for (v in data) rawBuffer.addLast(v)
+        val merged = rawBuffer + data
+        rawBuffer = if (merged.size > RAW_MAX) merged.copyOfRange(merged.size - RAW_MAX, merged.size) else merged
     }
 
     private fun streamingMel(nSamples: Int) {
         if (rawBuffer.size < 400) return
         val need = nSamples + 160 * 3
-        val list = rawBuffer.toList()
-        val slice = list.takeLast(need.coerceAtMost(list.size)).toFloatArray()
+        val slice = rawBuffer.copyOfRange((rawBuffer.size - need).coerceAtLeast(0), rawBuffer.size)
         val frames = computeMel(slice)
         if (frames.isEmpty()) return
         melBuffer = melBuffer + frames
@@ -252,6 +249,7 @@ internal class OwwAudioFeatures(
         const val EMB_DIM = 96
         const val FEATURE_FRAMES = 16
         private const val FEATURE_MAX = 120
+        private const val RAW_MAX = SAMPLE_RATE
         private const val MEL_MAX = 10 * 97
     }
 }

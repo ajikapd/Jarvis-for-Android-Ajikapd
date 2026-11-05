@@ -47,8 +47,14 @@ class OwwWakeSpotter(
         env = OrtEnvironment.getEnvironment()
 
         val assets = context.applicationContext.assets
+        // По умолчанию ORT держит пул на все ядра с активным ожиданием: 440% CPU в простое.
+        val options = OrtSession.SessionOptions().apply {
+            setIntraOpNumThreads(1)
+            setInterOpNumThreads(1)
+            addConfigEntry("session.intra_op.allow_spinning", "0")
+        }
         fun load(name: String): OrtSession =
-            assets.open("$ASSET_DIR/$name").use { env.createSession(it.readBytes()) }
+            assets.open("$ASSET_DIR/$name").use { env.createSession(it.readBytes(), options) }
 
         melSession = load(MEL_MODEL)
         embSession = load(EMB_MODEL)
