@@ -36,6 +36,7 @@ class RuleBasedBrain(
         callHistory(words, request)?.let { return it }
         smsRead(words, request)?.let { return it }
         calendarList(words, request)?.let { return it }
+        systemStatus(words)?.let { return it }
         // ── громкость ──────────────────────────────────────────────
         volume(request.text, words, request)?.let { return it }
         // ── яркость экрана ─────────────────────────────────────────
@@ -74,6 +75,12 @@ class RuleBasedBrain(
     }
 
     // ── правила скиллов ───────────────────────────────────────────
+
+    private fun systemStatus(words: List<String>): BrainResult? {
+        val text = words.joinToString(" ")
+        if (STATUS_PHRASES.none { text.contains(it) }) return null
+        return skill(IntentType.SYSTEM_STATUS, emptyMap(), text, 0.93f)
+    }
 
     private fun callHistory(words: List<String>, request: UserRequest): BrainResult? {
         val text = words.joinToString(" ")
@@ -1082,6 +1089,12 @@ class RuleBasedBrain(
             "геолокац" to "location", "местоположен" to "location", "уведомлен" to "notifications",
             "безопасност" to "security", "блютус" to "bluetooth", "блютуз" to "bluetooth",
             "bluetooth" to "bluetooth",
+        )
+        private val STATUS_PHRASES = listOf(
+            "статус систем", "состояние систем", "отчёт о систем", "отчет о систем", "доложи о систем",
+            "диагностик", "состояние телефона", "статус телефона", "как там телефон",
+            "сколько заряда", "какой заряд", "уровень заряда", "заряд батареи", "сколько батареи",
+            "сколько памяти", "сколько места", "свободной памяти", "свободного места",
         )
         private val REMIND_VERBS = setOf("напомни", "напомнить", "напоминание")
         private val MINUTE_WORDS = setOf("минут", "минуту", "минуты", "минута")

@@ -87,6 +87,9 @@ enum class IntentType {
     /** Погода. */
     WEATHER,
 
+    /** Состояние телефона: заряд, сеть, память. */
+    SYSTEM_STATUS,
+
     /** Музыка / медиа. */
     MUSIC,
 

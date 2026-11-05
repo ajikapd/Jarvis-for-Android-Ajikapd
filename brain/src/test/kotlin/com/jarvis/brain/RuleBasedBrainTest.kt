@@ -8,6 +8,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RuleBasedBrainTest {
+    @org.junit.Test
+    fun `system status phrases`() {
+        for (say in listOf("статус систем", "сколько заряда", "какой заряд батареи", "отчёт о системах", "сколько свободной памяти")) {
+            val r = RuleBasedBrain().route(UserRequest(say), emptyList(), emptyList())
+            assertEquals(say, IntentType.SYSTEM_STATUS, (r as BrainResult.SkillCall).intent.type)
+        }
+    }
+
 
     private val brain = RuleBasedBrain()
 

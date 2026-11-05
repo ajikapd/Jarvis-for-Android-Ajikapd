@@ -218,6 +218,9 @@ object ToolCallFactory {
                 )
             }
 
+            IntentType.SYSTEM_STATUS ->
+                ToolCall(requestId = requestId, toolId = "system.status", arguments = emptyMap())
+
             IntentType.MUSIC ->
                 ToolCall(requestId = requestId, toolId = "music", arguments = slotsToArgs(intent))
 

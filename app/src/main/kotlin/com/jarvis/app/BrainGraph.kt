@@ -257,6 +257,7 @@ object BrainGraph {
             register(UiReadTool(ctx))
             register(UiWaitTool(ctx))
             register(WeatherTool(ctx))
+            register(com.jarvis.tools.SystemStatusTool(ctx))
             register(MusicTool(ctx))
             register(KnowledgeTool())
         }
