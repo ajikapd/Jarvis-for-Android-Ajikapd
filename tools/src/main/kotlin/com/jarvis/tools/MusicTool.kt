@@ -10,6 +10,7 @@ import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
 import android.os.Bundle
 import android.os.Handler
+import android.os.SystemClock
 import android.os.Looper
 import android.provider.MediaStore
 import android.support.v4.media.MediaBrowserCompat
@@ -776,7 +777,7 @@ class MusicTool(private val context: Context) : Tool {
         if (ctrl != null) {
             block(ctrl.transportControls)
             rememberPackage(ctrl.packageName)
-            val title = ctrl.metadata?.getString(MediaMetadata.METADATA_KEY_TITLE)
+            if (label == "resume") return confirmPlaying(requestId)
             val msg = when (label) {
                 "pause" -> "Пауза."
                 "resume" -> "Играю."
@@ -803,6 +804,7 @@ class MusicTool(private val context: Context) : Tool {
                 }
             }, "jarvis-music-resume-bg").start()
         }
+        if (label == "resume") return confirmPlaying(requestId)
         return ToolResult(requestId, definition.id, ToolResultStatus.SUCCESS, when (label) {
             "pause" -> "Пауза."
             "resume" -> "Играю."
@@ -810,6 +812,21 @@ class MusicTool(private val context: Context) : Tool {
             "previous" -> "Назад."
             else -> "Ок."
         })
+    }
+
+    /** «Играю» говорим только по факту: медиа-кнопка не означает, что плеер запустился. */
+    private fun confirmPlaying(requestId: String): ToolResult {
+        val deadline = SystemClock.elapsedRealtime() + RESUME_CONFIRM_MS
+        while (SystemClock.elapsedRealtime() < deadline) {
+            if (activeController()?.playbackState?.state == PlaybackState.STATE_PLAYING) {
+                return ToolResult(requestId, definition.id, ToolResultStatus.SUCCESS, "Играю.")
+            }
+            Thread.sleep(RESUME_POLL_MS)
+        }
+        return ToolResult(
+            requestId, definition.id, ToolResultStatus.FAILED,
+            "Сейчас нечего продолжать. Скажи, что включить.",
+        )
     }
 
     private fun status(requestId: String): ToolResult {
@@ -892,6 +909,8 @@ class MusicTool(private val context: Context) : Tool {
 
     companion object {
         private const val TAG = "Jarvis.Music"
+        private const val RESUME_CONFIRM_MS = 2_500L
+        private const val RESUME_POLL_MS = 200L
         private const val PREFS = "jarvis_prefs"
         private const val PREF_PLAYER = "music_player_package"
         private const val STATUS_CACHE_TTL_MS = 12_000L

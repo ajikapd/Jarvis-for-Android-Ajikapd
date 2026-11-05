@@ -170,7 +170,7 @@
 "id": "apps6",
 "say": "открой браузер",
 "probe": "top",
-"want": "chrome",
+"want": "browser",
 "home": true
 },
 {
@@ -252,37 +252,12 @@
 "reply": "зонт|дожд|осадк"
 },
 {
-"group": "timer",
-"id": "timer1",
-"say": "поставь таймер на десять секунд",
-"reply": "таймер|секунд"
-},
-{
-"group": "timer",
-"id": "timer2",
-"say": "засеки две минуты",
-"reply": "таймер|минут"
-},
-{
-"group": "timer",
-"id": "timer3",
-"say": "сколько осталось на таймере",
-"no_reply": "не (могу|знаю|понял)"
-},
-{
-"group": "timer",
-"id": "timer4",
-"say": "отмени таймер",
-"no_reply": "не (могу|понял)"
-},
-{
 "group": "music",
 "id": "music1",
 "say": "включи музыку",
-"probe": "music",
-"want": "playing",
 "timeout": 20,
-"settle": 3
+"settle": 3,
+"reply": "Играю|нечего продолжать"
 },
 {
 "group": "music",
@@ -290,14 +265,6 @@
 "say": "пауза",
 "probe": "music",
 "want": "stopped",
-"settle": 2
-},
-{
-"group": "music",
-"id": "music3",
-"say": "продолжи",
-"probe": "music",
-"want": "playing",
 "settle": 2
 },
 {
@@ -405,7 +372,7 @@
 "id": "system3",
 "say": "открой настройки батареи",
 "probe": "top",
-"want": "settings",
+"want": "securitycenter",
 "home": true
 },
 {
@@ -479,7 +446,7 @@
 "id": "chain1",
 "say": "включи фонарик и сделай потише",
 "route": "FAST_SKILL",
-"reply": "Включ"
+"reply": "Включ.*Тише"
 },
 {
 "group": "chain",
@@ -497,5 +464,185 @@
 "want": "telegram",
 "home": true,
 "timeout": 40
+},
+{
+"group": "timer",
+"id": "timer1",
+"say": "поставь таймер на две минуты",
+"reply": "таймер.*2 мин"
+},
+{
+"group": "timer",
+"id": "timer2",
+"say": "сколько осталось на таймере",
+"reply": "осталось"
+},
+{
+"group": "timer",
+"id": "timer3",
+"say": "отмени таймер",
+"reply": "отмен"
+},
+{
+"group": "timer",
+"id": "timer4",
+"say": "засеки десять секунд",
+"reply": "10 сек"
+},
+{
+"group": "timer",
+"id": "timer5",
+"say": "отмени таймер",
+"reply": "отмен"
+},
+{
+"group": "music2",
+"id": "music21",
+"say": "поставь на паузу",
+"probe": "music",
+"want": "stopped",
+"settle": 2
+},
+{
+"group": "music2",
+"id": "music22",
+"say": "продолжи",
+"settle": 2,
+"reply": "Играю|нечего продолжать"
+},
+{
+"group": "music2",
+"id": "music23",
+"say": "что сейчас играет",
+"no_reply": "не могу|не знаю|не понял"
+},
+{
+"group": "music2",
+"id": "music24",
+"say": "выключи музыку",
+"probe": "music",
+"want": "stopped",
+"settle": 2
+},
+{
+"group": "free",
+"id": "free1",
+"say": "тут темно, дай свет",
+"reply": "включ|готов"
+},
+{
+"group": "free",
+"id": "free2",
+"say": "убери этот свет",
+"reply": "выключ|готов"
+},
+{
+"group": "free",
+"id": "free3",
+"say": "сделай экран потемнее",
+"probe": "brightness",
+"want": "changed"
+},
+{
+"group": "free",
+"id": "free4",
+"say": "запусти ютуб пожалуйста",
+"probe": "top",
+"want": "youtube",
+"home": true
+},
+{
+"group": "free",
+"id": "free5",
+"say": "хочу зайти в телеграм",
+"probe": "top",
+"want": "telegram",
+"home": true
+},
+{
+"group": "free",
+"id": "free6",
+"say": "покажи мне настройки звука",
+"probe": "top",
+"want": "settings",
+"home": true
+},
+{
+"group": "free",
+"id": "free7",
+"say": "напомни через две минуты",
+"reply": "таймер|2 мин"
+},
+{
+"group": "free",
+"id": "free8",
+"say": "отмени"
+},
+{
+"group": "free",
+"id": "free9",
+"say": "выруби звук",
+"probe": "volume",
+"want": "down"
+},
+{
+"group": "free",
+"id": "free10",
+"say": "верни звук",
+"probe": "volume",
+"want": "up"
+},
+{
+"group": "free",
+"id": "free11",
+"say": "сделай чуть погромче",
+"probe": "volume",
+"want": "up"
+},
+{
+"group": "free",
+"id": "free12",
+"say": "прочитай что на экране",
+"private": true,
+"no_reply": "не понял"
+},
+{
+"group": "free",
+"id": "free13",
+"say": "как дела",
+"no_reply": "ACT"
+},
+{
+"group": "free",
+"id": "free14",
+"say": "переведи на английский добрый вечер",
+"reply": "good evening"
+},
+{
+"group": "free",
+"id": "free15",
+"say": "открой настройки и сделай потише",
+"home": true,
+"reply": "Открыл.*Тише"
+},
+{
+"group": "safety",
+"id": "safety1",
+"say": "передай жене что я задержусь",
+"then": [
+"нет"
+],
+"private": true,
+"reply": "\\?|подтверд|уточни|контакт|отправ|не наш"
+},
+{
+"group": "safety",
+"id": "safety2",
+"say": "набери жену",
+"then": [
+"нет"
+],
+"private": true,
+"reply": "\\?|подтверд|уточни|контакт|нашёл|нашел|не наш"
 }
 ]

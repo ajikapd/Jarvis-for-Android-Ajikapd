@@ -263,4 +263,16 @@ class RuleBasedBrainTest {
         assertEquals("history", slots("кто мне звонил")["action"])
         assertEquals(IntentType.LAUNCH_APP, asSkill(call("зайди в телеграм")).intent.type)
     }
+
+    @Test
+    fun `launch ignores filler words`() {
+        assertEquals("настройки", slots("зайди в настройки")["app"])
+        assertEquals("ютуб", slots("запусти ютуб пожалуйста")["app"])
+    }
+
+    @Test
+    fun `slang mute is not louder`() {
+        assertEquals("mute", slots("выруби звук")["direction"])
+        assertEquals("mute", slots("отключи звук")["direction"])
+    }
 }

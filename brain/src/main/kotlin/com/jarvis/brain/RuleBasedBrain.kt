@@ -167,7 +167,8 @@ class RuleBasedBrain(
         val dirUp = words.any { it in VOLUME_UP } || text.contains("громче") || text.contains("погромче")
         val dirDown = words.any { it in VOLUME_DOWN } || text.contains("тише") || text.contains("потише") ||
             text.contains("не так громко") || text.contains("слишком громко")
-        val mute = text.contains("выключи звук") || text.contains("без звука") || text.contains("заглуши")
+        val mute = text.contains("выруби звук") || text.contains("отключи звук") ||
+            text.contains("убери звук") || text.contains("выключи звук") || text.contains("без звука") || text.contains("заглуши")
         val unmute = text.contains("включи звук") || text.contains("верни звук")
         val max = words.any { it in VOLUME_MAX } || text.contains("на максимум") || text.contains("максимальную")
 
@@ -464,7 +465,9 @@ class RuleBasedBrain(
         val hasVerb = words.any { it in LAUNCH_VERBS }
         if (!hasVerb) return null
         // Наивно: берём имя приложения из последних слов
-        val appName = words.dropWhile { it !in LAUNCH_VERBS }.drop(1).joinToString(" ").trim()
+        val appName = words.dropWhile { it !in LAUNCH_VERBS }.drop(1)
+            .filterNot { it in LAUNCH_FILLERS }
+            .joinToString(" ").trim()
         if (appName.isBlank()) {
             return BrainResult.Clarify(question = "Какое приложение открыть?", confidence = 0.5f)
         }
@@ -1072,7 +1075,7 @@ class RuleBasedBrain(
         private val ALARM_PM_WORDS = setOf("вечера", "вечером", "дня", "днём", "днем")
         private val PERCENT_WORDS = setOf("процент", "процента", "процентов")
         /** Отдельно от ON_VERBS: там «сделай» и «дай», а это не просьба включить трек. */
-        private val MUSIC_PLAY_VERBS = setOf("включи", "включить", "включите", "поставь", "запусти", "играй")
+        private val MUSIC_PLAY_VERBS = setOf("включи", "включить", "включите", "поставь", "играй")
         private val SETTINGS_SECTIONS = linkedMapOf(
             "батаре" to "battery", "экран" to "display", "дисплей" to "display", "звук" to "sound",
             "памят" to "storage", "хранилищ" to "storage", "приложени" to "apps",
@@ -1097,6 +1100,8 @@ class RuleBasedBrain(
         private val LAUNCH_VERBS = setOf(
             "открой", "открыть", "запусти", "запустить", "включи приложение", "зайди", "перейди",
         )
+
+        private val LAUNCH_FILLERS = setOf("в", "во", "на", "мне", "пожалуйста", "приложение", "сейчас")
 
         private val CALL_VERBS = setOf("позвони", "набери", "вызови", "звонок")
         private val CONTACT_WORDS = setOf("контакт", "контакты", "контактe")

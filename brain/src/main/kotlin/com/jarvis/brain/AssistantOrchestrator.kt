@@ -360,7 +360,9 @@ class AssistantOrchestrator(
                     )
                 com.jarvis.core.runtime.RouteDecision.FAST_SKILL -> {
                     val rewritten = semantic.rewrittenCommand
-                    if (!rewritten.isNullOrBlank() && rewritten != normalizedRequest.text) {
+                    // Переписывание берёт одну команду: цепочка ниже потеряла бы остальные шаги.
+                    val isChain = CompoundCommandSplitter.isCompound(request.text.trim())
+                    if (!isChain && !rewritten.isNullOrBlank() && rewritten != normalizedRequest.text) {
                         val rewrittenReq = normalizedRequest.copy(text = rewritten)
                         return finalizeTrace(
                             processSingle(
