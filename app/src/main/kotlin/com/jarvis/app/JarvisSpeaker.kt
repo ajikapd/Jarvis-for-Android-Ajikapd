@@ -6,6 +6,7 @@ import android.os.SystemClock
 import android.util.Log
 import com.jarvis.app.tts.HybridTtsBridge
 import com.jarvis.core.voice.TtsTelemetry
+import com.jarvis.core.nlp.SpeechTextNormalizer
 import com.jarvis.tts.JarvisTts
 import com.jarvis.tts.JarvisVoiceFx
 import com.jarvis.tts.JarvisTtsConfig
@@ -199,7 +200,9 @@ class JarvisSpeaker(context: Context) {
     @Volatile private var streamSpeakGeneration = 0
     @Volatile private var streamFirstAudioSent = false
 
-    private fun synthPcm(text: String, gen: Int, queueDepth: Int): Pair<FloatArray, Int> {
+    private fun synthPcm(raw: String, gen: Int, queueDepth: Int): Pair<FloatArray, Int> {
+        val text = SpeechTextNormalizer.forSpeech(raw)
+        if (text.isBlank()) return FloatArray(0) to 22_050
         val bridge = hybrid
         if (bridge != null) {
             val result = bridge.synthesize(
