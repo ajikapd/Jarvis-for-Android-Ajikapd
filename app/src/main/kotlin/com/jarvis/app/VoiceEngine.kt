@@ -24,6 +24,7 @@ import com.jarvis.core.voice.AsrPreference
 import com.jarvis.wakeword.WakeWordEngine
 import com.jarvis.asr.SherpaKeywordSpotter
 import com.jarvis.wakeword.OwwWakeSpotter
+import com.jarvis.wakeword.WakeSpeechGate
 import com.jarvis.wakeword.WakeWordState
 import java.io.File
 import java.util.concurrent.CopyOnWriteArrayList
@@ -31,6 +32,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -58,6 +60,9 @@ class VoiceEngine(
     private var wakeWordEngine: WakeWordEngine? = null
     private var kwsSpotter: OwwWakeSpotter? = null
     private var keywordSpotter: SherpaKeywordSpotter? = null
+    private val speechGate = WakeSpeechGate()
+    private var micRestartAtMs = 0L
+    private var micRestarts = 0
     private var speaker: JarvisSpeaker? = null
     @Volatile private var disposed = false
     /** Пока Brain/LLM думает — не гоняем ASR (иначе tok/s падает в 2–3 раза). */
@@ -230,8 +235,10 @@ class VoiceEngine(
                 }
 
                 audioCapture!!.start(scope)
+                scope.launch { watchMic() }
                 scope.launch {
                     audioCapture!!.chunks.collect { chunk ->
+                        speechGate.onChunk(chunk.samples)
                         if (processingBusy || disposed) return@collect
                         val sp = speaker ?: return@collect
                         // Глушим mic только под TTS-речь (не под wake-чим) + короткий хвост
@@ -335,9 +342,30 @@ class VoiceEngine(
         }
 
         if (before == WakeWordState.IDLE) {
+            // Хвост голоса ассистента не должен будить детекторы: они слышат его с задержкой.
+            val sp = speaker
+            if (sp != null && SystemClock.elapsedRealtime() - sp.lastPlayEndAtMs < WAKE_HOLDOFF_AFTER_SPEECH_MS) {
+                keywordSpotter?.reset()
+                return
+            }
             val owwHit = kws.process(samples)
             val keywordHit = keywordSpotter?.process(samples) == true
             if (owwHit || keywordHit) {
+                if (!speechGate.speechPresent()) {
+                    VoiceHealthLog.write(
+                        app,
+                        "wake rejected: silence oww=$owwHit sherpa=$keywordHit " +
+                            "voiced=${speechGate.voicedChunks()} floor=${"%.5f".format(speechGate.noiseFloor)}",
+                    )
+                    kws.armForNextWake(cooldownMs = 0)
+                    keywordSpotter?.reset()
+                    return
+                }
+                VoiceHealthLog.write(
+                    app,
+                    "wake hit oww=$owwHit sherpa=$keywordHit score=${"%.3f".format(kws.lastScoreValue)} " +
+                        "voiced=${speechGate.voicedChunks()} floor=${"%.5f".format(speechGate.noiseFloor)}",
+                )
                 log("KWS джарвис hit oww=$owwHit sherpa=$keywordHit → listen command (KWS off)")
                 kws.disarm()
                 keywordSpotter?.reset()
@@ -379,6 +407,41 @@ class VoiceEngine(
         }
         log("replay done seconds=${pcm.size / 16000} tookMs=${SystemClock.elapsedRealtime() - started}")
         kws.armForNextWake()
+    }
+
+    /** Сторож: отдельный таймер, потому что глухой микрофон не присылает чанков. */
+    private suspend fun watchMic() {
+        var lastBeat = 0L
+        while (!disposed) {
+            delay(MIC_WATCH_PERIOD_MS)
+            val capture = audioCapture ?: continue
+            if (pauseCaptureForCloudAsr) continue
+            val now = SystemClock.elapsedRealtime()
+            val soundAgo = now - capture.lastSoundAtMs
+            val chunkAgo = now - capture.lastChunkAtMs
+            if (now - lastBeat >= MIC_HEARTBEAT_MS) {
+                lastBeat = now
+                VoiceHealthLog.write(
+                    app,
+                    "beat soundAgo=$soundAgo chunkAgo=$chunkAgo silenced=${capture.clientSilenced} " +
+                        "readErrors=${capture.readErrors} recording=${capture.isRecording} busy=$processingBusy " +
+                        "speaking=${speaker?.speaking} state=${wakeWordEngine?.state} armed=${kwsSpotter?.isArmed} " +
+                        "restarts=$micRestarts",
+                )
+            }
+            val deaf = soundAgo >= MIC_DEAF_MS || chunkAgo >= MIC_DEAF_MS || capture.clientSilenced
+            if (deaf && now - micRestartAtMs >= MIC_RESTART_GAP_MS) {
+                micRestartAtMs = now
+                micRestarts++
+                VoiceHealthLog.write(
+                    app,
+                    "mic deaf soundAgo=$soundAgo chunkAgo=$chunkAgo silenced=${capture.clientSilenced} " +
+                        "readErrors=${capture.readErrors} → restart #$micRestarts",
+                )
+                capture.stop()
+                capture.start(scope)
+            }
+        }
     }
 
     private fun maybeStartCloudCommandAfterWake() {
@@ -652,6 +715,11 @@ class VoiceEngine(
 
     companion object {
         private const val TAG = "Jarvis.Debug"
+        private const val WAKE_HOLDOFF_AFTER_SPEECH_MS = 1_500L
+        private const val MIC_WATCH_PERIOD_MS = 2_000L
+        private const val MIC_HEARTBEAT_MS = 60_000L
+        private const val MIC_DEAF_MS = 5_000L
+        private const val MIC_RESTART_GAP_MS = 30_000L
         private var sessionCounter = 0
         val SELF_ECHO = setOf("слушаю сэр", "слушаю, сэр", "слушаю")
     }
