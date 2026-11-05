@@ -38,6 +38,7 @@ class RuleBasedBrain(
         smsRead(words, request)?.let { return it }
         calendarList(words, request)?.let { return it }
         systemStatus(words)?.let { return it }
+        briefing(words)?.let { return it }
         // ── громкость ──────────────────────────────────────────────
         volume(request.text, words, request)?.let { return it }
         // ── яркость экрана ─────────────────────────────────────────
@@ -50,6 +51,9 @@ class RuleBasedBrain(
         // ── сообщение SMS ──────────────────────────────────────────
         sendSms(words, request)?.let { return it }
         screenshot(words, request)?.let { return it }
+        camera(words)?.let { return it }
+        navigate(words)?.let { return it }
+        webSearch(words)?.let { return it }
         // ── погода / музыка / знания (до launcher — «включи песню») ─
         weather(words, request)?.let { return it }
         music(words, request)?.let { return it }
@@ -77,6 +81,37 @@ class RuleBasedBrain(
     }
 
     // ── правила скиллов ───────────────────────────────────────────
+
+    private fun briefing(words: List<String>): BrainResult? {
+        val text = words.joinToString(" ")
+        if (BRIEFING_PHRASES.none { text.contains(it) }) return null
+        return skill(IntentType.BRIEFING, emptyMap(), text, 0.93f)
+    }
+
+    private fun camera(words: List<String>): BrainResult? {
+        val text = words.joinToString(" ")
+        val video = VIDEO_PHRASES.any { text.contains(it) }
+        if (!video && words.none { it in PHOTO_VERBS } && PHOTO_PHRASES.none { text.contains(it) }) return null
+        return skill(IntentType.CAMERA, mapOf("mode" to if (video) "video" else "photo"), text, 0.92f)
+    }
+
+    private fun navigate(words: List<String>): BrainResult? {
+        val text = words.joinToString(" ")
+        val place = NAVIGATION.find(text)?.groupValues?.drop(1)?.firstOrNull { it.isNotBlank() }?.trim().orEmpty()
+        if (text.startsWith("поехали") && !POST_GO.containsMatchIn(text)) return null
+        if (place.isEmpty()) return null
+        return skill(IntentType.NAVIGATE, mapOf("destination" to place), text, 0.92f)
+    }
+
+    private fun webSearch(words: List<String>): BrainResult? {
+        val text = words.joinToString(" ")
+        val marker = WEB_MARKERS.firstOrNull { text.contains(it) } ?: return null
+        if (words.none { it in SEARCH_VERBS }) return null
+        val query = text.replace(marker, " ").split(" ")
+            .filter { it.isNotBlank() && it !in SEARCH_VERBS && it !in SEARCH_FILLERS }
+            .joinToString(" ")
+        return skill(IntentType.WEB_SEARCH, mapOf("query" to query), text, 0.92f)
+    }
 
     private fun systemStatus(words: List<String>): BrainResult? {
         val text = words.joinToString(" ")
@@ -1124,6 +1159,22 @@ class RuleBasedBrain(
             "сколько заряда", "какой заряд", "уровень заряда", "заряд батареи", "сколько батареи",
             "сколько памяти", "сколько места", "свободной памяти", "свободного места",
         )
+        private val BRIEFING_PHRASES = listOf(
+            "сводк", "брифинг", "что у меня на сегодня", "что у меня сегодня", "что на сегодня",
+            "планы на сегодня", "план на сегодня", "план на день", "планы на день",
+        )
+        private val PHOTO_VERBS = setOf("сфотографируй", "сфоткай", "сфотай", "сфотографировать")
+        private val PHOTO_PHRASES = listOf("сделай фото", "сделай фотку", "сделай снимок", "сделай селфи", "сними фото")
+        private val VIDEO_PHRASES = listOf("сними видео", "запиши видео", "снять видео", "сделай видео")
+        private val NAVIGATION = Regex(
+            "(?:маршрут|как доехать|как добраться|как проехать|как пройти|отвези меня|вези меня|навигаци\\S*|" +
+                "(?:покажи|найди|открой) на карте)\\s+(?:(?:до|в|во|на|к|ко)\\s+)?(.+)$|" +
+                "^поехали\\s+(?:(?:до|в|во|на|к|ко)\\s+)?(домой|\\S+\\s*\\S*)$",
+        )
+        private val POST_GO = Regex("^поехали (домой|до |в |во |на |к |ко )")
+        private val WEB_MARKERS = listOf("в интернете", "в сети", "в яндексе", "в гугле", "в браузере")
+        private val SEARCH_VERBS = setOf("найди", "поищи", "ищи", "загугли", "погугли", "посмотри", "открой")
+        private val SEARCH_FILLERS = setOf("мне", "пожалуйста", "джарвис")
         private val REMINDER_LIST_WORDS = setOf("какие", "мои", "список", "покажи", "есть", "прочитай")
         private val REMINDER_QUERY_FILLERS = setOf("все", "всё", "мне", "про", "о", "об", "пожалуйста", "моё", "мое")
         private val REMIND_VERBS = setOf("напомни", "напомнить", "напоминание")

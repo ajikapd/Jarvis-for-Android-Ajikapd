@@ -439,6 +439,10 @@ class LlmBrain(
         skillId.contains("timer", true) -> IntentType.TIMER
         skillId.contains("system.status", true) -> IntentType.SYSTEM_STATUS
         skillId.contains("reminder", true) -> IntentType.REMINDER
+        skillId.contains("briefing", true) -> IntentType.BRIEFING
+        skillId.contains("navigate", true) -> IntentType.NAVIGATE
+        skillId.contains("web.search", true) -> IntentType.WEB_SEARCH
+        skillId.contains("camera", true) -> IntentType.CAMERA
         skillId.contains("event", true) || skillId.contains("calendar", true) -> IntentType.CREATE_EVENT
         skillId.contains("sms", true) -> IntentType.SEND_SMS
         skillId.contains("telegram", true) -> IntentType.SEND_TELEGRAM

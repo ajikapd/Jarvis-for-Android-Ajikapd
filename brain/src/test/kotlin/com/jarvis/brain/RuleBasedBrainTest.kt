@@ -8,6 +8,54 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RuleBasedBrainTest {
+    private fun route(say: String) = RuleBasedBrain().route(UserRequest(say), emptyList(), emptyList())
+
+    private fun slot(say: String, type: IntentType, name: String): Any? {
+        val r = route(say) as BrainResult.SkillCall
+        assertEquals(say, type, r.intent.type)
+        return r.intent.slots[name]?.value
+    }
+
+    @org.junit.Test
+    fun `briefing phrases`() {
+        for (say in listOf("утренняя сводка", "сводка на день", "что у меня на сегодня", "брифинг", "какие планы на сегодня")) {
+            assertEquals(say, IntentType.BRIEFING, (route(say) as BrainResult.SkillCall).intent.type)
+        }
+    }
+
+    @org.junit.Test
+    fun `navigation extracts the place`() {
+        assertEquals("работы", slot("проложи маршрут до работы", IntentType.NAVIGATE, "destination"))
+        assertEquals("вокзала", slot("как доехать до вокзала", IntentType.NAVIGATE, "destination"))
+        assertEquals("аптеку", slot("покажи на карте аптеку", IntentType.NAVIGATE, "destination"))
+        assertEquals("домой", slot("поехали домой", IntentType.NAVIGATE, "destination"))
+    }
+
+    @org.junit.Test
+    fun `everyday words are not navigation`() {
+        assertTrue(route("поехали дальше") !is BrainResult.SkillCall)
+        val memoryCard = route("что на карте памяти")
+        assertTrue((memoryCard as? BrainResult.SkillCall)?.intent?.type != IntentType.NAVIGATE)
+    }
+
+    @org.junit.Test
+    fun `web search extracts the query`() {
+        assertEquals("рецепт борща", slot("найди в интернете рецепт борща", IntentType.WEB_SEARCH, "query"))
+        assertEquals("отзывы о пылесосе", slot("поищи в сети отзывы о пылесосе", IntentType.WEB_SEARCH, "query"))
+    }
+
+    @org.junit.Test
+    fun `camera phrases`() {
+        assertEquals("photo", slot("сфотографируй", IntentType.CAMERA, "mode"))
+        assertEquals("photo", slot("сделай селфи", IntentType.CAMERA, "mode"))
+        assertEquals("video", slot("сними видео", IntentType.CAMERA, "mode"))
+    }
+
+    @org.junit.Test
+    fun `screenshot is not a camera shot`() {
+        assertEquals(IntentType.SCREENSHOT, (route("сделай скриншот") as BrainResult.SkillCall).intent.type)
+    }
+
     private fun reminderSlots(say: String): Map<String, Any?> {
         val r = RuleBasedBrain().route(UserRequest(say), emptyList(), emptyList()) as BrainResult.SkillCall
         assertEquals(say, IntentType.REMINDER, r.intent.type)

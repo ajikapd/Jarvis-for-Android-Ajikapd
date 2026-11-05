@@ -11,7 +11,7 @@ object CloudToolAction {
     const val MARKER = "ACT"
 
     private val ALLOWED = setOf(
-        "flashlight", "system.status", "reminder", "volume", "brightness", "timer", "launcher", "music", "weather",
+        "flashlight", "system.status", "reminder", "briefing", "navigate", "web.search", "camera", "volume", "brightness", "timer", "launcher", "music", "weather",
         "system.setting", "screenshot", "phone.call", "sms", "telegram.send", "calendar",
         "contacts.search", "notifications.list",
     )
@@ -24,6 +24,10 @@ object CloudToolAction {
         Инструменты:
         flashlight {"action":"on|off"}
         system.status {}
+        briefing {}
+        navigate {"destination":"куда"}
+        web.search {"query":"что найти в браузере"}
+        camera {"mode":"photo|video"}
         reminder {"action":"add|list|cancel","phrase":"что и когда, словами пользователя","query":"какое отменить"}
         volume {"direction":"up|down|max|mute|unmute"} или {"direction":"set","percent":0-100}
         brightness {"direction":"up|down|max"} или {"direction":"set","percent":0-100}

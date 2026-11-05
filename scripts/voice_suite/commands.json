@@ -644,5 +644,75 @@
 ],
 "private": true,
 "reply": "\\?|подтверд|уточни|контакт|нашёл|нашел|не наш"
+},
+{
+"group": "status",
+"id": "status1",
+"say": "статус систем",
+"route": "FAST_SKILL",
+"reply": "норме|Внимание"
+},
+{
+"group": "status",
+"id": "status2",
+"say": "сколько заряда",
+"route": "FAST_SKILL",
+"reply": "Заряд"
+},
+{
+"group": "remind",
+"id": "remind1",
+"say": "напомни завтра в девять утра проверить почту",
+"route": "FAST_SKILL",
+"reply": "Напомню завтра"
+},
+{
+"group": "remind",
+"id": "remind2",
+"say": "какие у меня напоминания",
+"route": "FAST_SKILL",
+"reply": "Напоминаний"
+},
+{
+"group": "remind",
+"id": "remind3",
+"say": "отмени напоминание про почту",
+"route": "FAST_SKILL",
+"reply": "отменено"
+},
+{
+"group": "remind",
+"id": "remind4",
+"say": "напомни купить хлеб",
+"route": "FAST_SKILL",
+"reply": "Когда"
+},
+{
+"group": "brief",
+"id": "brief1",
+"say": "сводка на день",
+"route": "FAST_SKILL",
+"reply": "сэр"
+},
+{
+"group": "nav",
+"id": "nav1",
+"say": "проложи маршрут до вокзала",
+"route": "FAST_SKILL",
+"reply": "маршрут"
+},
+{
+"group": "nav",
+"id": "nav2",
+"say": "найди в интернете рецепт борща",
+"route": "FAST_SKILL",
+"reply": "результаты"
+},
+{
+"group": "nav",
+"id": "nav3",
+"say": "сделай селфи",
+"route": "FAST_SKILL",
+"reply": "Камера"
 }
 ]

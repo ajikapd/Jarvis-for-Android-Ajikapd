@@ -215,6 +215,7 @@ class FastSemanticClassifier : SemanticInterpreter {
         val browserish = t.contains("браузер") || t.contains("в интернете") ||
             t.contains("в гугле") || t.contains("погугл")
         val stepsHint = when {
+            !multiVerb && !conjunction -> 0 // «найди в интернете рецепт борща» — один поиск, не план.
             multiVerb && (conjunction || goalish) -> 2
             goalish && browserish -> 2
             goalish && conjunction -> 2

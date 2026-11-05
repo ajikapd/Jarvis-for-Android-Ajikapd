@@ -261,6 +261,10 @@ object BrainGraph {
             val reminders = AndroidReminderBook(ctx)
             reminders.rearm()
             register(com.jarvis.tools.ReminderTool(reminders))
+            register(com.jarvis.tools.BriefingTool(::find))
+            register(com.jarvis.tools.navigationTool(ctx))
+            register(com.jarvis.tools.webSearchTool(ctx))
+            register(com.jarvis.tools.cameraTool(ctx))
             register(MusicTool(ctx))
             register(KnowledgeTool())
         }

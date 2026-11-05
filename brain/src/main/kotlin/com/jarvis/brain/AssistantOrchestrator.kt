@@ -1757,6 +1757,6 @@ class AssistantOrchestrator(
         private const val REACT_MAX_STEPS = 3
 
         /** Инструменты, чей результат нужно осмыслить: «нужен ли зонт» отвечает модель по прогнозу. */
-        private val DATA_TOOLS = setOf("weather", "calendar", "system.status", "contacts.search")
+        private val DATA_TOOLS = setOf("weather", "calendar", "system.status", "briefing", "contacts.search")
     }
 }

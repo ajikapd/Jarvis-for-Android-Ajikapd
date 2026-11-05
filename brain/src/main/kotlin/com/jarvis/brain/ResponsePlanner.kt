@@ -218,6 +218,18 @@ object ToolCallFactory {
                 )
             }
 
+            IntentType.BRIEFING ->
+                ToolCall(requestId = requestId, toolId = "briefing", arguments = emptyMap())
+
+            IntentType.NAVIGATE ->
+                ToolCall(requestId = requestId, toolId = "navigate", arguments = slotsToArgs(intent))
+
+            IntentType.WEB_SEARCH ->
+                ToolCall(requestId = requestId, toolId = "web.search", arguments = slotsToArgs(intent))
+
+            IntentType.CAMERA ->
+                ToolCall(requestId = requestId, toolId = "camera", arguments = slotsToArgs(intent))
+
             IntentType.REMINDER ->
                 ToolCall(requestId = requestId, toolId = "reminder", arguments = slotsToArgs(intent))
 
