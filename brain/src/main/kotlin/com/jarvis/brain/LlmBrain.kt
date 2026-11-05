@@ -31,7 +31,9 @@ import kotlin.math.roundToInt
 class LlmBrain(
     private val modelPath: String,
     private val fallback: BrainRouter = RuleBasedBrain(),
-    private val cacheDir: String? = null
+    private val cacheDir: String? = null,
+    /** Локальный подбор инструмента занимает 8+ с: при доступном облаке он только мешает. */
+    private val cloudAvailable: () -> Boolean = { false },
 ) : BrainRouter {
 
     private val lock = ReentrantLock()
@@ -97,6 +99,7 @@ class LlmBrain(
 
         // Deterministic-first: большинство команд не должны ждать LLM.
         val rules = fallback.route(request, history, topSkills)
+        if (cloudAvailable()) return rules
         when (rules) {
             is BrainResult.SkillCall if rules.confidence >= RULES_SKILL_FAST -> {
                 Log.d(TAG, "fast rules-skill '${SensitivityClassifier.mask(request.text)}' -> ${rules.intent.type} ${elapsed(t0)}ms")

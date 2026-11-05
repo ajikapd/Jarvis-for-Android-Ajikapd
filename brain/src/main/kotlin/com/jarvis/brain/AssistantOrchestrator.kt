@@ -211,6 +211,10 @@ class AssistantOrchestrator(
             }
         }
 
+        cloudToolResponse(normalizedRequest, streamResult.fullText, startedAt, trace)?.let {
+            return finalizeTrace(it, trace, startedAt)
+        }
+
         if (streamResult.failed && streamResult.fullText.isBlank()) {
             // Stay on this turn — use classic non-stream CHAT (user already recorded)
             return finalizeTrace(
@@ -544,6 +548,29 @@ class AssistantOrchestrator(
         }
     }
 
+    /**
+     * Ответ модели оказался вызовом инструмента: выполняем обычным путём с риском и подтверждением.
+     * Испорченный вызов нельзя озвучивать: пользователь услышал бы JSON.
+     */
+    private fun cloudToolResponse(
+        request: UserRequest,
+        reply: String,
+        startedAt: Long,
+        trace: com.jarvis.core.runtime.RequestTrace?,
+    ): AssistantResponse? {
+        if (!com.jarvis.core.aioutput.CloudToolAction.isAction(reply)) return null
+        val call = com.jarvis.core.aioutput.CloudToolAction.parse(reply, request.requestId)
+            ?: return respond(
+                request,
+                "Не получилось разобрать команду. Скажи иначе.",
+                AssistantResponseStatus.FAILED,
+                startedAt,
+                route = com.jarvis.core.runtime.RouteDecision.CHAT.name,
+                routeReason = "cloud_tool_invalid",
+            )
+        return runTool(request, call, startedAt, trace = trace, routeReason = "cloud_tool")
+    }
+
     private fun processSemanticPlan(
         request: UserRequest,
         semantic: com.jarvis.core.runtime.semantic.SemanticUnderstanding,
@@ -553,6 +580,13 @@ class AssistantOrchestrator(
         trace.route = com.jarvis.core.runtime.RouteDecision.PLAN
         trace.routeReason = semantic.routeReason
         trace.planner = planPathCoordinator != null
+        // Цепочка команд выполняется, а не пересказывается вслух.
+        val commandSteps = CompoundCommandSplitter.split(request.text.trim())
+            .map { AsrPhraseNormalizer.normalize(it).trim() }
+            .filter { it.isNotEmpty() }
+        if (commandSteps.size > 1) return processCompound(request, commandSteps, startedAt, trace)
+        // Свободную цель разберёт облачная модель, выбрав инструмент.
+        if (isOnlineForAi() && preferCloudForAi()) return respondChat(request, startedAt, trace)
         // Prefer PlanPathCoordinator for free-form goals
         if (planPathCoordinator != null && catalogToolDiscovery != null) {
             val discovery = catalogToolDiscovery!!.discover(request.text, limit = 8)
@@ -570,14 +604,6 @@ class AssistantOrchestrator(
                     "steps=${planRun.plan.steps.size} completed=${planRun.loopResult?.completed} " +
                     "dry=${planRun.dryRun}",
             )
-            // Free-form semantic PLAN must stay on PLAN route (not blind compound exec).
-            // Comma-compound without free-form reason can still use processCompound compat.
-            val parts = CompoundCommandSplitter.split(request.text.trim())
-                .map { AsrPhraseNormalizer.normalize(it).trim() }
-                .filter { it.isNotEmpty() }
-            if (parts.size > 1 && semantic.routeReason != "free_form_multi_step") {
-                return processCompound(request, parts, startedAt, trace)
-            }
             val summary = buildString {
                 append("Понял цель: ${semantic.goal}. ")
                 if (semantic.constraints.isNotEmpty()) {
@@ -1618,6 +1644,7 @@ class AssistantOrchestrator(
                     "replyLen=${detailed.text.length} user='${SensitivityClassifier.mask(request.text).take(80)}'",
             )
         }
+        cloudToolResponse(request, detailed.text, startedAt, trace)?.let { return it }
         val factRefused = rememberIfFact(request)
         val finalText = if (factRefused) FactExtractor.REFUSAL else detailed.text
         rememberReply(finalText)

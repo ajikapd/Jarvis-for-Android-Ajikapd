@@ -1,5 +1,6 @@
 package com.jarvis.brain.aiprovider
 
+import com.jarvis.core.aioutput.CloudToolAction
 import com.jarvis.core.runtime.TtftKind
 import com.jarvis.core.streaming.SentenceSegmenter
 import com.jarvis.core.streaming.VoiceStreamSession
@@ -85,6 +86,7 @@ class ChatStreamPipeline(
             var errorReason: String? = null
             var sentenceCount = 0
             var modelId = sel.modelId
+            var heldBack = false
             val streamStart = System.nanoTime()
 
             fun emitSentences(parts: List<String>): Boolean {
@@ -130,7 +132,15 @@ class ChatStreamPipeline(
                                 ttftKind = TtftKind.REAL
                             }
                             full.append(ev.text)
-                            emitSentences(segmenter.push(ev.text))
+                            // Вызов инструмента не озвучиваем: его разберёт оркестратор.
+                            val text = full.toString()
+                            if (!CloudToolAction.mayBeAction(text)) {
+                                val unspoken = if (heldBack) text else ev.text
+                                heldBack = false
+                                emitSentences(segmenter.push(unspoken))
+                            } else {
+                                heldBack = true
+                            }
                         }
                         AIStreamEventType.METADATA -> {
                             ev.modelId?.let { modelId = it }

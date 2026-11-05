@@ -121,6 +121,58 @@ class AssistantOrchestratorTest {
         assertEquals(1, semanticCalls(online = true, preferCloud = false))
     }
 
+    private fun modelReplies(reply: String, tool: Tool): com.jarvis.core.common.model.AssistantResponse {
+        val registry = ToolRegistry().apply { register(tool) }
+        return AssistantOrchestrator(
+            brainRouter = object : BrainRouter {
+                override fun route(
+                    request: UserRequest,
+                    history: List<String>,
+                    topSkills: List<BrainRouter.SkillInfo>,
+                ): BrainResult = BrainResult.Chat(confidence = 0.9f)
+            },
+            skillRetriever = SkillRetriever(SkillManifestRegistry(), k = 6),
+            toolRegistry = registry,
+            toolExecutor = DefaultToolExecutor(registry),
+            toolPolicy = RiskBasedPolicy(),
+            context = ConversationContext(),
+            longTermMemory = FakeMemory(),
+            dialogue = object : DialogueResponder(null) {
+                override fun respondDetailed(
+                    userText: String,
+                    history: List<String>,
+                    memories: String,
+                    assembled: com.jarvis.core.llm.AssembledLlmContext?,
+                ) = DialogueResult(reply, DialogueResult.Kind.LLM)
+            },
+        ).process(UserRequest("хочу побольше света"))
+    }
+
+    @Test
+    fun `model tool action executes tool`() {
+        val r = modelReplies("""ACT {"tool":"flashlight","args":{"action":"on"}}""", FakeFlashlightTool())
+        assertEquals("Фонарик включён.", r.replyText)
+        assertEquals(com.jarvis.core.common.model.ToolResultStatus.SUCCESS, r.toolResult?.status)
+    }
+
+    /** Модель не может обойти подтверждение: опасный инструмент спросит, как и для правил. */
+    @Test
+    fun `model tool action still needs confirmation`() {
+        val r = modelReplies(
+            """ACT {"tool":"flashlight","args":{"action":"on"}}""",
+            FakeFlashlightTool(RiskLevel.CONFIRM),
+        )
+        assertEquals(com.jarvis.core.common.model.AssistantResponseStatus.NEEDS_CONFIRMATION, r.status)
+    }
+
+    /** Испорченный вызов нельзя озвучить как текст. */
+    @Test
+    fun `broken model action is not spoken`() {
+        val r = modelReplies("""ACT {"tool":"flash""", FakeFlashlightTool())
+        assertEquals(com.jarvis.core.common.model.AssistantResponseStatus.FAILED, r.status)
+        assertTrue(r.replyText, !r.replyText.contains("ACT"))
+    }
+
     @Test
     fun `known flashlight request produces PROCESSED response`() {
         val response = orchestrator(FakeFlashlightTool()).process(UserRequest("включи фонарик"))

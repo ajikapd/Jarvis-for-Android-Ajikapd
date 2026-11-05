@@ -665,7 +665,11 @@ object BrainGraph {
     }
 
     private fun buildBrainRouter(context: Context): com.jarvis.brain.BrainRouter {
-        val ruleBased = RuleBasedBrain()
+        val cloudAvailable = {
+            CloudAsrFactory.isOnline(context) && JarvisSettings.preferCloudLlm(context) &&
+                JarvisSettings.cloudConfigured(context)
+        }
+        val ruleBased = RuleBasedBrain(cloudAvailable)
         val llmEnabled = JarvisSettings.llmEnabled(context)
         val modelFile = getLlmModelPath(context)
         android.util.Log.d(
@@ -679,6 +683,7 @@ object BrainGraph {
             modelPath = modelFile.absolutePath,
             fallback = ruleBased,
             cacheDir = context.cacheDir.absolutePath,
+            cloudAvailable = cloudAvailable,
         )
         llmBrain = brain
         return brain

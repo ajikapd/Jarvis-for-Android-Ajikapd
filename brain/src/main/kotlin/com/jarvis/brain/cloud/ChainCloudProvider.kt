@@ -11,6 +11,7 @@ import com.jarvis.brain.aiprovider.AIProviderKind
 import com.jarvis.brain.aiprovider.CloudLLMProvider
 import com.jarvis.brain.aiprovider.CloudLlmHttpTransport
 import com.jarvis.brain.aiprovider.StreamingAIProvider
+import com.jarvis.core.aioutput.CloudToolAction
 import com.jarvis.core.cloud.ChainConfig
 import com.jarvis.core.cloud.ChainHealth
 import com.jarvis.core.cloud.ChainRouter
@@ -281,9 +282,17 @@ class ChainCloudProvider(
 
     private val realTransport: CloudLlmHttpTransport = transport ?: com.jarvis.brain.aiprovider.UrlConnectionCloudLlmTransport()
 
+    /** Каталог инструментов только для чата: структурным задачам он не нужен. */
+    private fun systemPrompt(request: AICompletionRequest): String {
+        val base = legacy.resolveSystem(request)
+        val chat = !request.wantStructured &&
+            (request.taskType == null || request.taskType == com.jarvis.brain.aiprovider.AiTaskType.CHAT)
+        return if (chat) "$base\n${CloudToolAction.PROMPT}" else base
+    }
+
     private fun buildCloudCall(request: AICompletionRequest): CloudCall =
         callFactory?.invoke(request) ?: CloudChainCall(
-            systemPrompt = legacy.resolveSystem(request),
+            systemPrompt = systemPrompt(request),
             history = request.history,
             userText = request.userText,
             maxTokens = capabilities.maxOutputTokens.coerceAtLeast(16),

@@ -139,4 +139,44 @@ class ChainStreamPipelineTest {
         assertEquals("partial_then_error_no_restart", r.fallbackReason)
         assertEquals(AIProviderAvailability.AVAILABLE, f.provider.availability())
     }
+
+    /** Вызов инструмента не озвучивается, даже придя по кускам, и дойдёт до оркестратора целиком. */
+    @Test
+    fun toolAction_notSpoken() {
+        val f = Fixture(cfg, Transport { _, onLine ->
+            listOf("AC", "T {", "\\\"tool\\\":\\\"screenshot\\\"", "}").forEach { onLine(delta(it)) }
+            onLine("data: [DONE]")
+            200
+        })
+        val sentences = CopyOnWriteArrayList<String>()
+        val r = f.pipeline.streamChat(profile, req, 1L, { false }, ChatSentenceSink { s, _ -> sentences.add(s); true })
+        assertEquals("ACT {\"tool\":\"screenshot\"}", r.fullText)
+        assertTrue(sentences.toString(), sentences.isEmpty())
+    }
+
+    /** Ответ, похожий на вызов только началом, озвучивается полностью, без потерь. */
+    @Test
+    fun textStartingLikeMarker_spokenWhole() {
+        val f = Fixture(cfg, Transport { _, onLine ->
+            listOf("A", "pple — это компания из Купертино.").forEach { onLine(delta(it)) }
+            onLine("data: [DONE]")
+            200
+        })
+        val sentences = CopyOnWriteArrayList<String>()
+        f.pipeline.streamChat(profile, req, 1L, { false }, ChatSentenceSink { s, _ -> sentences.add(s); true })
+        assertEquals("Apple — это компания из Купертино.", sentences.joinToString(" "))
+    }
+
+    @Test
+    fun chatRequest_carriesToolCatalog() {
+        val bodies = CopyOnWriteArrayList<String>()
+        val f = Fixture(cfg, Transport { body, onLine ->
+            bodies.add(body)
+            onLine(delta("Ок."))
+            onLine("data: [DONE]")
+            200
+        })
+        f.pipeline.streamChat(profile, req, 1L, { false }, ChatSentenceSink { _, _ -> true })
+        assertTrue(bodies.first().contains("flashlight"))
+    }
 }

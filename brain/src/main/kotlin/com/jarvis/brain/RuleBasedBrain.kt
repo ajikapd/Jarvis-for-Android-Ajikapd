@@ -17,7 +17,10 @@ import com.jarvis.core.nlp.ContactPhraseNormalizer
  * Покрывает скиллы: фонарик, громкость, яркость, будильник/таймер, сообщение, приложение.
  * Room для расширения: каждый скилл — маленький блок правил.
  */
-class RuleBasedBrain : BrainRouter {
+class RuleBasedBrain(
+    /** Облако понимает свободную речь: уточнять «это команда» вместо него незачем. */
+    private val cloudAvailable: () -> Boolean = { false },
+) : BrainRouter {
 
     override fun route(
         request: UserRequest,
@@ -64,7 +67,7 @@ class RuleBasedBrain : BrainRouter {
         contacts(words, request)?.let { return it }
 
         // ничего не совпало — обычный разговор или неопределённая команда
-        if (looksLikeCommand(words)) {
+        if (looksLikeCommand(words) && !cloudAvailable()) {
             return BrainResult.Clarify(question = "Понял, что это команда, но уточни, пожалуйста, что сделать.", confidence = 0.4f)
         }
         return BrainResult.Chat(confidence = 0.9f)

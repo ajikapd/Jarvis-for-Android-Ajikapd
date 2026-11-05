@@ -34,6 +34,9 @@ data class StreamChatResult(
 /** Максимум захвата тела ошибки. */
 internal const val MAX_ERROR_BODY_CHARS = 2048
 
+/** Системный промпт с контекстом и каталогом инструментов. */
+private const val MAX_SYSTEM_CHARS = 4_000
+
 fun interface CloudLlmHttpTransport {
     fun postJson(
         url: String,
@@ -416,7 +419,7 @@ class OpenAiCompatibleCloudClient(
     ): List<Pair<String, String>> {
         val out = ArrayList<Pair<String, String>>(8)
         if (systemPrompt.isNotBlank()) {
-            out += "system" to SensitivityClassifier.mask(systemPrompt).take(1_500)
+            out += "system" to SensitivityClassifier.mask(systemPrompt).take(MAX_SYSTEM_CHARS)
         }
         history.takeLast(8).forEach { line ->
             val lower = line.lowercase()
