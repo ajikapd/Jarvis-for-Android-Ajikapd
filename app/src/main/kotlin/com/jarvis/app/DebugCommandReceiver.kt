@@ -446,7 +446,7 @@ class DebugCommandReceiver : BroadcastReceiver() {
                     ?.bufferedReader()?.readText().orEmpty()
                 val ms = System.currentTimeMillis() - t0
                 if (code !in 200..299) {
-                    Log.d(TAG, "tts: http=$code ms=$ms body=${reply.take(300)}")
+                    Log.d(TAG, "tts: http=$code ms=$ms quota=" + Regex("(Quota exceeded[^\\n\"]*|quotaId\"[^,]*|quotaValue\"[^,]*|retryDelay\"[^,}]*)").findAll(reply).map { it.value }.toList())
                 } else if (model == null) {
                     Log.d(TAG, "tts: models=" + Regex("models/[a-z0-9.-]*tts[a-z0-9.-]*").findAll(reply).map { it.value }.toSet())
                 } else {
