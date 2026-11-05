@@ -7,6 +7,7 @@ import android.util.Log
 import com.jarvis.app.tts.HybridTtsBridge
 import com.jarvis.core.voice.TtsTelemetry
 import com.jarvis.tts.JarvisTts
+import com.jarvis.tts.JarvisVoiceFx
 import com.jarvis.tts.JarvisTtsConfig
 import com.jarvis.tts.TtsPlayer
 import java.io.File
@@ -207,11 +208,11 @@ class JarvisSpeaker(context: Context) {
                 queueDepth = queueDepth,
             )
             lastTtsTelemetry = bridge.lastTelemetry
-            return result.samples to result.sampleRateHz
+            return JarvisVoiceFx.process(result.samples, result.sampleRateHz) to result.sampleRateHz
         }
         val engine = tts ?: return FloatArray(0) to 22_050
         if (gen != speakGeneration) return FloatArray(0) to engine.sampleRate
-        return engine.synthesize(text) to engine.sampleRate
+        return JarvisVoiceFx.process(engine.synthesize(text), engine.sampleRate) to engine.sampleRate
     }
 
     private fun pumpUtteranceQueue() {
