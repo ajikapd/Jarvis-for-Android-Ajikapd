@@ -14,8 +14,8 @@ class ReminderToolTest {
 
     private class Book : ReminderBook {
         val items = mutableListOf<Reminder>()
-        override fun add(at: LocalDateTime, text: String, daily: Boolean) =
-            Reminder(items.size + 1L, at, text, daily).also { items += it }
+        override fun add(at: LocalDateTime, text: String, daily: Boolean, command: Boolean) =
+            Reminder(items.size + 1L, at, text, daily, command).also { items += it }
         override fun all() = items.toList()
         override fun remove(id: Long) = items.removeIf { it.id == id }
     }
@@ -30,6 +30,12 @@ class ReminderToolTest {
         assertEquals(ToolResultStatus.SUCCESS, r.status)
         assertEquals("Напомню завтра в 9:00, сэр: позвонить маме.", r.message)
         assertEquals("позвонить маме", book.items.single().text)
+    }
+
+    @Test fun scheduledCommand() {
+        val r = run("phrase" to "через 10 минут выключи фонарик", "command" to true)
+        assertEquals("Выполню через 10 мин, сэр: выключи фонарик.", r.message)
+        assertTrue(book.items.single().command)
     }
 
     @Test fun asksWhenTimeMissing() {

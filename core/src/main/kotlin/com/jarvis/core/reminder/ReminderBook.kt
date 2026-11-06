@@ -5,11 +5,18 @@ import java.time.LocalDateTime
 import java.time.format.TextStyle
 import java.util.Locale
 
-data class Reminder(val id: Long, val at: LocalDateTime, val text: String, val daily: Boolean = false)
+/** [command] true: в срок выполняется [text] как голосовая команда, а не зачитывается. */
+data class Reminder(
+    val id: Long,
+    val at: LocalDateTime,
+    val text: String,
+    val daily: Boolean = false,
+    val command: Boolean = false,
+)
 
 /** Хранилище и будильник напоминаний; реализует приложение. */
 interface ReminderBook {
-    fun add(at: LocalDateTime, text: String, daily: Boolean): Reminder
+    fun add(at: LocalDateTime, text: String, daily: Boolean, command: Boolean = false): Reminder
     fun all(): List<Reminder>
     fun remove(id: Long): Boolean
 }

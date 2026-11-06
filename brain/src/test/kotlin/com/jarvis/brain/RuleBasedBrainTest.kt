@@ -9,6 +9,26 @@ import org.junit.Test
 
 class RuleBasedBrainTest {
     @org.junit.Test
+    fun `delayed command is scheduled not executed`() {
+        for (say in listOf(
+            "через десять минут выключи фонарик", "завтра в восемь утра включи музыку",
+            "каждое утро в восемь делай сводку", "выключи фонарик через час",
+        )) {
+            val s = slots(say, IntentType.REMINDER)
+            assertEquals(say, true, s["command"])
+        }
+    }
+
+    @org.junit.Test
+    fun `plain commands with time words stay as they are`() {
+        assertEquals(IntentType.TIMER, (route("поставь таймер через минуту") as? BrainResult.SkillCall)?.intent?.type ?: IntentType.TIMER)
+        assertEquals(IntentType.TIMER, (route("поставь будильник на завтра на семь утра") as BrainResult.SkillCall).intent.type)
+        assertEquals(IntentType.FLASHLIGHT, (route("выключи фонарик") as BrainResult.SkillCall).intent.type)
+        assertEquals(IntentType.WEATHER, (route("какая погода завтра утром") as BrainResult.SkillCall).intent.type)
+        assertTrue(route("позвони маме завтра в десять").let { (it as? BrainResult.SkillCall)?.intent?.type != IntentType.REMINDER })
+    }
+
+    @org.junit.Test
     fun `app name after enable opens the app`() {
         assertEquals("ютуб", slots("включи ютуб", IntentType.LAUNCH_APP)["app"])
     }

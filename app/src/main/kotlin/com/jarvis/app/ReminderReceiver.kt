@@ -6,8 +6,10 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.jarvis.app.proactive.ProactiveVoice
+import com.jarvis.core.common.model.UserRequest
 import com.jarvis.core.reminder.ReminderSpeech
 
 /** Срабатывание напоминания: голосом, если контур слушает, и всегда уведомлением. */
@@ -15,7 +17,30 @@ class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val id = intent.getLongExtra(EXTRA_ID, -1L)
         val reminder = AndroidReminderBook(context).fired(id) ?: return
-        val text = ReminderSpeech.firing(reminder.text)
+        if (reminder.command) {
+            runCommand(context.applicationContext, id, reminder.text)
+        } else {
+            deliver(context, id, ReminderSpeech.firing(reminder.text))
+        }
+    }
+
+    /** Команда может идти в сеть: выполняем вне главного потока, приёмник держим живым. */
+    private fun runCommand(context: Context, id: Long, command: String) {
+        val pending = goAsync()
+        Thread({
+            try {
+                val reply = BrainGraph.build(context).process(UserRequest(command)).replyText
+                deliver(context, id, reply)
+            } catch (t: Throwable) {
+                Log.w(TAG, "scheduled command failed: ${t.message}", t)
+                deliver(context, id, "Не удалось выполнить, сэр: $command.")
+            } finally {
+                pending.finish()
+            }
+        }, "jarvis-scheduled").start()
+    }
+
+    private fun deliver(context: Context, id: Long, text: String) {
         val spoken = ProactiveVoice.speak(context, text).requested
         notify(context, id, text, silent = spoken)
         VoiceHealthLog.write(context, "reminder fired id=$id spoken=$spoken")
@@ -46,6 +71,7 @@ class ReminderReceiver : BroadcastReceiver() {
     }
 
     companion object {
+        private const val TAG = "Jarvis.Reminders"
         private const val ACTION = "com.jarvis.assistant.REMINDER_FIRE"
         private const val EXTRA_ID = "id"
         private const val CHANNEL = "jarvis_reminders"

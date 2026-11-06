@@ -49,14 +49,19 @@ class ReminderTool(
     private fun add(call: ToolCall): ToolResult {
         val parsed = ReminderParser.parse(call.arguments["phrase"]?.toString().orEmpty(), now())
         val at = parsed.at ?: return result(call, ToolResultStatus.AMBIGUOUS, "Когда напомнить, сэр?")
-        val saved = book.add(at, parsed.text, parsed.daily)
+        val saved = book.add(at, parsed.text, parsed.daily, command = call.arguments["command"] == true)
         return ok(call, confirmation(saved))
     }
 
     private fun confirmation(r: Reminder): String {
         val moment = if (r.daily) "каждый день в %d:%02d".format(r.at.hour, r.at.minute)
         else ReminderSpeech.whenPhrase(r.at, now())
-        val verb = if (r.daily) "Буду напоминать" else "Напомню"
+        val verb = when {
+            r.command && r.daily -> "Буду выполнять"
+            r.command -> "Выполню"
+            r.daily -> "Буду напоминать"
+            else -> "Напомню"
+        }
         return if (r.text.isBlank()) "$verb $moment, сэр." else "$verb $moment, сэр: ${r.text}."
     }
 

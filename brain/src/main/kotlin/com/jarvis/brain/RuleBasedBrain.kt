@@ -31,6 +31,8 @@ class RuleBasedBrain(
         val words = normalize(request.text)
         if (words.isEmpty()) return BrainResult.Clarify(question = "Не расслышал, сэр. Повторите, пожалуйста.", confidence = 0.3f)
 
+        // Отложенная команда раньше всех: «через час выключи фонарик» нельзя выполнять сейчас.
+        scheduledCommand(words, request)?.let { return it }
         // ── фонарик ────────────────────────────────────────────────
         flashLight(words, request)?.let { return it }
         // ── история звонков / SMS / календарь (до «позвони») ────────
@@ -321,6 +323,18 @@ class RuleBasedBrain(
                 confidenceLevel = ConfidenceLevel.HIGH
             ),
             confidence = 0.9f
+        )
+    }
+
+    private fun scheduledCommand(words: List<String>, request: UserRequest): BrainResult? {
+        if (words.none { it in TIME_MARKERS } || words.any { it in REMIND_VERBS || it in NOT_SCHEDULED }) return null
+        val parsed = ReminderParser.parse(request.text, java.time.LocalDateTime.now())
+        if (parsed.at == null || parsed.text.split(' ').first() !in SCHEDULED_VERBS) return null
+        return skill(
+            IntentType.REMINDER,
+            mapOf("action" to "add", "phrase" to request.text, "command" to true),
+            words.joinToString(" "),
+            0.93f,
         )
     }
 
@@ -1288,6 +1302,15 @@ class RuleBasedBrain(
             "сколько памяти", "сколько места", "свободной памяти", "свободного места",
         )
         private const val MIN_BRIGHTNESS = 5
+        private val TIME_MARKERS = setOf(
+            "через", "завтра", "послезавтра", "каждый", "каждое", "ежедневно", "утра", "утром", "вечера", "вечером",
+        )
+        private val NOT_SCHEDULED = setOf("таймер", "будильник", "разбуди", "секундомер", "напоминай", "погода", "погоду")
+        /** Без звонков и сообщений: без присмотра такое выполнять нельзя. */
+        private val SCHEDULED_VERBS = setOf(
+            "включи", "выключи", "отключи", "поставь", "останови", "открой", "запусти", "сделай", "делай",
+            "прибавь", "убавь", "докладывай", "читай",
+        )
         /** «включи ютуб» — приложение, а не трек с таким названием. */
         private val APP_WORDS = setOf(
             "ютуб", "ютьюб", "youtube", "телеграм", "телеграмм", "вк", "вконтакте", "ватсап", "вотсап", "whatsapp",

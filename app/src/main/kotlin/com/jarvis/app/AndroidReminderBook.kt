@@ -20,9 +20,9 @@ class AndroidReminderBook(context: Context) : ReminderBook {
     private val alarms = ctx.getSystemService(AlarmManager::class.java)
 
     @Synchronized
-    override fun add(at: LocalDateTime, text: String, daily: Boolean): Reminder {
+    override fun add(at: LocalDateTime, text: String, daily: Boolean, command: Boolean): Reminder {
         val id = prefs.getLong(KEY_NEXT, 1L)
-        val reminder = Reminder(id, at, text, daily)
+        val reminder = Reminder(id, at, text, daily, command)
         store(all() + reminder, nextId = id + 1)
         arm(reminder)
         return reminder
@@ -33,7 +33,10 @@ class AndroidReminderBook(context: Context) : ReminderBook {
         val array = runCatching { JSONArray(prefs.getString(KEY_ITEMS, "[]")) }.getOrElse { JSONArray() }
         return List(array.length()) { i ->
             val o = array.getJSONObject(i)
-            Reminder(o.getLong("id"), millisToTime(o.getLong("at")), o.optString("text"), o.optBoolean("daily"))
+            Reminder(
+                o.getLong("id"), millisToTime(o.getLong("at")), o.optString("text"),
+                o.optBoolean("daily"), o.optBoolean("command"),
+            )
         }
     }
 
@@ -104,7 +107,7 @@ class AndroidReminderBook(context: Context) : ReminderBook {
         items.forEach { r ->
             array.put(
                 JSONObject().put("id", r.id).put("at", timeToMillis(r.at))
-                    .put("text", r.text).put("daily", r.daily),
+                    .put("text", r.text).put("daily", r.daily).put("command", r.command),
             )
         }
         val edit = prefs.edit().putString(KEY_ITEMS, array.toString())
