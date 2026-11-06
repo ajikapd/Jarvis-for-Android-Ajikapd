@@ -146,7 +146,7 @@ class ActionRiskClassifier {
         private val LAUNCH_IDS = setOf("launch_app", "launch_music", "open_app", "launcher")
         private val MEDIA_IDS = setOf("music_play", "music_pause", "music_next", "media_play")
         private val COMM_IDS = setOf("sms_send", "send_message", "telegram_send", "call_dial")
-        private val COMM_TOOLS = setOf("sms", "telegram.send", "call", "phone.call")
+        private val COMM_TOOLS = setOf("sms", "telegram.send", "notifications.reply", "call", "phone.call")
         private val SETTINGS_IDS = setOf("system_setting", "toggle_setting", "wifi_toggle")
         private val UI_IDS = setOf("ui_click", "ui_type", "ui_swipe", "ui_global")
         private val DELETE_IDS = setOf("delete_data", "clear_memory", "wipe_cache", "delete_file")

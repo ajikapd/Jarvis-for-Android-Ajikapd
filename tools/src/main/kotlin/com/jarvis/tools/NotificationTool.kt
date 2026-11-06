@@ -25,15 +25,13 @@ class NotificationTool : Tool {
         parameters = listOf(
             ToolParameter(
                 "action",
-                "list, dismiss, reply_action или reply",
+                "list, clear или dismiss",
                 ParameterType.ENUM,
                 required = false,
-                allowedValues = listOf("list", "clear", "dismiss", "reply_action", "reply"),
+                allowedValues = listOf("list", "clear", "dismiss"),
             ),
             ToolParameter("key", "Ключ уведомления", ParameterType.STRING, false),
-            ToolParameter("index", "Индекс действия (reply_action)", ParameterType.INTEGER, false),
             ToolParameter("query", "Фильтр по заголовку/тексту", ParameterType.STRING, false),
-            ToolParameter("text", "Текст ответа (action=reply)", ParameterType.STRING, false),
         ),
         riskLevel = RiskLevel.LOW,
         onlineRequirement = OnlineRequirement.LOCAL_ONLY,
@@ -95,50 +93,48 @@ class NotificationTool : Tool {
                     if (ok) "Уведомление закрыто." else "Не удалось закрыть.",
                 )
             }
-            "reply_action" -> {
-                val key = resolveKey(call) ?: return ToolResult(
-                    call.requestId, definition.id, ToolResultStatus.AMBIGUOUS, "Нужен key или query",
-                )
-                val index = (call.arguments["index"] as? Number)?.toInt()
-                    ?: call.arguments["index"]?.toString()?.toIntOrNull()
-                    ?: 0
-                val ok = JarvisNotificationListenerService.instance?.sendAction(key, index) == true
-                ToolResult(
-                    call.requestId,
-                    definition.id,
-                    if (ok) ToolResultStatus.SUCCESS else ToolResultStatus.FAILED,
-                    if (ok) "Действие уведомления выполнено." else "Действие недоступно.",
-                )
-            }
-            "reply" -> {
-                val text = call.arguments["text"]?.toString()?.trim().orEmpty()
-                if (text.isBlank()) {
-                    return ToolResult(call.requestId, definition.id, ToolResultStatus.AMBIGUOUS, "Нужен текст ответа")
-                }
-                val key = resolveKey(call) ?: return ToolResult(
-                    call.requestId, definition.id, ToolResultStatus.AMBIGUOUS,
-                    "Укажи уведомление (key или query).",
-                )
-                val ok = JarvisNotificationListenerService.instance?.replyText(key, text) == true
-                ToolResult(
-                    call.requestId,
-                    definition.id,
-                    if (ok) ToolResultStatus.SUCCESS else ToolResultStatus.FAILED,
-                    if (ok) "Ответил в уведомление." else "Это уведомление не поддерживает текстовый ответ.",
-                )
-            }
             else -> ToolResult(call.requestId, definition.id, ToolResultStatus.AMBIGUOUS, "Неизвестное действие")
         }
     }
+}
+
+/** Ответ в мессенджер из уведомления. Уходит живому человеку, поэтому только с подтверждением. */
+class NotificationReplyTool : Tool {
+    override val definition = ToolDefinition(
+        id = ID,
+        name = "Ответ на сообщение",
+        description = "Ответить на объявленное сообщение из уведомления",
+        parameters = listOf(
+            ToolParameter("text", "Текст ответа", ParameterType.STRING, true),
+            ToolParameter("query", "От кого сообщение", ParameterType.STRING, false),
+        ),
+        riskLevel = RiskLevel.CONFIRM,
+        onlineRequirement = OnlineRequirement.LOCAL_ONLY,
+    )
+
+    override fun execute(call: ToolCall): ToolResult {
+        val text = call.arguments["text"]?.toString()?.trim().orEmpty()
+        if (text.isBlank()) return result(call, ToolResultStatus.AMBIGUOUS, "Что ответить, сэр?")
+        val key = resolveKey(call) ?: return result(call, ToolResultStatus.AMBIGUOUS, "Сообщения для ответа нет, сэр.")
+        return if (JarvisNotificationListenerService.instance?.replyText(key, text) == true) {
+            result(call, ToolResultStatus.SUCCESS, "Ответил, сэр.")
+        } else {
+            result(call, ToolResultStatus.FAILED, "На это сообщение нельзя ответить отсюда, сэр.")
+        }
+    }
+
+    private fun result(call: ToolCall, status: ToolResultStatus, message: String) =
+        ToolResult(call.requestId, definition.id, status, message)
 
     private fun resolveKey(call: ToolCall): String? {
-        val key = call.arguments["key"]?.toString().orEmpty()
-        if (key.isNotBlank()) return key
         val q = call.arguments["query"]?.toString()?.lowercase().orEmpty()
         if (q.isBlank()) return JarvisNotificationListenerService.lastAnnouncedKey
         return JarvisNotificationListenerService.snapshot().firstOrNull {
-            it.title.lowercase().contains(q) || it.text.lowercase().contains(q) ||
-                it.packageName.lowercase().contains(q)
+            it.title.lowercase().contains(q) || it.text.lowercase().contains(q) || it.packageName.lowercase().contains(q)
         }?.key
+    }
+
+    companion object {
+        const val ID = "notifications.reply"
     }
 }

@@ -87,6 +87,9 @@ class JarvisSpeaker(context: Context) {
 
     @Volatile private var _lastPlayEndAtMs = 0L
     @Volatile private var speechPlaying = false
+    /** Джарвис сам произносит своё имя: перебивание должно быть строже, иначе услышит себя. */
+    @Volatile var saysOwnName = false
+        private set
     private var listeningTurn = 0
 
     private fun setPlayEnd() {
@@ -219,6 +222,7 @@ class JarvisSpeaker(context: Context) {
         com.jarvis.core.nlp.Translator.speechLocale(raw)?.let { locale ->
             foreignPcm(raw, locale, gen)?.let { return it }
         }
+        saysOwnName = raw.contains("джарвис", ignoreCase = true)
         val text = SpeechTextNormalizer.forSpeech(raw)
         if (text.isBlank()) return FloatArray(0) to 22_050
         val bridge = hybrid

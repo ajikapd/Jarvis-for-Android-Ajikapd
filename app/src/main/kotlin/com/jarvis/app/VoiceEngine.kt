@@ -325,20 +325,27 @@ class VoiceEngine(
     private var bargeKeywordAt = 0L
 
     /**
-     * Прерывание голосом: «Джарвис» поверх собственной речи. Динамик рядом с микрофоном,
+     * Прерывание голосом: «Джарвис» поверх собственной речи. На своей речи OWW даёт 0,001 при пороге 0,03,
+     * поэтому хватает его одного; оба детектора нужны, только когда Джарвис сам называет своё имя.
+     * После голосовой команды детектор выключен, а взводится лишь вне речи: взводим его здесь.
+     * Динамик рядом с микрофоном,
      * поэтому нужны оба детектора в пределах секунды, иначе он перебивал бы сам себя.
      */
     private fun handleBargeIn(samples: FloatArray) {
         val kws = kwsSpotter ?: return
         val engine = wakeWordEngine ?: return
         if (engine.state != WakeWordState.IDLE) return
+        if (!kws.isArmed) kws.armForNextWake(cooldownMs = 0)
         val now = SystemClock.elapsedRealtime()
         if (kws.process(samples)) {
             bargeOwwAt = now
             kws.armForNextWake(cooldownMs = 0)
+            VoiceHealthLog.write(app, "barge oww")
         }
         if (keywordSpotter?.process(samples) == true) bargeKeywordAt = now
-        if (now - bargeOwwAt > BARGE_WINDOW_MS || now - bargeKeywordAt > BARGE_WINDOW_MS) return
+        val saysOwnName = speaker?.saysOwnName == true
+        if (now - bargeOwwAt > BARGE_WINDOW_MS) return
+        if (saysOwnName && now - bargeKeywordAt > BARGE_WINDOW_MS) return
         if (!speechGate.speechPresent()) return
         bargeOwwAt = 0L
         bargeKeywordAt = 0L

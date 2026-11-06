@@ -337,6 +337,48 @@ class AssistantOrchestratorTest {
     }
 
     @Test
+    fun `message reply waits for confirmation and no cancels it`() {
+        var sent = 0
+        val tool = object : com.jarvis.core.common.Tool {
+            override val definition = com.jarvis.core.common.model.ToolDefinition(
+                id = "notifications.reply", name = "Ответ", description = "ответ",
+                parameters = emptyList(), riskLevel = RiskLevel.CONFIRM,
+                onlineRequirement = com.jarvis.core.common.model.OnlineRequirement.LOCAL_ONLY,
+            )
+            override fun execute(call: com.jarvis.core.common.model.ToolCall): com.jarvis.core.common.model.ToolResult {
+                sent++
+                return com.jarvis.core.common.model.ToolResult(
+                    call.requestId, definition.id, com.jarvis.core.common.model.ToolResultStatus.SUCCESS, "ok",
+                )
+            }
+        }
+        fun brain(): AssistantOrchestrator {
+            val registry = ToolRegistry().apply { register(tool) }
+            return AssistantOrchestrator(
+                brainRouter = RuleBasedBrain(),
+                skillRetriever = SkillRetriever(SkillManifestRegistry(), k = 6),
+                toolRegistry = registry,
+                toolExecutor = DefaultToolExecutor(registry),
+                toolPolicy = RiskBasedPolicy(),
+                context = ConversationContext(),
+                longTermMemory = FakeMemory(),
+                dialogue = FakeDialogue(),
+            )
+        }
+        val refused = brain()
+        val ask = refused.process(UserRequest("ответь что понял"))
+        assertEquals(com.jarvis.core.common.model.AssistantResponseStatus.NEEDS_CONFIRMATION, ask.status)
+        assertTrue(ask.replyText, ask.replyText.contains("«понял»"))
+        refused.process(UserRequest("нет"))
+        assertEquals(0, sent)
+
+        val accepted = brain()
+        accepted.process(UserRequest("ответь что понял"))
+        accepted.process(UserRequest("да"))
+        assertEquals(1, sent)
+    }
+
+    @Test
     fun `assistant reply is added to conversation context`() {
         val context = ConversationContext()
         val registry = ToolRegistry().apply { register(FakeFlashlightTool()) }

@@ -193,8 +193,15 @@ object ToolCallFactory {
             IntentType.UI_WAIT ->
                 ToolCall(requestId = requestId, toolId = "ui.wait", arguments = slotsToArgs(intent))
 
-            IntentType.NOTIFICATIONS ->
-                ToolCall(requestId = requestId, toolId = "notifications.list", arguments = slotsToArgs(intent))
+            IntentType.NOTIFICATIONS -> {
+                val args = slotsToArgs(intent)
+                val reply = args["action"] == "reply"
+                ToolCall(
+                    requestId = requestId,
+                    toolId = if (reply) "notifications.reply" else "notifications.list",
+                    arguments = if (reply) args - "action" else args,
+                )
+            }
 
             IntentType.CLIPBOARD -> {
                 val action = intent.slots["action"]?.value as? String ?: return null

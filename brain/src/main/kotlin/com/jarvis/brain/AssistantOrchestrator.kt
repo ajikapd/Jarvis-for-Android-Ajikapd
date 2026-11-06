@@ -1556,6 +1556,7 @@ class AssistantOrchestrator(
                 val app = toolCall.arguments["app"]?.toString().orEmpty().ifBlank { "приложение" }
                 "Принудительно остановить «$app»? Да или нет, сэр?"
             }
+            "notifications.reply" -> "Ответить: «${toolCall.arguments["text"]}»? Да или нет, сэр?"
             else -> "Выполнить «${toolCall.toolId}»? Да или нет, сэр?"
         }
 

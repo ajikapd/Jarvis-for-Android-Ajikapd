@@ -39,6 +39,7 @@ object ActionArgumentRules {
             tool == "clipboard" -> setOf("action", "text")
             tool == "sms" || tool == "telegram.send" || tool == "phone.call" ->
                 setOf("action", "contact", "number", "text", "chat", "message", "history")
+            tool == "notifications.reply" -> setOf("text", "query")
             tool == "contacts.search" || tool == "contacts" ->
                 setOf("query", "name")
             tool == "files.search" || tool == "files" ->

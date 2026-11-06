@@ -249,6 +249,7 @@ object BrainGraph {
             register(FilesTool(ctx))
             register(SystemSettingTool(ctx))
             register(NotificationTool())
+            register(com.jarvis.tools.NotificationReplyTool())
             register(ClipboardTool(ctx))
             register(ScreenshotTool(ctx))
             register(UiClickTool(ctx))
