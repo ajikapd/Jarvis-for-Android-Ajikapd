@@ -39,6 +39,7 @@ class JarvisSpeaker(context: Context) {
     }
 
     private val appCtx = context.applicationContext
+    private val foreignVoice by lazy { com.jarvis.app.tts.AndroidSystemTtsBackend(appCtx) }
     private val ttsDir: File = resolveTtsDir(context)
     private val player = TtsPlayer()
     private val ttsExecutor = Executors.newSingleThreadExecutor { r ->
@@ -202,7 +203,18 @@ class JarvisSpeaker(context: Context) {
     @Volatile private var streamSpeakGeneration = 0
     @Volatile private var streamFirstAudioSent = false
 
+    /** Иностранный текст читает системный голос: русская модель его не осилит. */
+    private fun foreignPcm(raw: String, locale: String, gen: Int): Pair<FloatArray, Int>? {
+        val result = foreignVoice.synthesize(
+            raw, com.jarvis.core.voice.TtsVoiceConfig(language = locale), cancelFlag = { gen != speakGeneration },
+        )
+        return result.samples.takeIf { it.isNotEmpty() }?.let { JarvisVoiceFx.process(it, result.sampleRateHz) to result.sampleRateHz }
+    }
+
     private fun synthPcm(raw: String, gen: Int, queueDepth: Int): Pair<FloatArray, Int> {
+        com.jarvis.core.nlp.Translator.speechLocale(raw)?.let { locale ->
+            foreignPcm(raw, locale, gen)?.let { return it }
+        }
         val text = SpeechTextNormalizer.forSpeech(raw)
         if (text.isBlank()) return FloatArray(0) to 22_050
         val bridge = hybrid

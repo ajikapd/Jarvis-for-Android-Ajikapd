@@ -172,6 +172,34 @@ class AssistantOrchestratorTest {
     }
 
     @Test
+    fun `translator mode translates until told to stop`() {
+        val asked = mutableListOf<String>()
+        val registry = ToolRegistry()
+        val orch = AssistantOrchestrator(
+            brainRouter = RuleBasedBrain(), skillRetriever = SkillRetriever(SkillManifestRegistry(), k = 6),
+            toolRegistry = registry, toolExecutor = DefaultToolExecutor(registry), toolPolicy = RiskBasedPolicy(),
+            context = ConversationContext(), longTermMemory = FakeMemory(),
+            dialogue = object : DialogueResponder(null) {
+                override fun respondDetailed(
+                    userText: String, history: List<String>, memories: String,
+                    assembled: com.jarvis.core.llm.AssembledLlmContext?,
+                ): DialogueResult {
+                    asked += userText
+                    return DialogueResult("Good morning", DialogueResult.Kind.LLM)
+                }
+            },
+        )
+        try {
+            assertTrue(orch.process(UserRequest("включи переводчик на английский")).replyText.contains("английский"))
+            assertEquals("Good morning", orch.process(UserRequest("выключи фонарик")).replyText)
+            assertTrue(asked.single(), asked.single().contains("выключи фонарик"))
+            assertEquals("Переводчик выключен, сэр.", orch.process(UserRequest("стоп перевод")).replyText)
+        } finally {
+            com.jarvis.core.nlp.Translator.active = null
+        }
+    }
+
+    @Test
     fun `routine runs its steps and answers once`() {
         val done = mutableListOf<String>()
         val registry = ToolRegistry().apply {

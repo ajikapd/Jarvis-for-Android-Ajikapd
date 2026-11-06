@@ -9,6 +9,7 @@ import com.jarvis.core.common.model.ConversationContext
 import com.jarvis.core.common.model.PendingAction
 import com.jarvis.core.common.model.ToolCall
 import com.jarvis.core.common.model.UserRequest
+import com.jarvis.core.nlp.Translator
 import com.jarvis.core.event.AssistantEvent
 import com.jarvis.core.event.JarvisEvents
 import com.jarvis.core.model.AssistantState
@@ -121,6 +122,7 @@ class AssistantOrchestrator(
 
         if (context.pendingAction != null) return null
         if (findRoutine(normalizedRequest.text) != null) return null
+        if (Translator.active != null || Translator.parse(normalizedRequest.text) != null) return null
 
         // Do not mutate conversation until CHAT streaming is confirmed
         val earlyFollowUp = FollowUpResolver.resolve(normalizedRequest.text, context.lastToolCall)
@@ -318,6 +320,8 @@ class AssistantOrchestrator(
 
         rememberUser(normalizedRequest.text)
         state(AssistantState.THINKING)
+
+        translationResponse(normalizedRequest, startedAt, trace)?.let { return finalizeTrace(it, trace, startedAt) }
 
         findRoutine(normalizedRequest.text)?.let { routine ->
             val done = processCompound(normalizedRequest, routine.steps, startedAt, trace)
@@ -826,6 +830,37 @@ class AssistantOrchestrator(
             intent = lastIntent,
             durationMs = (System.nanoTime() - startedAt) / 1_000_000,
         )
+    }
+
+    /** Перевод делает модель: при включённом переводчике это каждая фраза, кроме команды выхода. */
+    private fun translationResponse(
+        request: UserRequest,
+        startedAt: Long,
+        trace: com.jarvis.core.runtime.RequestTrace,
+    ): AssistantResponse? {
+        fun said(text: String): AssistantResponse {
+            rememberReply(text)
+            state(AssistantState.READY)
+            return AssistantResponse(
+                requestId = request.requestId, replyText = text, status = AssistantResponseStatus.PROCESSED,
+                intent = null, durationMs = (System.nanoTime() - startedAt) / 1_000_000,
+            )
+        }
+        fun translate(target: com.jarvis.core.nlp.TranslationTarget, text: String) =
+            respondChat(request.copy(text = Translator.prompt(target, text)), startedAt, trace, allowFollowUp = false)
+
+        return when (val parsed = Translator.parse(request.text)) {
+            Translator.Request.Stop -> {
+                Translator.active = null
+                said("Переводчик выключен, сэр.")
+            }
+            is Translator.Request.Start -> {
+                Translator.active = parsed.target
+                said("Перевожу на ${parsed.target.name}, сэр. Говорите.")
+            }
+            is Translator.Request.Once -> translate(parsed.target, parsed.text)
+            null -> Translator.active?.let { translate(it, request.text) }
+        }
     }
 
     private fun findRoutine(text: String): com.jarvis.core.nlp.Routine? =
