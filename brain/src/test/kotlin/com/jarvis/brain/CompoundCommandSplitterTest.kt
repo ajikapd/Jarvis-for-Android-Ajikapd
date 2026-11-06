@@ -91,4 +91,10 @@ class CompoundCommandSplitterTest {
         val steps = CompoundCommandSplitter.split("громче, потом тише")
         assertEquals(2, steps.size)
     }
+
+    @Test
+    fun `agent goal stays whole`() {
+        val text = "сделай сам открой ютуб и найди видео про котиков"
+        assertEquals(listOf(text), CompoundCommandSplitter.split(text))
+    }
 }

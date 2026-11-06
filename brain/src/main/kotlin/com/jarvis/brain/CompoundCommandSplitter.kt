@@ -33,9 +33,13 @@ object CompoundCommandSplitter {
         Regex("""\s*,\s+""", RegexOption.IGNORE_CASE),
     )
 
+    private val SELF_DIRECTED = Regex("^(джарвис[,\\s]+)?(сделай сам|сам сделай)", RegexOption.IGNORE_CASE)
+
     fun split(text: String): List<String> {
         val trimmed = text.trim()
         if (trimmed.isBlank()) return emptyList()
+        // Цель агента целиком: «сделай сам: открой ютуб и найди котиков» — одна задача.
+        if (SELF_DIRECTED.containsMatchIn(trimmed)) return listOf(trimmed)
 
         var parts = listOf(trimmed)
         for (sep in hardSeparators) {

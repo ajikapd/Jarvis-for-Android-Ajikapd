@@ -33,6 +33,7 @@ class RuleBasedBrain(
         val words = normalize(request.text)
         if (words.isEmpty()) return BrainResult.Clarify(question = "Не расслышал, сэр. Повторите, пожалуйста.", confidence = 0.3f)
 
+        selfDirected(words)?.let { return it }
         personalData(words, request)?.let { return it }
         // Отложенная команда раньше всех: «через час выключи фонарик» нельзя выполнять сейчас.
         scheduledCommand(words, request)?.let { return it }
@@ -398,6 +399,13 @@ class RuleBasedBrain(
             spoken.replace(" точка ", ".").replace(Regex("[ .](ру|ru)$"), ".ru").replace(Regex("[ .](ком|com)$"), ".com")
                 .replace(" ", ""),
         )
+
+    /** «Сделай сам: открой настройки». Только по этой фразе: чужие приложения трогаем по слову. */
+    private fun selfDirected(words: List<String>): BrainResult? {
+        val text = words.joinToString(" ")
+        val goal = SELF_DIRECTED.find(text)?.groupValues?.get(1)?.trim() ?: return null
+        return skill(IntentType.APP_AGENT, mapOf("goal" to goal), text, 0.95f)
+    }
 
     private fun webAnswer(words: List<String>): BrainResult? {
         if (words.firstOrNull() !in ANSWER_VERBS || words.size < 2) return null
@@ -1400,6 +1408,7 @@ class RuleBasedBrain(
         private val ALARM_PM_WORDS = setOf("вечера", "вечером", "дня", "днём", "днем")
         private val PERCENT_WORDS = setOf("процент", "процента", "процентов")
         /** Отдельно от ON_VERBS: там «сделай» и «дай», а это не просьба включить трек. */
+        private val SELF_DIRECTED = Regex("^(?:сделай сам|сам сделай)\\s*(.*)$")
         private val MUSIC_PLAY_VERBS = setOf("включи", "включить", "включите", "поставь", "играй")
         private val MOOD_REQUEST = Regex("что[- ](?:нибудь|то)(?:\\s+из\\s+музыки)?(?!\\s+от\\s)\\s*(.*)$")
         private val SETTINGS_SECTIONS = linkedMapOf(

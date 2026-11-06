@@ -188,6 +188,7 @@ object ScreenController {
             focused = node.isFocused,
             enabled = node.isEnabled,
             depth = depth,
+            password = node.isPassword,
         )
     }
 
@@ -308,6 +309,12 @@ object ScreenController {
         try {
             val focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT) ?: return false
             return try {
+                // Настоящий Enter клавиатуры: без него поиск в приложениях не запускается.
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R &&
+                    focused.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_IME_ENTER.id)
+                ) {
+                    return true
+                }
                 val args = Bundle().apply {
                     putInt(
                         AccessibilityNodeInfo.ACTION_ARGUMENT_MOVEMENT_GRANULARITY_INT,

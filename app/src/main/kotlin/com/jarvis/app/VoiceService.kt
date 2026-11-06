@@ -84,6 +84,7 @@ class VoiceService : Service() {
 
         override fun onRequest(request: UserRequest) {
             if (request.text.isBlank()) return
+            if (AppAgentRunner.consume(request.text)) return
             val gen = generationGate.begin()
             BrainGraph.build(this@VoiceService).cancelActiveChatStream()
             VoiceController.stopSpeaking()

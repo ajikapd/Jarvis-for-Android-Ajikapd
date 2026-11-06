@@ -39,6 +39,8 @@ class FastSemanticClassifier : SemanticInterpreter {
         if (t.contains("напомни") || t.contains("напоминан")) return null
         // Описание своего сценария содержит команды, но выполнять их сейчас нельзя.
         if (t.contains("сценарий") || OWN_ROUTINE.containsMatchIn(t)) return null
+        // «Сделай сам» содержит цель из нескольких шагов, её ведёт агент, а не план.
+        if (t.startsWith("сделай сам") || t.startsWith("сам сделай")) return null
         // Отложенную команду разбирает Brain: выполнять или уточнять её сейчас нельзя.
         if (SCHEDULE_WORDS.containsMatchIn(t)) return null
 

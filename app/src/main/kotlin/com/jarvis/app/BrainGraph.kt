@@ -371,6 +371,19 @@ object BrainGraph {
         // 9б-2b: ChainCloudProvider поверх цепочки (legacy = CloudLLMProvider как fallback; не регистрируем CloudLLMProvider напрямую)
         val keyStore = SecureKeyStore(ctx)
         toolRegistry.register(
+            com.jarvis.tools.AppAgentTool(
+                AppAgentRunner(ctx) { prompt ->
+                    chainCloudProvider?.complete(
+                        com.jarvis.brain.aiprovider.AICompletionRequest(
+                            requestId = java.util.UUID.randomUUID().toString(),
+                            userText = prompt,
+                            taskType = com.jarvis.brain.aiprovider.AiTaskType.GENERAL,
+                        ),
+                    )?.text
+                }::start,
+            ),
+        )
+        toolRegistry.register(
             com.jarvis.tools.WebAnswerTool(ask = { prompt ->
                 chainCloudProvider?.complete(
                     com.jarvis.brain.aiprovider.AICompletionRequest(

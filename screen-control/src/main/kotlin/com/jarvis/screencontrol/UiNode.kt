@@ -15,6 +15,7 @@ data class UiNode(
     val focused: Boolean,
     val enabled: Boolean,
     val depth: Int,
+    val password: Boolean = false,
 ) {
     val searchable: String
         get() = listOf(text, contentDescription, viewId.substringAfterLast('/'))

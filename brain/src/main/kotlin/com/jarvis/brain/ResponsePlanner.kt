@@ -240,6 +240,7 @@ object ToolCallFactory {
             IntentType.PLACES -> ToolCall(requestId = requestId, toolId = "places", arguments = slotsToArgs(intent))
             IntentType.CUSTOM_ROUTINE -> ToolCall(requestId = requestId, toolId = "routine.custom", arguments = slotsToArgs(intent))
             IntentType.APP_ACTION -> ToolCall(requestId = requestId, toolId = "app.action", arguments = slotsToArgs(intent))
+            IntentType.APP_AGENT -> ToolCall(requestId = requestId, toolId = "agent.run", arguments = slotsToArgs(intent))
             IntentType.WEB_ANSWER -> ToolCall(requestId = requestId, toolId = "web.answer", arguments = slotsToArgs(intent))
 
             IntentType.FORGET ->
