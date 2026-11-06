@@ -58,7 +58,7 @@ class ReminderReceiver : BroadcastReceiver() {
             )
             val open = PendingIntent.getActivity(
                 context, id.toInt(),
-                Intent(context, DashboardActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                Intent(context, com.jarvis.app.ui.JarvisActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
             val note = NotificationCompat.Builder(context, CHANNEL)

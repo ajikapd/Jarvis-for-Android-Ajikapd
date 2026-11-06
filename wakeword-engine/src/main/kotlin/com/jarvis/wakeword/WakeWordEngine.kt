@@ -49,6 +49,17 @@ class WakeWordEngine(
 
     private val commandPcm = ArrayList<Float>(SAMPLE_RATE * 6)
 
+    /** Прервать ожидание команды извне: кнопка отмены или вход в Live. */
+    fun cancelListening() {
+        if (state == WakeWordState.IDLE) return
+        clearHangover()
+        clearPcm()
+        pendingCommandPrefix = ""
+        lastPartial = ""
+        session.reset()
+        state = WakeWordState.IDLE
+    }
+
     fun notifyExternalWake() {
         if (state != WakeWordState.IDLE) return
         val now = System.currentTimeMillis()

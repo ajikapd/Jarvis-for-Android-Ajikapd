@@ -55,7 +55,7 @@ object ProactiveNotification {
         val open = PendingIntent.getActivity(
             context,
             requestCode(deliveryId, "open"),
-            Intent(context, DashboardActivity::class.java).apply {
+            Intent(context, com.jarvis.app.ui.JarvisActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,

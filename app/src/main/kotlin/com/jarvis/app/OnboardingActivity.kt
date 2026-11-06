@@ -79,7 +79,7 @@ class OnboardingActivity : AppCompatActivity() {
             val next = if (UsageGuideActivity.needsGuide(this)) {
                 Intent(this, UsageGuideActivity::class.java)
             } else {
-                Intent(this, DashboardActivity::class.java)
+                Intent(this, com.jarvis.app.ui.JarvisActivity::class.java)
             }
             startActivity(next)
             finish()

@@ -17,7 +17,7 @@ class UsageGuideActivity : AppCompatActivity() {
         findViewById<android.view.View>(R.id.btnGuideDone).setOnClickListener {
             markDone()
             startActivity(
-                Intent(this, DashboardActivity::class.java)
+                Intent(this, com.jarvis.app.ui.JarvisActivity::class.java)
                     .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
             )
             finish()
@@ -25,7 +25,7 @@ class UsageGuideActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.btnGuideCommands).setOnClickListener {
             markDone()
             startActivity(
-                Intent(this, DashboardActivity::class.java)
+                Intent(this, com.jarvis.app.ui.JarvisActivity::class.java)
                     .putExtra(DashboardActivity.EXTRA_OPEN_TAB, DashboardActivity.TAB_MORE)
                     .putExtra(DashboardActivity.EXTRA_OPEN_SECONDARY, "commands")
                     .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),

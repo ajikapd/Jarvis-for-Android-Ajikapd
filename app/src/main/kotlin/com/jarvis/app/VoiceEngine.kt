@@ -243,11 +243,14 @@ class VoiceEngine(
                     audioCapture!!.chunks.collect { chunk ->
                         speechGate.onChunk(chunk.samples)
                         reportBargeWindow()
+                        syncLiveTalk()
+                        if (VoiceController.liveMuted && VoiceController.liveTalk) return@collect
                         if (processingBusy || disposed) return@collect
                         val sp = speaker ?: return@collect
                         // Глушим mic только под TTS-речь (не под wake-чим) + короткий хвост
                         // против самоподхвата. Раньше playing+400 мс резали команду после wake.
-                        if (sp.speaking && !continuous) {
+                        val talking = continuous || VoiceController.liveTalk
+                        if (sp.speaking && !talking) {
                             handleBargeIn(chunk.samples)
                             return@collect
                         }
@@ -258,7 +261,7 @@ class VoiceEngine(
                             // Android Speech owns mic; do not feed Sherpa/KWS.
                             return@collect
                         }
-                        if (continuous) {
+                        if (talking) {
                             handleContinuousChunk(chunk.samples)
                         } else {
                             handleWakeChunk(chunk.samples)
@@ -378,6 +381,44 @@ class VoiceEngine(
         keywordSpotter?.reset()
         engine.notifyExternalWake()
         maybeStartCloudCommandAfterWake()
+    }
+
+    private var liveTalkApplied = false
+
+    /** Live без перезагрузки моделей: слово активации на это время выключено. */
+    private fun syncLiveTalk() {
+        val want = VoiceController.liveTalk
+        if (want == liveTalkApplied) return
+        liveTalkApplied = want
+        if (want) {
+            kwsSpotter?.disarm()
+            keywordSpotter?.reset()
+            wakeWordEngine?.cancelListening()
+            log("live talk on")
+        } else {
+            hybridAsr?.cancelTurn()
+            kwsSpotter?.armForNextWake(cooldownMs = 0)
+            keywordSpotter?.reset()
+            log("live talk off")
+        }
+    }
+
+    /** Кнопка микрофона: то же, что сказать слово активации, в том числе поверх речи. */
+    fun manualWake() {
+        val engine = wakeWordEngine ?: return
+        bargeWake = speaker?.speaking == true
+        kwsSpotter?.disarm()
+        keywordSpotter?.reset()
+        engine.notifyExternalWake()
+        maybeStartCloudCommandAfterWake()
+    }
+
+    /** Отмена запроса кнопкой: перестать слушать и вернуться к ожиданию слова. */
+    fun cancelTurn() {
+        wakeWordEngine?.cancelListening()
+        kwsSpotter?.armForNextWake(cooldownMs = 0)
+        keywordSpotter?.reset()
+        stopSpeaking()
     }
 
     private fun handleWakeChunk(samples: FloatArray) {
@@ -844,6 +885,19 @@ object VoiceController {
 
     fun removeListener(listener: Listener) {
         listeners -= listener
+    }
+
+    /** Разговор Live без слова активации; движок подхватывает это на следующем куске звука. */
+    @Volatile var liveTalk: Boolean = false
+    @Volatile var liveMuted: Boolean = false
+
+    fun manualWake() {
+        activeEngine?.manualWake()
+    }
+
+    fun cancelTurn(context: Context) {
+        activeEngine?.cancelTurn()
+        BrainGraph.build(context).cancelActiveChatStream()
     }
 
     fun start(context: Context) {

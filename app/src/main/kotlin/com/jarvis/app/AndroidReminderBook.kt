@@ -98,7 +98,7 @@ class AndroidReminderBook(context: Context) : ReminderBook {
     )
 
     private fun openApp(): PendingIntent = PendingIntent.getActivity(
-        ctx, 0, Intent(ctx, DashboardActivity::class.java),
+        ctx, 0, Intent(ctx, com.jarvis.app.ui.JarvisActivity::class.java),
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
 
