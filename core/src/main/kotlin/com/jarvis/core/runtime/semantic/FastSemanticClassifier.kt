@@ -11,6 +11,7 @@ class FastSemanticClassifier : SemanticInterpreter {
         /** Обращение и вежливость не меняют команду: «джарвис, включи, пожалуйста, фонарик». */
         val POLITE_WORDS = Regex("(^|[\\s,])(джарвис|слушай|пожалуйста)(?=$|[\\s,])")
         val SPACES = Regex("[\\s,]{2,}")
+        val SCHEDULE_WORDS = Regex("(^|\\s)(через|завтра|послезавтра|каждый|каждое|ежедневно)\\s")
         val OWN_ROUTINE = Regex("^(когда|если)\\s+(я\\s+)?(говорю|скажу)\\s")
     }
 
@@ -38,6 +39,8 @@ class FastSemanticClassifier : SemanticInterpreter {
         if (t.contains("напомни") || t.contains("напоминан")) return null
         // Описание своего сценария содержит команды, но выполнять их сейчас нельзя.
         if (t.contains("сценарий") || OWN_ROUTINE.containsMatchIn(t)) return null
+        // Отложенную команду разбирает Brain: выполнять или уточнять её сейчас нельзя.
+        if (SCHEDULE_WORDS.containsMatchIn(t)) return null
 
         // Pronouns / vague without resolveable context → CLARIFY
         pronounAmbiguity(t, input)?.let { return it.copy(rawInput = raw, normalizedInput = norm) }

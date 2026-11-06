@@ -181,6 +181,9 @@ class CloudChainCallTest {
     @Test
     fun cancelBeforeFirstToken_noCallbacks() {
         val lateExecutor = java.util.concurrent.ScheduledThreadPoolExecutor(1)
+        // Поток занят до отмены, иначе под нагрузкой токен успевает прийти раньше cancel().
+        val gate = java.util.concurrent.CountDownLatch(1)
+        lateExecutor.execute { gate.await() }
         val l = RecordingListener()
         val c = CloudChainCall(
             systemPrompt = "sys", history = emptyList(), userText = "go", maxTokens = 16,
@@ -190,6 +193,7 @@ class CloudChainCallTest {
         )
         val h = c.start(entry, 0, l)
         h.cancel()
+        gate.countDown()
         l.latch.await(300, TimeUnit.MILLISECONDS)
         assertTrue(l.first.isEmpty())
         assertNull(l.errCode)
