@@ -46,9 +46,9 @@ open class DialogueResponder(
                         t.contains("сегодня") || t.contains("погода") || t.contains("фонарик"))))
         ) {
             val text = if (prevUser.isBlank()) {
-                "Сначала скажи команду, потом могу повторить."
+                "Пока нечего повторить, сэр."
             } else {
-                "Уточни запрос целиком (было: «${prevUser.take(60)}»)."
+                "Уточните запрос целиком, сэр. Было: «${prevUser.take(60)}»."
             }
             return DialogueResult(text, DialogueResult.Kind.TEMPLATE, reason = "follow_up_clarify")
         }
@@ -68,16 +68,17 @@ open class DialogueResponder(
             (t.contains("сколько времени") || t.contains("который час") || t.contains("сколько время") ||
                 t == "время" || t == "текущее время")
         ) {
-            val text = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+            val time = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
                 .format(java.util.Date())
+            val text = "Сейчас $time, сэр."
             return DialogueResult(text, DialogueResult.Kind.TEMPLATE, reason = "time")
         }
         if (shortEnough(40) &&
             (t.contains("какая дата") || t.contains("какое число") || t.contains("какой сегодня день"))
         ) {
-            val text = java.text.SimpleDateFormat("EEEE, d MMMM yyyy", java.util.Locale("ru"))
+            val date = java.text.SimpleDateFormat("EEEE, d MMMM yyyy", java.util.Locale("ru"))
                 .format(java.util.Date())
-                .replaceFirstChar { it.uppercase() }
+            val text = "Сегодня $date, сэр."
             return DialogueResult(text, DialogueResult.Kind.TEMPLATE, reason = "date")
         }
 
@@ -92,19 +93,19 @@ open class DialogueResponder(
                         "FRIENDLY" -> "Привет-привет! Чем могу помочь?"
                         "MINIMAL" -> "Привет."
                         "DEVELOPER" -> "Приветствую. Готов к работе."
-                        else -> "Привет. Чем могу помочь?"
+                        else -> com.jarvis.core.nlp.DailyBriefing.greeting(java.time.LocalTime.now().hour) + " Чем могу помочь?"
                     }
                     return DialogueResult(text, DialogueResult.Kind.TEMPLATE, reason = "greeting")
                 }
                 has("спасибо", "благодарю") && t.length <= 24 ->
                     return DialogueResult(
-                        "Всегда пожалуйста.",
+                        "Всегда к вашим услугам, сэр.",
                         DialogueResult.Kind.TEMPLATE,
                         reason = "thanks",
                     )
                 has("пока", "до свидания") && t.length <= 24 ->
                     return DialogueResult(
-                        "До встречи! Вызови меня командой «джарвис».",
+                        "До встречи, сэр. Буду на связи.",
                         DialogueResult.Kind.TEMPLATE,
                         reason = "goodbye",
                     )
@@ -119,14 +120,14 @@ open class DialogueResponder(
                 "FRIENDLY" -> "Привет! Я Джарвис, твой голосовой помощник. Всё работает локально."
                 "MINIMAL" -> "Джарвис. Офлайн-ассистент."
                 "DEVELOPER" -> "Jarvis · локальный ASR/TTS · Brain."
-                else -> "Я Джарвис — голосовой ассистент. Работаю офлайн."
+                else -> "Джарвис, сэр. Ваш личный ассистент."
             }
             return DialogueResult(text, DialogueResult.Kind.TEMPLATE, reason = "identity")
         }
         // «что ты умеешь» — short template OK; long conversational about capabilities → LLM
         if (shortEnough(40) && has("что ты умеешь", "что умеешь", "твои возможности")) {
             return DialogueResult(
-                "Могу включать фонарик, громкость, музыку, смотреть погоду, искать факты в Википедии и просто поболтать.",
+                "Управляю телефоном и приложениями, сэр. Музыка, звонки, сообщения, погода, напоминания, маршруты, сводка на день. На вопросы тоже отвечаю.",
                 DialogueResult.Kind.TEMPLATE,
                 reason = "capabilities",
             )
@@ -210,14 +211,14 @@ open class DialogueResponder(
     ): String {
         fun has(vararg words: String) = words.any { t.contains(it) }
         if (t in setOf("это", "туда", "туда же", "сюда", "так же", "также") && prevUser.isNotBlank()) {
-            return "Имеешь в виду «$prevUser»? Уточни командой целиком."
+            return "Вы имеете в виду «$prevUser», сэр? Уточните командой целиком."
         }
         if (has("ты кто", "кто ты", "что ты")) {
             return when (persona) {
                 "FRIENDLY" -> "Привет! Я Джарвис, твой голосовой помощник. Всё работает локально."
                 "MINIMAL" -> "Джарвис. Офлайн-ассистент."
                 "DEVELOPER" -> "Jarvis · локальный ASR/TTS · Brain."
-                else -> "Я Джарвис — голосовой ассистент. Работаю офлайн."
+                else -> "Джарвис, сэр. Ваш личный ассистент."
             }
         }
         if (has("что ты помнишь", "что помнишь", "моя память") && memories.isNotBlank()) {
@@ -226,14 +227,14 @@ open class DialogueResponder(
         if (has("как меня зовут", "мое имя", "моё имя") && memories.isNotBlank()) {
             val nameHint = Regex("""(?i)(?:зовут|имя)[:\s]+([^\n,;.]+)""")
                 .find(memories)?.groupValues?.get(1)?.trim()
-            if (!nameHint.isNullOrBlank()) return "Тебя зовут $nameHint."
+            if (!nameHint.isNullOrBlank()) return "Вас зовут $nameHint, сэр."
             return "В памяти есть: ${memories.take(200)}"
         }
         if (has("что ты умеешь", "что умеешь")) {
             return "Управляю устройством и могу поболтать, если скачана модель диалога (Настройки → Модели)."
         }
         if (t in setOf("да", "нет", "ага", "угу", "давай") && lastAssistant.contains("?")) {
-            return "Ок. Уточни коротко, что сделать дальше."
+            return "Хорошо, сэр. Что сделать дальше?"
         }
         return "Для свободного разговора скачай «Диалог · Qwen 2.5 1.5B» в Настройки → Модели. " +
             "Команды вроде «включи фонарик» работают и без неё."

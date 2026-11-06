@@ -522,7 +522,7 @@ class FastSemanticClassifier : SemanticInterpreter {
         "найди" -> "Что найти?"
         "отправь", "напиши" -> "Кому и что написать?"
         "сделай" -> "Что именно сделать?"
-        else -> "Уточни, пожалуйста, что сделать."
+        else -> "Что именно сделать, сэр?"
     }
 
     private fun incompleteCandidates(t: String): List<String> = when (t) {

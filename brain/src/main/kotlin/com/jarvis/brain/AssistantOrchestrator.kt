@@ -400,7 +400,7 @@ class AssistantOrchestrator(
             return finalizeTrace(
                 respondClarify(
                     normalizedRequest,
-                    "Что именно сделать? Скажи полностью, например «включи свет».",
+                    "Что именно сделать, сэр? Скажите полностью, например: включи свет.",
                     startedAt,
                     trace,
                 ),
@@ -557,7 +557,7 @@ class AssistantOrchestrator(
         return if (c.size >= 2) {
             "Ты имеешь в виду «${c[0]}» или «${c[1]}»?"
         } else {
-            "Уточни, пожалуйста, что сделать."
+            "Что именно сделать, сэр?"
         }
     }
 
@@ -576,7 +576,7 @@ class AssistantOrchestrator(
         val call = com.jarvis.core.aioutput.CloudToolAction.parse(reply, request.requestId)
             ?: return respond(
                 request,
-                "Не получилось разобрать команду. Скажи иначе.",
+                "Не разобрал команду, сэр. Скажите иначе.",
                 AssistantResponseStatus.FAILED,
                 startedAt,
                 route = com.jarvis.core.runtime.RouteDecision.CHAT.name,
@@ -896,7 +896,7 @@ class AssistantOrchestrator(
                         executeSkillCall(normalizedRequest, result, startedAt, trace)
                     }
                 } else if (result.confidence >= clarifyThreshold) {
-                    respondClarify(normalizedRequest, "Уточни, пожалуйста, что сделать.", startedAt, trace)
+                    respondClarify(normalizedRequest, "Что именно сделать, сэр?", startedAt, trace)
                 } else {
                     respondChat(normalizedRequest, startedAt, trace)
                 }
@@ -1128,7 +1128,7 @@ class AssistantOrchestrator(
                     else -> {
                         return respondPending(
                             request,
-                            "Скажи «да» или «нет». ${pending.prompt}",
+                            "Да или нет, сэр? ${pending.prompt}",
                             startedAt,
                             pending,
                         )
@@ -1193,7 +1193,7 @@ class AssistantOrchestrator(
         if (toolCall == null) {
             return respond(
                 request,
-                "Понял, но не хватает деталей. Уточни, пожалуйста.",
+                "Не хватает деталей, сэр. Уточните, пожалуйста.",
                 AssistantResponseStatus.NEEDS_CLARIFICATION,
                 startedAt,
                 intent,
@@ -1269,7 +1269,7 @@ class AssistantOrchestrator(
             setOf("force_stop", "forcestop", "kill")
         if (forceStop) {
             val app = toolCall.arguments["app"]?.toString().orEmpty().ifBlank { "приложение" }
-            val prompt = "Принудительно остановить «$app»? Скажи «да» или «нет»."
+            val prompt = "Принудительно остановить «$app»? Да или нет, сэр?"
             return respondPending(
                 request,
                 prompt,
@@ -1489,13 +1489,13 @@ class AssistantOrchestrator(
                 val name = toolCall.arguments["contact"]?.toString()
                     ?: toolCall.arguments["number"]?.toString()
                     ?: "контакт"
-                "Позвонить «$name»? Скажи «да» или «нет»."
+                "Позвонить «$name»? Да или нет, сэр?"
             }
             "launcher" -> {
                 val app = toolCall.arguments["app"]?.toString().orEmpty().ifBlank { "приложение" }
-                "Принудительно остановить «$app»? Скажи «да» или «нет»."
+                "Принудительно остановить «$app»? Да или нет, сэр?"
             }
-            else -> "Выполнить «${toolCall.toolId}»? Скажи «да» или «нет»."
+            else -> "Выполнить «${toolCall.toolId}»? Да или нет, сэр?"
         }
 
     private fun matchChoice(text: String, choices: List<PendingAction.Choice>): PendingAction.Choice? {

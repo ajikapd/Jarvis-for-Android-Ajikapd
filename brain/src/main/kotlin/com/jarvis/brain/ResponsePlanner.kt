@@ -20,7 +20,7 @@ object ResponsePlanner {
         ToolResultStatus.NEEDS_CONFIRMATION -> result.message ?: "Требуется подтверждение."
         ToolResultStatus.UNAVAILABLE -> result.message ?: "Функция недоступна на этом устройстве."
         ToolResultStatus.OFFLINE -> result.message ?: "Для этого нужен интернет, сейчас он недоступен."
-        ToolResultStatus.AMBIGUOUS -> result.message ?: "Уточни, пожалуйста."
+        ToolResultStatus.AMBIGUOUS -> result.message ?: "Уточните, сэр."
     }
 
     /** Отображение статуса инструмента в статус ответа ассистента. */

@@ -10,14 +10,14 @@ class DialogueResponderTest {
     fun templateGreeting_withoutChatLlm() {
         val d = DialogueResponder(null)
         val r = d.respond("привет", emptyList())
-        assertTrue(r.contains("Привет") || r.contains("привет"))
+        assertTrue(r, r.contains("сэр") && r.contains("Чем могу помочь"))
     }
 
     @Test
     fun time_isDeterministicWithoutLlm() {
         val d = DialogueResponder(null, chatLlm = { null })
         val r = d.respond("который час", emptyList())
-        assertTrue("expected clock-like reply, got: $r", r.matches(Regex("""\d{1,2}:\d{2}""")))
+        assertTrue("expected clock-like reply, got: $r", r.matches(Regex("""Сейчас \d{1,2}:\d{2}, сэр\.""")))
     }
 
     @Test

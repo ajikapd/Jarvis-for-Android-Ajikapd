@@ -29,7 +29,7 @@ class RuleBasedBrain(
         topSkills: List<BrainRouter.SkillInfo>
     ): BrainResult {
         val words = normalize(request.text)
-        if (words.isEmpty()) return BrainResult.Clarify(question = "Не расслышал. Повтори, пожалуйста.", confidence = 0.3f)
+        if (words.isEmpty()) return BrainResult.Clarify(question = "Не расслышал, сэр. Повторите, пожалуйста.", confidence = 0.3f)
 
         // ── фонарик ────────────────────────────────────────────────
         flashLight(words, request)?.let { return it }
@@ -75,7 +75,7 @@ class RuleBasedBrain(
 
         // ничего не совпало — обычный разговор или неопределённая команда
         if (looksLikeCommand(words) && !cloudAvailable()) {
-            return BrainResult.Clarify(question = "Понял, что это команда, но уточни, пожалуйста, что сделать.", confidence = 0.4f)
+            return BrainResult.Clarify(question = "Что именно сделать, сэр?", confidence = 0.4f)
         }
         return BrainResult.Chat(confidence = 0.9f)
     }
@@ -318,7 +318,7 @@ class RuleBasedBrain(
         val seconds = extractSeconds(words)
         if (minutes == null && seconds == null) {
             return BrainResult.Clarify(
-                question = "На сколько установить таймер?",
+                question = "На сколько поставить таймер, сэр?",
                 confidence = 0.5f
             )
         }
@@ -344,7 +344,7 @@ class RuleBasedBrain(
             RuNumbers.endingAt(words, i) != null && RuNumbers.endingAt(words, i + 1) == null
         }
         val first = (na + 1 until words.size).firstOrNull { RuNumbers.endingAt(words, it) != null }
-            ?: return BrainResult.Clarify(question = "На какое время поставить будильник?", confidence = 0.5f)
+            ?: return BrainResult.Clarify(question = "На какое время поставить будильник, сэр?", confidence = 0.5f)
         val hourRaw = RuNumbers.endingAt(words, first) ?: 0
         val minute = numberEnds.lastOrNull()?.takeIf { it > first }?.let { RuNumbers.endingAt(words, it) } ?: 0
         val pm = words.any { it in ALARM_PM_WORDS }
