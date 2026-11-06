@@ -69,6 +69,7 @@ class DebugCommandReceiver : BroadcastReceiver() {
             ACTION_DEBUG_VOICE -> handleVoice(context, intent)
             ACTION_DEBUG_TTS -> if (BuildConfig.DEBUG) handleTtsSample(context, intent)
             ACTION_DEBUG_TTS_DUMP -> if (BuildConfig.DEBUG) handleTtsDump(context, intent)
+            ACTION_DEBUG_ECHO_PROBE -> if (BuildConfig.DEBUG) handleEchoProbe()
             ACTION_ASR_TEST -> handleAsrTest(context, intent)
             ACTION_DEBUG_AUTONOMY -> handleAutonomy(context, intent)
             ACTION_DEBUG_SETTINGS -> handleSettings(context, intent)
@@ -409,6 +410,47 @@ class DebugCommandReceiver : BroadcastReceiver() {
     }
 
     /** Проба Gemini TTS на ключе с телефона: сэмпл в files/, ключ только в заголовке, не в логе. */
+    /** Насколько источники микрофона глушат собственную речь: уровень записи по очереди, пока идёт ответ. */
+    @android.annotation.SuppressLint("MissingPermission")
+    private fun handleEchoProbe() {
+        Log.d(TAG, "echo-probe aec=${android.media.audiofx.AcousticEchoCanceler.isAvailable()}")
+        Thread {
+            val sources = listOf(
+                "MIC" to android.media.MediaRecorder.AudioSource.MIC,
+                "RECOGNITION" to android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION,
+                "COMMUNICATION" to android.media.MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+            )
+            repeat(2) {
+                sources.forEach { (name, source) ->
+                    runCatching {
+                        val rate = 16_000
+                        val size = rate * 2 * 2
+                        val record = android.media.AudioRecord(
+                            source, rate, android.media.AudioFormat.CHANNEL_IN_MONO,
+                            android.media.AudioFormat.ENCODING_PCM_16BIT, size,
+                        )
+                        val aec = android.media.audiofx.AcousticEchoCanceler.create(record.audioSessionId)
+                        aec?.enabled = true
+                        record.startRecording()
+                        val buf = ShortArray(rate * 2)
+                        var got = 0
+                        while (got < buf.size) {
+                            val n = record.read(buf, got, buf.size - got)
+                            if (n <= 0) break
+                            got += n
+                        }
+                        record.stop()
+                        record.release()
+                        aec?.release()
+                        val tail = buf.copyOfRange(rate / 2, got.coerceAtLeast(rate / 2))
+                        val rms = kotlin.math.sqrt(tail.sumOf { (it.toDouble() / 32768) * (it.toDouble() / 32768) } / tail.size.coerceAtLeast(1))
+                        Log.d(TAG, "echo-probe $name aecOn=${aec != null} rms=${"%.5f".format(rms)} speaking=${VoiceController.isSpeaking}")
+                    }.onFailure { Log.d(TAG, "echo-probe $name failed ${it.javaClass.simpleName}") }
+                }
+            }
+        }.start()
+    }
+
     /** Сырой синтез без эффектов в cache/tts_<name>.pcm: проверка голоса и скорости на самом телефоне. */
     private fun handleTtsDump(context: Context, intent: Intent) {
         val app = context.applicationContext
@@ -757,6 +799,7 @@ class DebugCommandReceiver : BroadcastReceiver() {
         const val ACTION_DEBUG_VOICE = "com.jarvis.assistant.DEBUG_VOICE"
         const val ACTION_DEBUG_TTS = "com.jarvis.assistant.DEBUG_TTS"
         const val ACTION_DEBUG_TTS_DUMP = "com.jarvis.assistant.DEBUG_TTS_DUMP"
+        const val ACTION_DEBUG_ECHO_PROBE = "com.jarvis.assistant.DEBUG_ECHO_PROBE"
         const val ACTION_ASR_TEST = "com.jarvis.assistant.ASR_TEST"
         const val ACTION_DEBUG_AUTONOMY = "com.jarvis.assistant.DEBUG_AUTONOMY"
         const val ACTION_DEBUG_SETTINGS = "com.jarvis.assistant.DEBUG_SETTINGS"

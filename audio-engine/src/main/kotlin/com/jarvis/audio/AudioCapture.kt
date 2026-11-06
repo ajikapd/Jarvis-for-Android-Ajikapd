@@ -42,6 +42,14 @@ class AudioCapture(private val context: Context) {
         private set
 
     private var silenceCallback: AudioManager.AudioRecordingCallback? = null
+    private var echoCanceler: android.media.audiofx.AcousticEchoCanceler? = null
+    private var sourceHasEchoCancel = false
+
+    /**
+     * Пока говорит сам ассистент: источник с подавлением эха глушит динамик в 10–50 раз,
+     * и слово активации слышно поверх речи. В тишине нужен обычный MIC: тот режим режет дальнюю речь.
+     */
+    @Volatile var echoCancel = false
 
     fun hasPermission(): Boolean =
         ContextCompat.checkSelfPermission(
@@ -51,20 +59,7 @@ class AudioCapture(private val context: Context) {
     fun start(scope: CoroutineScope) {
         if (job?.isActive == true) return
 
-        val bufSize = AudioRecord.getMinBufferSize(
-            SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT
-        )
-        // MIC без жёсткого NS: VOICE_RECOGNITION часто режет дальнюю речь.
-        // Wake и ASR получают один и тот же сырой сигнал.
-        audioRecord = AudioRecord(
-            MediaRecorder.AudioSource.MIC,
-            SAMPLE_RATE,
-            CHANNEL_CONFIG,
-            AUDIO_FORMAT,
-            bufSize * 2
-        )
-        registerSilenceCallback()
-        audioRecord?.startRecording()
+        openRecord(echoCancel)
         val now = SystemClock.elapsedRealtime()
         lastSoundAtMs = now
         lastChunkAtMs = now
@@ -74,6 +69,10 @@ class AudioCapture(private val context: Context) {
             android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO)
             val buf = ShortArray(CHUNK_SAMPLES)
             while (isActive) {
+                if (echoCancel != sourceHasEchoCancel) {
+                    closeRecord()
+                    openRecord(echoCancel)
+                }
                 val read = audioRecord?.read(buf, 0, buf.size) ?: 0
                 if (read < 0) {
                     // Ошибка чтения (например, перезапуск audioserver): без паузы цикл крутится вхолостую.
@@ -98,9 +97,31 @@ class AudioCapture(private val context: Context) {
     fun stop() {
         job?.cancel()
         job = null
+        closeRecord()
+    }
+
+    private fun openRecord(cancelEcho: Boolean) {
+        val bufSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT)
+        // MIC без жёсткого NS: VOICE_RECOGNITION часто режет дальнюю речь.
+        // Wake и ASR получают один и тот же сырой сигнал.
+        val source = if (cancelEcho) MediaRecorder.AudioSource.VOICE_COMMUNICATION else MediaRecorder.AudioSource.MIC
+        val record = AudioRecord(source, SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT, bufSize * 2)
+        audioRecord = record
+        sourceHasEchoCancel = cancelEcho
+        if (cancelEcho) {
+            echoCanceler = android.media.audiofx.AcousticEchoCanceler.create(record.audioSessionId)
+            echoCanceler?.enabled = true
+        }
+        registerSilenceCallback()
+        record.startRecording()
+    }
+
+    private fun closeRecord() {
         silenceCallback?.let { audioRecord?.unregisterAudioRecordingCallback(it) }
         silenceCallback = null
         clientSilenced = false
+        echoCanceler?.release()
+        echoCanceler = null
         audioRecord?.stop()
         audioRecord?.release()
         audioRecord = null

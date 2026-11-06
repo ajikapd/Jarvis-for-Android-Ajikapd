@@ -241,6 +241,7 @@ class VoiceEngine(
                 scope.launch {
                     audioCapture!!.chunks.collect { chunk ->
                         speechGate.onChunk(chunk.samples)
+                        reportBargeWindow()
                         if (processingBusy || disposed) return@collect
                         val sp = speaker ?: return@collect
                         // Глушим mic только под TTS-речь (не под wake-чим) + короткий хвост
@@ -323,10 +324,23 @@ class VoiceEngine(
     /** V2-08 wake path: KWS untouched; cloud command only when CLOUD_PREFERRED. */
     private var bargeOwwAt = 0L
     private var bargeKeywordAt = 0L
+    private var bargePeak = 0f
+    private var wasSpeaking = false
+
+    /** Микрофон с подавлением эха только на время своей речи; итог окна идёт в журнал для разбора. */
+    private fun reportBargeWindow() {
+        val speaking = speaker?.speaking == true
+        audioCapture?.echoCancel = speaking
+        if (wasSpeaking && !speaking) {
+            VoiceHealthLog.write(app, "speech end owwPeak=${"%.3f".format(bargePeak)}")
+            bargePeak = 0f
+        }
+        wasSpeaking = speaking
+    }
 
     /**
-     * Прерывание голосом: «Джарвис» поверх собственной речи. На своей речи OWW даёт 0,001 при пороге 0,03,
-     * поэтому хватает его одного; оба детектора нужны, только когда Джарвис сам называет своё имя.
+     * Прерывание голосом: «Джарвис» поверх собственной речи. На своей речи детекторы молчат,
+     * поэтому хватает любого; оба нужны, только когда Джарвис сам называет своё имя.
      * После голосовой команды детектор выключен, а взводится лишь вне речи: взводим его здесь.
      * Динамик рядом с микрофоном,
      * поэтому нужны оба детектора в пределах секунды, иначе он перебивал бы сам себя.
@@ -342,11 +356,15 @@ class VoiceEngine(
             kws.armForNextWake(cooldownMs = 0)
             VoiceHealthLog.write(app, "barge oww")
         }
-        if (keywordSpotter?.process(samples) == true) bargeKeywordAt = now
-        val saysOwnName = speaker?.saysOwnName == true
-        if (now - bargeOwwAt > BARGE_WINDOW_MS) return
-        if (saysOwnName && now - bargeKeywordAt > BARGE_WINDOW_MS) return
-        if (!speechGate.speechPresent()) return
+        bargePeak = maxOf(bargePeak, kws.lastScoreValue)
+        if (keywordSpotter?.process(samples) == true) {
+            bargeKeywordAt = now
+            VoiceHealthLog.write(app, "barge sherpa")
+        }
+        val oww = now - bargeOwwAt <= BARGE_WINDOW_MS
+        val sherpa = now - bargeKeywordAt <= BARGE_WINDOW_MS
+        val heard = if (speaker?.saysOwnName == true) oww && sherpa else oww || sherpa
+        if (!heard || !speechGate.speechPresent()) return
         bargeOwwAt = 0L
         bargeKeywordAt = 0L
         VoiceHealthLog.write(app, "barge-in")
