@@ -174,7 +174,7 @@ class LauncherTool(private val context: Context) : Tool {
         }
     }
 
-    private fun resolvePackage(query: String): String? {
+    fun resolvePackage(query: String): String? {
         val pm = context.packageManager
         if (pm.getLaunchIntentForPackage(query) != null) return query
         val intent = findByLabel(query) ?: return null

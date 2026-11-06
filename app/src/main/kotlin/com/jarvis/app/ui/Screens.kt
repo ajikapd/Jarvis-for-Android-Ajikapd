@@ -16,6 +16,7 @@ import com.jarvis.app.AssistantCapabilities
 import com.jarvis.app.BrainGraph
 import com.jarvis.app.ConversationStore
 import com.jarvis.app.PrefsCustomRoutines
+import com.jarvis.app.PrefsEventRoutines
 import com.jarvis.app.PrefsNoteBook
 import com.jarvis.app.VoiceController
 import com.jarvis.core.common.model.ToolCall
@@ -209,10 +210,22 @@ class RoutinesScreen(host: JarvisActivity) : Screen(host) {
             0 -> {
                 BUILT_IN.forEach { (title, sub, phrase) -> body.addView(card(title, sub, Ic.CLOCK, run(phrase))) }
                 val own = PrefsCustomRoutines(host)
-                own.names().forEach { name ->
+                val events = PrefsEventRoutines(host)
+                val rules = events.rules().filter { own.steps(it.name) != null }
+                val ruleNames = rules.map { it.name }.toSet()
+                own.names().filter { it !in ruleNames }.forEach { name ->
                     body.addView(card(name, own.steps(name).orEmpty().joinToString(", "), Ic.BOLT, run(name)))
                 }
-                body.addView(card("Создать рутину", "Скажите: «когда я говорю поехали, включи блютуз и музыку»", Ic.INFO))
+                if (rules.isNotEmpty()) body.addView(section("По событиям"))
+                rules.forEach { rule ->
+                    val remove = host.label("Удалить", 12f, skin.text, Fonts.body(host, 700)).apply {
+                        background = host.glassBg(skin, 14)
+                        setPadding(host.dp(12), host.dp(6), host.dp(12), host.dp(6))
+                        tap { events.remove(rule); own.remove(rule.name); render() }
+                    }
+                    body.addView(card(rule.name, own.steps(rule.name).orEmpty().joinToString(", "), Ic.BOLT, remove))
+                }
+                body.addView(card("Создать рутину", "Скажите: «когда я говорю поехали, включи блютуз и музыку» или «когда подключаю наушники, включи музыку»", Ic.INFO))
             }
             1 -> body.addView(host.label("Пока нет рекомендаций. Когда Джарвис заметит повторяющиеся действия, предложит их здесь.", 14f, skin.muted))
             else -> tasks()

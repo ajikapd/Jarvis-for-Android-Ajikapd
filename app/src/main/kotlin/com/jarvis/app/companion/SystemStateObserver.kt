@@ -1,5 +1,6 @@
 package com.jarvis.app.companion
 
+import android.bluetooth.BluetoothProfile
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -69,15 +70,19 @@ class SystemStateObserver(private val appContext: Context) {
                 }
                 Intent.ACTION_HEADSET_PLUG -> {
                     val state = intent.getIntExtra("state", 0)
+                    // Начальное значение приходит при регистрации: это состояние, а не событие.
+                    val start = if (isInitialStickyBroadcast) mapOf(STARTUP to "true") else emptyMap()
                     if (state == 1) {
                         emit(
                             ObservationType.HEADPHONES_CONNECTED,
                             summary = "Наушники подключены",
+                            entities = start,
                         )
                     } else {
                         emit(
                             ObservationType.HEADPHONES_DISCONNECTED,
                             summary = "Наушники отключены",
+                            entities = start,
                         )
                     }
                 }
@@ -89,6 +94,21 @@ class SystemStateObserver(private val appContext: Context) {
                         entities = mapOf("network" to net),
                     )
                 }
+            }
+        }
+    }
+
+    /**
+     * Эти сообщения шлёт процесс Bluetooth, а не система, поэтому закрытому приёмнику они
+     * не приходят. Подделать их нельзя: действия защищены, отправить может только Bluetooth.
+     */
+    private val bluetoothReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.getIntExtra(BluetoothProfile.EXTRA_STATE, -1)) {
+                BluetoothProfile.STATE_CONNECTED ->
+                    emit(ObservationType.HEADPHONES_CONNECTED, summary = "Bluetooth-наушники подключены")
+                BluetoothProfile.STATE_DISCONNECTED ->
+                    emit(ObservationType.HEADPHONES_DISCONNECTED, summary = "Bluetooth-наушники отключены")
             }
         }
     }
@@ -106,11 +126,18 @@ class SystemStateObserver(private val appContext: Context) {
             @Suppress("DEPRECATION")
             addAction(ConnectivityManager.CONNECTIVITY_ACTION)
         }
+        val bluetoothFilter = IntentFilter().apply {
+            addAction(BLUETOOTH_A2DP_STATE)
+            addAction(BLUETOOTH_HEADSET_STATE)
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             appContext.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            appContext.registerReceiver(bluetoothReceiver, bluetoothFilter, Context.RECEIVER_EXPORTED)
         } else {
             @Suppress("UnspecifiedRegisterReceiverFlag")
             appContext.registerReceiver(receiver, filter)
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            appContext.registerReceiver(bluetoothReceiver, bluetoothFilter)
         }
         registered = true
         // Начальный снимок
@@ -121,6 +148,7 @@ class SystemStateObserver(private val appContext: Context) {
     fun stop() {
         if (!registered) return
         runCatching { appContext.unregisterReceiver(receiver) }
+        runCatching { appContext.unregisterReceiver(bluetoothReceiver) }
         registered = false
         Log.i(TAG, "SystemStateObserver stopped")
     }
@@ -143,7 +171,11 @@ class SystemStateObserver(private val appContext: Context) {
         @Suppress("DEPRECATION")
         val wired = am?.isWiredHeadsetOn == true
         if (wired) {
-            emit(ObservationType.HEADPHONES_CONNECTED, summary = "Наушники (старт)")
+            emit(
+                ObservationType.HEADPHONES_CONNECTED,
+                summary = "Наушники (старт)",
+                entities = mapOf(STARTUP to "true"),
+            )
         }
         val net = currentNetworkLabel()
         emit(
@@ -187,6 +219,9 @@ class SystemStateObserver(private val appContext: Context) {
 
     companion object {
         private const val TAG = "Jarvis.Companion"
+        private const val STARTUP = "startup"
+        private const val BLUETOOTH_A2DP_STATE = "android.bluetooth.a2dp.profile.action.CONNECTION_STATE_CHANGED"
+        private const val BLUETOOTH_HEADSET_STATE = "android.bluetooth.headset.profile.action.CONNECTION_STATE_CHANGED"
         @Volatile
         private var instance: SystemStateObserver? = null
 

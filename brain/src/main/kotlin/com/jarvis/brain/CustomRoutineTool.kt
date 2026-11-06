@@ -10,9 +10,13 @@ import com.jarvis.core.common.model.ToolParameter
 import com.jarvis.core.common.model.ToolResult
 import com.jarvis.core.common.model.ToolResultStatus
 import com.jarvis.core.notes.CustomRoutines
+import com.jarvis.core.routines.EventRoutines
 
 /** Создать, удалить или перечислить сценарии, заданные голосом. */
-class CustomRoutineTool(private val routines: CustomRoutines) : Tool {
+class CustomRoutineTool(
+    private val routines: CustomRoutines,
+    private val events: EventRoutines,
+) : Tool {
     override val definition = ToolDefinition(
         id = "routine.custom", name = "Сценарии", description = "Создать, удалить или перечислить свои сценарии",
         parameters = listOf(ToolParameter("phrase", "просьба словами пользователя", ParameterType.STRING, required = true)),
@@ -25,6 +29,11 @@ class CustomRoutineTool(private val routines: CustomRoutines) : Tool {
             is CustomRoutineParser.Request.Define -> {
                 routines.put(request.name, request.steps)
                 "Запомнил сценарий «${request.name}», сэр. Шагов: ${request.steps.size}."
+            }
+            is CustomRoutineParser.Request.DefineEvent -> {
+                routines.put(request.rule.name, request.steps)
+                events.put(request.rule)
+                "Хорошо, сэр. Сработает, когда: ${request.rule.name}. Шагов: ${request.steps.size}."
             }
             is CustomRoutineParser.Request.Delete ->
                 if (routines.remove(request.name)) "Сценарий удалён, сэр." else "Такого сценария нет, сэр."

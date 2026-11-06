@@ -12,7 +12,7 @@ class FastSemanticClassifier : SemanticInterpreter {
         val POLITE_WORDS = Regex("(^|[\\s,])(джарвис|слушай|пожалуйста)(?=$|[\\s,])")
         val SPACES = Regex("[\\s,]{2,}")
         val SCHEDULE_WORDS = Regex("(^|\\s)(через|завтра|послезавтра|каждый|каждое|ежедневно)\\s")
-        val OWN_ROUTINE = Regex("^(когда|если)\\s+(я\\s+)?(говорю|скажу)\\s")
+        val OWN_ROUTINE = Regex("^(когда|если|как только)\\s")
     }
 
 

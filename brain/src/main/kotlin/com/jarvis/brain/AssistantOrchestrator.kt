@@ -866,7 +866,11 @@ class AssistantOrchestrator(
     private fun findRoutine(text: String): com.jarvis.core.nlp.Routine? =
         com.jarvis.core.nlp.Routines.find(text)
             ?: customRoutine(text.lowercase().trim().trimEnd('.', '!', '?'))
-                ?.let { com.jarvis.core.nlp.Routine(it, "Готово, сэр.") }
+                ?.let { com.jarvis.core.nlp.Routine(it, if (endsWithAnswer(it)) "" else "Готово, сэр.") }
+
+    /** «Скажи погоду» в конце: важен сам ответ, а не «готово». */
+    private fun endsWithAnswer(steps: List<String>): Boolean =
+        steps.last().substringBefore(' ') in setOf("скажи", "расскажи", "прочитай")
 
     private fun processSingle(
         normalizedRequest: UserRequest,

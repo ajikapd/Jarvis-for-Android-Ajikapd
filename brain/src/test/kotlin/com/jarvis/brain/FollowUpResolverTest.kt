@@ -220,4 +220,10 @@ class FollowUpResolverTest {
         assertNull(FollowUpResolver.resolve("тише", launcher("телеграм")))
         assertNull(FollowUpResolver.resolve("включи фонарик", launcher("телеграм")))
     }
+
+    @Test
+    fun `routine definition is not a follow-up of the last command`() {
+        val last = ToolCall(requestId = "r", toolId = "volume", arguments = mapOf("level" to 30))
+        assertNull(FollowUpResolver.resolve("когда открою ютуб сделай громкость на максимум", last))
+    }
 }

@@ -1,6 +1,8 @@
 package com.jarvis.brain
 
 import com.jarvis.brain.CustomRoutineParser.Request
+import com.jarvis.core.routines.EventRule
+import com.jarvis.core.routines.EventTrigger
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -10,6 +12,33 @@ class CustomRoutineParserTest {
         Request.Define("поехали", listOf("включи блютуз", "включи музыку")),
         CustomRoutineParser.parse("когда я говорю поехали, включи блютуз и музыку"),
     )
+
+    @Test fun headphones() = assertEquals(
+        Request.DefineEvent(EventRule(EventTrigger.HEADPHONES_ON), listOf("включи музыку")),
+        CustomRoutineParser.parse("когда подключаю наушники, включи музыку"),
+    )
+
+    @Test fun chargerOff() = assertEquals(
+        Request.DefineEvent(EventRule(EventTrigger.CHARGER_OFF), listOf("сделай потише")),
+        CustomRoutineParser.parse("когда снимаю с зарядки сделай потише"),
+    )
+
+    @Test fun chargerOn() = assertEquals(
+        Request.DefineEvent(EventRule(EventTrigger.CHARGER_ON), listOf("выключи фонарик", "скажи погоду")),
+        CustomRoutineParser.parse("как только поставлю на зарядку, то выключи фонарик и скажи погоду"),
+    )
+
+    @Test fun wifiLost() = assertEquals(
+        Request.DefineEvent(EventRule(EventTrigger.WIFI_OFF), listOf("останови музыку")),
+        CustomRoutineParser.parse("если отключается вайфай останови музыку"),
+    )
+
+    @Test fun appOpen() = assertEquals(
+        Request.DefineEvent(EventRule(EventTrigger.APP_OPEN, "тик ток"), listOf("включи режим не беспокоить")),
+        CustomRoutineParser.parse("когда открываю тик ток включи режим не беспокоить"),
+    )
+
+    @Test fun unknownConditionIsNotARule() = assertNull(CustomRoutineParser.parse("когда приду домой включи свет"))
 
     @Test fun twoVerbs() = assertEquals(
         Request.Define("вечер", listOf("выключи фонарик", "сделай потише")),

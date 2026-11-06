@@ -18,6 +18,7 @@ class JarvisApplication : Application() {
         SecureKeyMigration.migrate(this)
         SystemStateObserver.ensureStarted(this)
         UsageStatsObserver.ensureStarted(this)
+        EventRoutineRunner(this).start()
         CompanionMemory.get(this).expireNow()
 
         // Постоянная память: журнал диалога, чистка старых записей,

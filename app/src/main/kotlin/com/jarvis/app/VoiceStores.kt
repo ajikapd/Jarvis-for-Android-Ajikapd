@@ -4,6 +4,9 @@ import android.content.Context
 import com.jarvis.core.notes.CustomRoutines
 import com.jarvis.core.notes.NoteBook
 import com.jarvis.core.notes.PlaceBook
+import com.jarvis.core.routines.EventRoutines
+import com.jarvis.core.routines.EventRule
+import com.jarvis.core.routines.EventTrigger
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -42,6 +45,32 @@ class PrefsPlaceBook(private val context: Context) : PlaceBook {
     override fun set(key: String, address: String) {
         context.voicePrefs().edit().putString("place_$key", address).apply()
     }
+}
+
+/** Какие сценарии запускаются событиями. Шаги хранит [PrefsCustomRoutines]. */
+class PrefsEventRoutines(private val context: Context) : EventRoutines {
+    private fun load(): List<EventRule> =
+        runCatching { JSONArray(context.voicePrefs().getString("event_rules", "[]")).strings() }
+            .getOrDefault(emptyList())
+            .mapNotNull { line ->
+                val parts = line.split('|', limit = 2)
+                val trigger = EventTrigger.entries.firstOrNull { it.name == parts[0] } ?: return@mapNotNull null
+                EventRule(trigger, parts.getOrElse(1) { "" })
+            }
+
+    private fun save(rules: List<EventRule>) {
+        val lines = rules.map { "${it.trigger.name}|${it.arg}" }
+        context.voicePrefs().edit().putString("event_rules", JSONArray(lines).toString()).apply()
+    }
+
+    @Synchronized
+    override fun rules(): List<EventRule> = load()
+
+    @Synchronized
+    override fun put(rule: EventRule) = save(load() - rule + rule)
+
+    @Synchronized
+    override fun remove(rule: EventRule) = save(load() - rule)
 }
 
 class PrefsCustomRoutines(private val context: Context) : CustomRoutines {

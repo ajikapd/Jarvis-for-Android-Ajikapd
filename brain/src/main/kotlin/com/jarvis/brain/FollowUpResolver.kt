@@ -16,6 +16,8 @@ object FollowUpResolver {
     private const val HALF_HOUR_MINUTES = 30
 
     fun resolve(text: String, last: ToolCall?): ToolCall? {
+        // Описание сценария содержит команды, но это не продолжение прошлой.
+        if (CustomRoutineParser.parse(text) != null) return null
         if (last == null) return null
         val t = text.lowercase().trim().trimEnd('?', '!', '.', '…')
         if (t.isBlank()) return null

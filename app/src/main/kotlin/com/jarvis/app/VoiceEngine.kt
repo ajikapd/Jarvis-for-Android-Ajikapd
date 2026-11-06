@@ -488,6 +488,10 @@ class VoiceEngine(
         return allowed
     }
 
+    val isIdle: Boolean
+        get() = speaker?.speaking != true && !processingBusy &&
+            wakeWordEngine?.state == WakeWordState.IDLE && hybridAsr?.isTurnActive() != true
+
     /** Запись образца голоса: на это время детекторы и команды не получают звук. */
     fun recordSample(durationMs: Int, done: (FloatArray) -> Unit) {
         sampleTake = SampleTake(16 * durationMs, done)
@@ -1058,6 +1062,9 @@ object VoiceController {
     fun manualWake() {
         activeEngine?.manualWake()
     }
+
+    /** Джарвис не говорит, не думает и не ждёт команду. */
+    val isIdle: Boolean get() = activeEngine?.isIdle == true
 
     /** false, если ассистент выключен и микрофон никто не слушает. */
     fun recordVoiceSample(durationMs: Int, done: (FloatArray) -> Unit): Boolean {

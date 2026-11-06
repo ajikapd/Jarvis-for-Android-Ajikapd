@@ -269,7 +269,7 @@ object BrainGraph {
             register(com.jarvis.tools.PlacesTool(placeBook))
             register(com.jarvis.tools.NotesTool(PrefsNoteBook(ctx)))
             register(com.jarvis.tools.appActionTool(ctx))
-            register(com.jarvis.brain.CustomRoutineTool(customRoutines))
+            register(com.jarvis.brain.CustomRoutineTool(customRoutines, PrefsEventRoutines(ctx)))
             register(com.jarvis.tools.webSearchTool(ctx))
             register(com.jarvis.tools.cameraTool(ctx))
             register(com.jarvis.tools.newsTool())
