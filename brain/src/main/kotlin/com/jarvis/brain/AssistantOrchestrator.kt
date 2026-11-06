@@ -69,6 +69,8 @@ class AssistantOrchestrator(
     private val preferCloudForAi: () -> Boolean = { false },
     /** Манера коротких подтверждений; в тестах ответ инструмента остаётся как есть. */
     private val confirmationStyle: (String) -> String = { it },
+    /** Сценарий, заданный голосом: шаги по названию. */
+    private val customRoutine: (String) -> List<String>? = { null },
 ) {
     private val execution: com.jarvis.core.runtime.ExecutionOrchestrator =
         executionOrchestrator
@@ -118,7 +120,7 @@ class AssistantOrchestrator(
             else request.copy(text = normalizedText)
 
         if (context.pendingAction != null) return null
-        if (com.jarvis.core.nlp.Routines.find(normalizedRequest.text) != null) return null
+        if (findRoutine(normalizedRequest.text) != null) return null
 
         // Do not mutate conversation until CHAT streaming is confirmed
         val earlyFollowUp = FollowUpResolver.resolve(normalizedRequest.text, context.lastToolCall)
@@ -317,7 +319,7 @@ class AssistantOrchestrator(
         rememberUser(normalizedRequest.text)
         state(AssistantState.THINKING)
 
-        com.jarvis.core.nlp.Routines.find(normalizedRequest.text)?.let { routine ->
+        findRoutine(normalizedRequest.text)?.let { routine ->
             val done = processCompound(normalizedRequest, routine.steps, startedAt, trace)
             val fine = done.status == AssistantResponseStatus.PROCESSED && routine.closing.isNotEmpty()
             if (!fine) return finalizeTrace(done, trace, startedAt)
@@ -825,6 +827,11 @@ class AssistantOrchestrator(
             durationMs = (System.nanoTime() - startedAt) / 1_000_000,
         )
     }
+
+    private fun findRoutine(text: String): com.jarvis.core.nlp.Routine? =
+        com.jarvis.core.nlp.Routines.find(text)
+            ?: customRoutine(text.lowercase().trim().trimEnd('.', '!', '?'))
+                ?.let { com.jarvis.core.nlp.Routine(it, "Готово, сэр.") }
 
     private fun processSingle(
         normalizedRequest: UserRequest,

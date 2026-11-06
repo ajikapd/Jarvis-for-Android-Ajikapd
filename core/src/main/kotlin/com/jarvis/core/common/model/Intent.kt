@@ -104,6 +104,15 @@ enum class IntentType {
     /** Что Джарвис объявляет сам. */
     ANNOUNCE_SETTINGS,
 
+    /** Списки и заметки, адреса, свои сценарии, действия в приложениях. */
+    NOTES,
+    PLACES,
+    CUSTOM_ROUTINE,
+    APP_ACTION,
+
+    /** Ответ на вопрос о свежих событиях из сети. */
+    WEB_ANSWER,
+
     /** Забыть факт из памяти. */
     FORGET,
 

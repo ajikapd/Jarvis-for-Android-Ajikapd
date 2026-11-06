@@ -13,6 +13,8 @@ import com.jarvis.core.common.model.ToolDefinition
 import com.jarvis.core.common.model.ToolParameter
 import com.jarvis.core.common.model.ToolResult
 import com.jarvis.core.common.model.ToolResultStatus
+import com.jarvis.core.notes.PlaceBook
+import com.jarvis.core.notes.Places
 
 /** Инструмент, который передаёт дело приложению телефона через Intent. */
 private abstract class IntentTool(private val context: Context) : Tool {
@@ -36,17 +38,24 @@ private fun textParameter(name: String, description: String) =
     ToolParameter(name, description, ParameterType.STRING, required = true)
 
 /** Маршрут или место на карте в приложении карт по умолчанию. */
-fun navigationTool(context: Context): Tool = object : IntentTool(context) {
+fun navigationTool(context: Context, places: PlaceBook? = null): Tool = object : IntentTool(context) {
     override val definition = ToolDefinition(
         id = "navigate", name = "Навигация", description = "Проложить маршрут или показать место на карте",
         parameters = listOf(textParameter("destination", "куда")),
         riskLevel = RiskLevel.SAFE, onlineRequirement = OnlineRequirement.LOCAL_ONLY,
     )
     override val done = "Открываю маршрут, сэр."
-    override val missing = "Куда прокладывать маршрут, сэр?"
+    override var missing = "Куда прокладывать маршрут, сэр?"
 
     override fun intentFor(call: ToolCall): Intent? {
-        val place = call.arguments["destination"]?.toString()?.takeIf { it.isNotBlank() } ?: return null
+        val spoken = call.arguments["destination"]?.toString()?.takeIf { it.isNotBlank() } ?: return null
+        val key = Places.keyOf(spoken)
+        val place = if (key == null) spoken else places?.get(key)
+        if (place == null) {
+            val what = if (key == Places.HOME) "дома" else "работы"
+            missing = "Адрес $what не сохранён, сэр. Скажите: запомни адрес $what, и сам адрес."
+            return null
+        }
         return Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=" + Uri.encode(place)))
     }
 }
@@ -66,6 +75,37 @@ fun webSearchTool(context: Context): Tool = object : IntentTool(context) {
         return Intent(Intent.ACTION_VIEW, Uri.parse("https://yandex.ru/search/?text=" + Uri.encode(query)))
     }
 }
+
+/** Запрос сразу в нужное приложение: видео на ютубе, место на картах, такси, сайт. */
+fun appActionTool(context: Context): Tool = object : IntentTool(context) {
+    override val definition = ToolDefinition(
+        id = "app.action", name = "Действие в приложении", description = "Поиск на ютубе, в картах, в магазине приложений, такси, сайт",
+        parameters = listOf(
+            ToolParameter("kind", "youtube, maps, market, taxi или site", ParameterType.ENUM, required = true, allowedValues = listOf("youtube", "maps", "market", "taxi", "site")),
+            textParameter("query", "что искать"),
+        ),
+        riskLevel = RiskLevel.SAFE, onlineRequirement = OnlineRequirement.LOCAL_ONLY,
+    )
+    override val done = "Открываю, сэр."
+    override val missing = "Что именно, сэр?"
+
+    override fun intentFor(call: ToolCall): Intent? {
+        val query = call.arguments["query"]?.toString().orEmpty()
+        val encoded = Uri.encode(query)
+        return when (call.arguments["kind"]?.toString()) {
+            "youtube" -> view("https://www.youtube.com/results?search_query=$encoded")
+            "maps" -> view("geo:0,0?q=$encoded")
+            "market" -> view("market://search?q=$encoded")
+            "site" -> view(if (query.contains('.')) "https://$query" else "https://yandex.ru/search/?text=$encoded")
+            "taxi" -> context.packageManager.getLaunchIntentForPackage(TAXI_PACKAGE) ?: view("https://taxi.yandex.ru")
+            else -> null
+        }
+    }
+
+    private fun view(uri: String) = Intent(Intent.ACTION_VIEW, Uri.parse(uri))
+}
+
+private const val TAXI_PACKAGE = "ru.yandex.taxi"
 
 /** Открывает камеру готовой к съёмке; снимок делает пользователь. */
 fun cameraTool(context: Context): Tool = object : IntentTool(context) {

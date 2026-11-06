@@ -7,6 +7,8 @@ import com.jarvis.core.common.model.Slot
 import com.jarvis.core.common.model.UserRequest
 import com.jarvis.core.nlp.RuNumbers
 import com.jarvis.core.nlp.ContactPhraseNormalizer
+import com.jarvis.core.notes.NoteParser
+import com.jarvis.core.notes.Places
 import com.jarvis.core.reminder.ReminderParser
 
 /**
@@ -31,6 +33,7 @@ class RuleBasedBrain(
         val words = normalize(request.text)
         if (words.isEmpty()) return BrainResult.Clarify(question = "Не расслышал, сэр. Повторите, пожалуйста.", confidence = 0.3f)
 
+        personalData(words, request)?.let { return it }
         // Отложенная команда раньше всех: «через час выключи фонарик» нельзя выполнять сейчас.
         scheduledCommand(words, request)?.let { return it }
         // ── фонарик ────────────────────────────────────────────────
@@ -59,6 +62,8 @@ class RuleBasedBrain(
         // ── системные настройки: раньше музыки, иначе «включи вайфай» станет треком ──
         systemSetting(words, request)?.let { return it }
         screenshot(words, request)?.let { return it }
+        appAction(words)?.let { return it }
+        webAnswer(words)?.let { return it }
         camera(words)?.let { return it }
         navigate(words)?.let { return it }
         webSearch(words)?.let { return it }
@@ -347,6 +352,44 @@ class RuleBasedBrain(
             ),
             confidence = 0.9f
         )
+    }
+
+    /** Списки, адреса и свои сценарии: разбор общий с инструментами, здесь только выбор. */
+    private fun personalData(words: List<String>, request: UserRequest): BrainResult? {
+        val text = words.joinToString(" ")
+        val phrase = mapOf("phrase" to request.text)
+        return when {
+            CustomRoutineParser.parse(request.text) != null -> skill(IntentType.CUSTOM_ROUTINE, phrase, text, 0.93f)
+            Places.saveRequest(text) != null -> skill(IntentType.PLACES, phrase, text, 0.93f)
+            NoteParser.parse(text) != null && words.none { it in REMIND_VERBS } -> skill(IntentType.NOTES, phrase, text, 0.92f)
+            else -> null
+        }
+    }
+
+    private fun appAction(words: List<String>): BrainResult? {
+        val text = words.joinToString(" ")
+        for ((pattern, kind) in APP_PATTERNS) {
+            val match = pattern.find(text) ?: continue
+            val query = match.groupValues.drop(1).firstOrNull { it.isNotBlank() }.orEmpty().trim()
+            val value = if (kind == "site") siteAddress(query) else query
+            return skill(IntentType.APP_ACTION, mapOf("kind" to kind, "query" to value), text, 0.92f)
+        }
+        return null
+    }
+
+    /** ASR пишет адрес словами: «хабр точка ком», «яндекс ру». */
+    private fun siteAddress(spoken: String): String =
+        com.jarvis.core.nlp.Transliterator.toLatin(
+            spoken.replace(" точка ", ".").replace(Regex("[ .](ру|ru)$"), ".ru").replace(Regex("[ .](ком|com)$"), ".com")
+                .replace(" ", ""),
+        )
+
+    private fun webAnswer(words: List<String>): BrainResult? {
+        if (words.firstOrNull() !in ANSWER_VERBS || words.size < 2) return null
+        val text = words.joinToString(" ")
+        val query = WEB_MARKERS.fold(words.drop(1).joinToString(" ")) { acc, marker -> acc.replace(marker, " ") }
+            .replace(Regex("\\s+"), " ").trim()
+        return skill(IntentType.WEB_ANSWER, mapOf("query" to query), text, 0.92f)
     }
 
     private fun scheduledCommand(words: List<String>, request: UserRequest): BrainResult? {
@@ -1325,6 +1368,14 @@ class RuleBasedBrain(
             "сколько памяти", "сколько места", "свободной памяти", "свободного места",
         )
         private const val MIN_BRIGHTNESS = 5
+        private val ANSWER_VERBS = setOf("узнай", "выясни", "разузнай")
+        private val APP_PATTERNS = listOf(
+            Regex("^(?:включи|найди|открой|поставь|покажи)\\s+(?:на|в)\\s+(?:ютубе|ютьюбе|youtube)\\s+(.+)$|^(?:включи|найди|поставь|покажи)\\s+(.+?)\\s+(?:на|в)\\s+(?:ютубе|ютьюбе|youtube)$") to "youtube",
+            Regex("^(?:найди|покажи|открой)\\s+(?:на|в)\\s+(?:яндекс\\s+)?картах\\s+(.+)$|^(?:найди|покажи)\\s+(.+?)\\s+(?:на|в)\\s+(?:яндекс\\s+)?картах$") to "maps",
+            Regex("^(?:найди|поищи)\\s+(?:в|на)\\s+(?:плей маркете|гугл плей|play market)\\s+(.+)$") to "market",
+            Regex("^(?:вызови|закажи)\\s+такси()") to "taxi",
+            Regex("^(?:открой|зайди на)\\s+сайт\\s+(.+)$") to "site",
+        )
         private val ANNOUNCE_VERBS = setOf("объявляй", "озвучивай", "читай", "сообщай", "говори", "докладывай")
         private val REPLY_FILLERS = setOf("ему", "ей", "им", "что", "чтобы", "пожалуйста")
         private val TIME_MARKERS = setOf(

@@ -234,6 +234,7 @@ object BrainGraph {
 
         val ctx = context.applicationContext
         appContext = ctx
+        val customRoutines = PrefsCustomRoutines(ctx)
         val toolRegistry = ToolRegistry().apply {
             register(FlashlightTool(ctx))
             register(VolumeTool(ctx))
@@ -262,7 +263,12 @@ object BrainGraph {
             reminders.rearm()
             register(com.jarvis.tools.ReminderTool(reminders))
             register(com.jarvis.tools.BriefingTool(::find))
-            register(com.jarvis.tools.navigationTool(ctx))
+            val placeBook = PrefsPlaceBook(ctx)
+            register(com.jarvis.tools.navigationTool(ctx, placeBook))
+            register(com.jarvis.tools.PlacesTool(placeBook))
+            register(com.jarvis.tools.NotesTool(PrefsNoteBook(ctx)))
+            register(com.jarvis.tools.appActionTool(ctx))
+            register(com.jarvis.brain.CustomRoutineTool(customRoutines))
             register(com.jarvis.tools.webSearchTool(ctx))
             register(com.jarvis.tools.cameraTool(ctx))
             register(com.jarvis.tools.newsTool())
@@ -363,6 +369,7 @@ object BrainGraph {
         )
         // 9б-2b: ChainCloudProvider поверх цепочки (legacy = CloudLLMProvider как fallback; не регистрируем CloudLLMProvider напрямую)
         val keyStore = SecureKeyStore(ctx)
+        toolRegistry.register(com.jarvis.tools.WebAnswerTool { keyStore.getKey(it) })
         val chainProvider = com.jarvis.brain.cloud.ChainCloudProvider(
             legacy = com.jarvis.brain.aiprovider.CloudLLMProvider(
                 client = cloudClient,
@@ -500,6 +507,7 @@ object BrainGraph {
                 JarvisSettings.preferCloudLlm(ctx) && JarvisSettings.cloudConfigured(ctx)
             },
             confirmationStyle = com.jarvis.core.nlp.JarvisStyle::confirmation,
+            customRoutine = customRoutines::steps,
         )
         cached = orchestrator
         orchestrator

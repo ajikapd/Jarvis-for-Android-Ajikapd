@@ -9,6 +9,29 @@ import org.junit.Test
 
 class RuleBasedBrainTest {
     @org.junit.Test
+    fun `lists places and own routines`() {
+        assertEquals(IntentType.NOTES, (route("запиши в покупки молоко") as BrainResult.SkillCall).intent.type)
+        assertEquals(IntentType.PLACES, (route("запомни адрес дома ленина пять") as BrainResult.SkillCall).intent.type)
+        assertEquals(IntentType.CUSTOM_ROUTINE, (route("когда я говорю поехали включи блютуз") as BrainResult.SkillCall).intent.type)
+        assertEquals(IntentType.REMINDER, (route("напомни купить хлеб завтра в девять") as BrainResult.SkillCall).intent.type)
+    }
+
+    @org.junit.Test
+    fun `requests inside apps`() {
+        assertEquals("обзор айфона", slots("включи на ютубе обзор айфона", IntentType.APP_ACTION)["query"])
+        assertEquals("аптеку", slots("найди в яндекс картах аптеку", IntentType.APP_ACTION)["query"])
+        assertEquals("taxi", slots("вызови такси", IntentType.APP_ACTION)["kind"])
+        assertEquals("yandex.ru", slots("открой сайт yandex ру", IntentType.APP_ACTION)["query"])
+        assertTrue(slots("открой сайт хабр точка ком", IntentType.APP_ACTION)["query"].toString().matches(Regex("[a-z]+\\.com")))
+    }
+
+    @org.junit.Test
+    fun `fresh questions go to the web`() {
+        assertEquals("кто выиграл вчерашний матч", slots("узнай кто выиграл вчерашний матч", IntentType.WEB_ANSWER)["query"])
+        assertEquals("курс биткоина", slots("узнай в интернете курс биткоина", IntentType.WEB_ANSWER)["query"])
+    }
+
+    @org.junit.Test
     fun `announcement switches`() {
         val off = slots("не объявляй звонки", IntentType.ANNOUNCE_SETTINGS)
         assertEquals("calls", off["kind"])
