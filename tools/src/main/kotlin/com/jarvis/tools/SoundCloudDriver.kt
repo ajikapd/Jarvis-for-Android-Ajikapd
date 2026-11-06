@@ -20,18 +20,18 @@ internal object SoundCloudScreen {
         rows.filter { DURATION.containsMatchIn(it.text.trim()) }.minByOrNull { it.top }
 }
 
+internal enum class PlayerResult { PLAYING, LOCKED, NO_ACCESS, FAILED }
+
 /** Запасной путь: открыть штатный поиск и нажать на первый трек, как человек. */
 internal class SoundCloudDriver(
     private val context: Context,
     private val started: () -> Boolean,
 ) {
-    enum class Result { PLAYING, LOCKED, NO_ACCESS, FAILED }
-
-    fun playSearch(query: String): Result {
+    fun playSearch(query: String): PlayerResult {
         val power = context.getSystemService(PowerManager::class.java)
         val keyguard = context.getSystemService(KeyguardManager::class.java)
-        if (!power.isInteractive || keyguard.isKeyguardLocked) return Result.LOCKED
-        if (!ScreenController.isAvailable()) return Result.NO_ACCESS
+        if (!power.isInteractive || keyguard.isKeyguardLocked) return PlayerResult.LOCKED
+        if (!ScreenController.isAvailable()) return PlayerResult.NO_ACCESS
         val before = ScreenController.activePackageName()
         context.startActivity(
             Intent(MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH).apply {
@@ -43,13 +43,13 @@ internal class SoundCloudDriver(
         val row = waitForTrack()
         if (row == null) {
             Log.w(TAG, "SoundCloud: нет трека в результатах")
-            return Result.FAILED
+            return PlayerResult.FAILED
         }
         val width = context.resources.displayMetrics.widthPixels
         ScreenController.tap(width / 2f, (row.top + row.bottom) / 2f)
-        if (!waitUntil(PLAY_WAIT_MS, started)) return Result.FAILED
+        if (!waitUntil(PLAY_WAIT_MS, started)) return PlayerResult.FAILED
         leave(before)
-        return Result.PLAYING
+        return PlayerResult.PLAYING
     }
 
     private fun waitForTrack(): SoundCloudScreen.Row? {

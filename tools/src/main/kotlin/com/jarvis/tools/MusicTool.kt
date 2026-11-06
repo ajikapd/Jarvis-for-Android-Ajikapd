@@ -4,6 +4,8 @@ import android.app.SearchManager
 import android.content.ComponentName
 import android.content.Context
 import android.media.AudioManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.media.MediaMetadata
 import android.media.session.MediaController
 import android.media.session.MediaSessionManager
@@ -94,6 +96,7 @@ class MusicTool(private val context: Context) : Tool {
     }
 
     private fun play(requestId: String, query: String, scope: String): ToolResult {
+        if (!hasInternet() && isInstalled(PKG_YANDEX)) return playOffline(requestId)
         if (isInstalled(PKG_SOUNDCLOUD) && scope != "downloaded") {
             val request = when {
                 scope == "mood" -> "$query music"
@@ -157,6 +160,40 @@ class MusicTool(private val context: Context) : Tool {
         }
     }
 
+    private fun hasInternet(): Boolean {
+        val manager = context.getSystemService(ConnectivityManager::class.java) ?: return true
+        val caps = manager.getNetworkCapabilities(manager.activeNetwork) ?: return false
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    }
+
+    /** Без сети SoundCloud молчит: играет скачанное в Яндекс Музыке, название трека не выбрать. */
+    private fun playOffline(requestId: String): ToolResult {
+        fun session() = allControllers().firstOrNull { it.packageName == PKG_YANDEX }
+        pauseOtherPlayers(except = PKG_YANDEX)
+        val playing = { session()?.playbackState?.state == PlaybackState.STATE_PLAYING }
+        val result = if (session()?.playbackState?.state == PlaybackState.STATE_PAUSED) {
+            session()?.transportControls?.play()
+            Thread.sleep(RESUME_CONFIRM_MS)
+            if (playing()) PlayerResult.PLAYING else YandexOfflineDriver(context, playing).play()
+        } else {
+            YandexOfflineDriver(context, playing).play()
+        }
+        val reply = when (result) {
+            PlayerResult.PLAYING -> {
+                rememberPackage(PKG_YANDEX)
+                val title = session()?.metadata?.getString(MediaMetadata.METADATA_KEY_TITLE).orEmpty()
+                return ToolResult(
+                    requestId, definition.id, ToolResultStatus.SUCCESS,
+                    "Интернета нет, сэр, включил Яндекс Музыку. Играет: ${title.replace(UNSPEAKABLE, "")}.",
+                )
+            }
+            PlayerResult.LOCKED -> "Интернета нет, сэр. Разблокируйте телефон, и я включу Яндекс Музыку."
+            PlayerResult.NO_ACCESS -> "Для Яндекс Музыки нужна служба спец. возможностей Jarvis, сэр."
+            PlayerResult.FAILED -> "Интернета нет, сэр, а Яндекс Музыка не заиграла. Откройте скачанное в ней."
+        }
+        return ToolResult(requestId, definition.id, ToolResultStatus.FAILED, reply)
+    }
+
     /** [scope]: пусто значит продолжить последнее, favorites и wave идут из лайков. */
     private fun playSoundCloud(requestId: String, query: String, scope: String = ""): ToolResult {
         fun session() = allControllers().firstOrNull { it.packageName == PKG_SOUNDCLOUD }
@@ -199,16 +236,16 @@ class MusicTool(private val context: Context) : Tool {
             return ToolResult(requestId, definition.id, ToolResultStatus.FAILED, "Скажите, что включить, сэр.")
         }
         return when (SoundCloudDriver(context, started).playSearch(query)) {
-            SoundCloudDriver.Result.PLAYING -> soundCloudPlaying(requestId)
-            SoundCloudDriver.Result.LOCKED -> ToolResult(
+            PlayerResult.PLAYING -> soundCloudPlaying(requestId)
+            PlayerResult.LOCKED -> ToolResult(
                 requestId, definition.id, ToolResultStatus.FAILED,
                 "Разблокируйте телефон, сэр, иначе я не смогу открыть плеер.",
             )
-            SoundCloudDriver.Result.NO_ACCESS -> ToolResult(
+            PlayerResult.NO_ACCESS -> ToolResult(
                 requestId, definition.id, ToolResultStatus.FAILED,
                 "Для плеера нужна служба спец. возможностей Jarvis, сэр.",
             )
-            SoundCloudDriver.Result.FAILED -> ToolResult(
+            PlayerResult.FAILED -> ToolResult(
                 requestId, definition.id, ToolResultStatus.FAILED,
                 "Не получилось включить, сэр. Плеер не отозвался.",
             )
@@ -858,6 +895,9 @@ class MusicTool(private val context: Context) : Tool {
     ): ToolResult {
         val ctrl = activeController()
         Log.i(TAG, "$label: ${ctrl?.packageName} ${ctrl?.playbackState?.state}")
+        if (label == "resume" && !hasLivePlayer(ctrl) && !hasInternet() && isInstalled(PKG_YANDEX)) {
+            return playOffline(requestId)
+        }
         if (label == "resume" && isInstalled(PKG_SOUNDCLOUD) && !hasLivePlayer(ctrl)) {
             return playSoundCloud(requestId, "")
         }
@@ -867,7 +907,11 @@ class MusicTool(private val context: Context) : Tool {
             if (label == "resume") {
                 val played = confirmPlaying(requestId)
                 val dead = played.status != ToolResultStatus.SUCCESS && isInstalled(PKG_SOUNDCLOUD)
-                return if (dead) playSoundCloud(requestId, "") else played
+                return when {
+                    !dead -> played
+                    hasInternet() -> playSoundCloud(requestId, "")
+                    else -> playOffline(requestId)
+                }
             }
             val msg = when (label) {
                 "pause" -> "Пауза."
@@ -1036,7 +1080,7 @@ class MusicTool(private val context: Context) : Tool {
         private const val BROWSE_TIMEOUT_MS = 5_000L
         private const val SOUNDCLOUD_LIKES = "likes"
         private const val FROZEN_SESSION_MS = 15_000L
-        private const val PKG_YANDEX = "ru.yandex.music"
+        private const val PKG_YANDEX = YandexOfflineDriver.PACKAGE
         /** Сессии есть у многих приложений, запоминать и продолжать надо только плееры. */
         private val PLAYERS = setOf(PKG_SOUNDCLOUD, "com.ymliberty.app", PKG_YANDEX, PKG_KION, PKG_YT_MUSIC, PKG_SPOTIFY, "com.metrolist.music", "com.uma.musicvk")
     }
