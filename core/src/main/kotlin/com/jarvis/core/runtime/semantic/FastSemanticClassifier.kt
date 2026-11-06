@@ -7,11 +7,18 @@ import com.jarvis.core.runtime.RouteDecision
  * Покрывает paraphrases, obvious templates, PLAN signals, clarify pronouns.
  */
 class FastSemanticClassifier : SemanticInterpreter {
+    private companion object {
+        /** Обращение и вежливость не меняют команду: «джарвис, включи, пожалуйста, фонарик». */
+        val POLITE_WORDS = Regex("(^|[\\s,])(джарвис|слушай|пожалуйста)(?=$|[\\s,])")
+        val SPACES = Regex("[\\s,]{2,}")
+    }
+
 
     override fun interpret(input: SemanticInput): SemanticUnderstanding? {
         val raw = input.rawText.trim()
         val norm = input.normalizedText.trim().ifBlank { raw }
-        val t = norm.lowercase().trim().trimEnd('?', '!', '.', '…')
+        val spoken = norm.lowercase().trim().trimEnd('?', '!', '.', '…')
+        val t = spoken.replace(POLITE_WORDS, " ").replace(SPACES, " ").trim().ifBlank { spoken }
         if (t.isBlank()) {
             return understanding(
                 input, raw, norm,

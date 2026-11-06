@@ -505,6 +505,10 @@ class RuleBasedBrain(
         if (after.isEmpty()) {
             return BrainResult.Clarify(question = "Что написать в сообщении?", confidence = 0.5f)
         }
+        // «напиши маме»: адресат есть, текста нет.
+        if (after.size == 1 && isDative(after.first())) {
+            return BrainResult.Clarify(question = "Что написать, сэр?", confidence = 0.5f)
+        }
 
         val msgIdx = after.indexOfFirst { it in setOf("сообщение", "смс", "sms") }
         val recipientStop = setOf(
@@ -905,6 +909,8 @@ class RuleBasedBrain(
                 (words.contains("что") && words.any { it in MUSIC_NOUNS }) ->
                 return skill(IntentType.MUSIC, mapOf("action" to "status"), text, 0.9f)
 
+            text == "музыка" || text == "музыку" -> return skill(IntentType.MUSIC, mapOf("action" to "resume"), text, 0.9f)
+
             // «включи музыку» без названия: продолжить то, что играло последним
             words.any { it in MUSIC_PLAY_VERBS } && words.size == 2 && words.any { it in MUSIC_NOUNS } ->
                 return skill(IntentType.MUSIC, mapOf("action" to "resume"), text, 0.92f)
@@ -1011,6 +1017,7 @@ class RuleBasedBrain(
                     .joinToString(" ")
                     .trim()
                 if (query.isBlank() || query.length < 2) return null
+                if (query in APP_WORDS) return skill(IntentType.LAUNCH_APP, mapOf("action" to "open", "app" to query), text, 0.9f)
                 // Device toggles уже отсечены выше по route(); короткий мусор не берём
                 if (query in setOf("свет", "вспышку", "вспышка", "звук")) return null
                 return skill(
@@ -1281,6 +1288,11 @@ class RuleBasedBrain(
             "сколько памяти", "сколько места", "свободной памяти", "свободного места",
         )
         private const val MIN_BRIGHTNESS = 5
+        /** «включи ютуб» — приложение, а не трек с таким названием. */
+        private val APP_WORDS = setOf(
+            "ютуб", "ютьюб", "youtube", "телеграм", "телеграмм", "вк", "вконтакте", "ватсап", "вотсап", "whatsapp",
+            "тикток", "камеру", "браузер", "хром", "chrome", "карты", "яндекс карты", "навигатор", "часы", "галерею",
+        )
         private const val DAYS_IN_WEEK = 7
         private val WEEKDAY_WORDS = mapOf(
             "понедельник" to java.time.DayOfWeek.MONDAY, "вторник" to java.time.DayOfWeek.TUESDAY,

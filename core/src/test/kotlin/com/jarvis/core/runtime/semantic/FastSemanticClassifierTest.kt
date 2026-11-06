@@ -134,4 +134,12 @@ class SemanticRouteSelectorTest {
         )
         assertEquals(RouteDecision.CLARIFY, SemanticRouteSelector.select(u))
     }
+
+    @Test
+    fun `address and politeness do not make a command ambiguous`() {
+        for (say in listOf("джарвис включи фонарик", "слушай, включи фонарик", "включи пожалуйста фонарик")) {
+            val u = FastSemanticClassifier().interpret(SemanticInput(say, say))
+            org.junit.Assert.assertEquals(say, com.jarvis.core.runtime.RouteDecision.FAST_SKILL, u?.suggestedRoute)
+        }
+    }
 }

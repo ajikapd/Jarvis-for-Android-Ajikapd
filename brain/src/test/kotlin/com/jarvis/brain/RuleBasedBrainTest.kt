@@ -9,6 +9,16 @@ import org.junit.Test
 
 class RuleBasedBrainTest {
     @org.junit.Test
+    fun `app name after enable opens the app`() {
+        assertEquals("ютуб", slots("включи ютуб", IntentType.LAUNCH_APP)["app"])
+    }
+
+    @org.junit.Test
+    fun `addressee without text asks what to write`() {
+        assertTrue(route("напиши маме") is BrainResult.Clarify)
+    }
+
+    @org.junit.Test
     fun `info requests`() {
         assertEquals(IntentType.NEWS, (route("какие новости") as BrainResult.SkillCall).intent.type)
         assertEquals(IntentType.RATES, (route("какой курс доллара") as BrainResult.SkillCall).intent.type)
