@@ -174,6 +174,12 @@ class RuleBasedBrainTest {
         assertEquals("forward", slots("перемотай вперёд", IntentType.MUSIC)["action"])
         assertEquals("rewind", slots("перемотай назад", IntentType.MUSIC)["action"])
         assertEquals("спокойное", slots("включи что нибудь спокойное", IntentType.MUSIC)["query"])
+        assertEquals("mood", slots("включи что-нибудь для работы", IntentType.MUSIC)["scope"])
+        assertEquals("для работы", slots("поставь что-нибудь для работы", IntentType.MUSIC)["query"])
+        assertEquals("wave", slots("включи что-нибудь", IntentType.MUSIC)["scope"])
+        assertEquals("wave", slots("включи мою волну", IntentType.MUSIC)["scope"])
+        assertEquals("wave", slots("включи музыку под настроение", IntentType.MUSIC)["scope"])
+        assertEquals("artist", slots("включи что-нибудь от queen", IntentType.MUSIC)["scope"])
     }
 
     @org.junit.Test

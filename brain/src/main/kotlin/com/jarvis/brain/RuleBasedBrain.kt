@@ -1045,6 +1045,18 @@ class RuleBasedBrain(
                     0.93f,
                 )
 
+            // подбор: Моя волна учитывает историю, настроение ищем подборкой
+            words.any { it in MUSIC_PLAY_VERBS } && (
+                text.contains("мою волну") || text.contains("на твой вкус") || text.contains("на свой вкус") ||
+                    text.contains("под настроение")
+                ) -> return skill(IntentType.MUSIC, mapOf("action" to "play", "scope" to "wave"), text, 0.93f)
+
+            words.any { it in MUSIC_PLAY_VERBS } && MOOD_REQUEST.containsMatchIn(text) -> {
+                val mood = MOOD_REQUEST.find(text)?.groupValues?.get(1)?.trim().orEmpty()
+                if (mood.isBlank()) return skill(IntentType.MUSIC, mapOf("action" to "play", "scope" to "wave"), text, 0.92f)
+                return skill(IntentType.MUSIC, mapOf("action" to "play", "scope" to "mood", "query" to mood), text, 0.92f)
+            }
+
             // альбом X
             words.any { it in ON_VERBS } && words.any { it.startsWith("альбом") } -> {
                 val query = extractAfter(words, ON_VERBS + setOf("альбом", "альбома", "альбомчик"))
@@ -1389,6 +1401,7 @@ class RuleBasedBrain(
         private val PERCENT_WORDS = setOf("процент", "процента", "процентов")
         /** Отдельно от ON_VERBS: там «сделай» и «дай», а это не просьба включить трек. */
         private val MUSIC_PLAY_VERBS = setOf("включи", "включить", "включите", "поставь", "играй")
+        private val MOOD_REQUEST = Regex("что[- ](?:нибудь|то)(?:\\s+из\\s+музыки)?(?!\\s+от\\s)\\s*(.*)$")
         private val SETTINGS_SECTIONS = linkedMapOf(
             "батаре" to "battery", "экран" to "display", "дисплей" to "display", "звук" to "sound",
             "памят" to "storage", "хранилищ" to "storage", "приложени" to "apps",

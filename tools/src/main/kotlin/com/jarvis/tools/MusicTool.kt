@@ -57,7 +57,7 @@ class MusicTool(private val context: Context) : Tool {
             ToolParameter("query", "Трек, артист или альбом", ParameterType.STRING, false),
             ToolParameter(
                 "scope",
-                "track, artist, album, favorites, downloaded",
+                "track, artist, album, favorites, downloaded, mood, wave",
                 ParameterType.ENUM,
                 required = false,
                 allowedValues = listOf("track", "artist", "album", "favorites", "downloaded"),
@@ -94,6 +94,15 @@ class MusicTool(private val context: Context) : Tool {
     }
 
     private fun play(requestId: String, query: String, scope: String): ToolResult {
+        if (isInstalled(PKG_SOUNDCLOUD) && scope != "downloaded") {
+            val request = when {
+                scope == "mood" -> "$query music"
+                query.isBlank() -> ""
+                else -> query
+            }
+            pauseOtherPlayers(except = PKG_SOUNDCLOUD)
+            return playSoundCloud(requestId, request, if (request.isBlank()) "wave".takeIf { scope != "favorites" } ?: scope else "")
+        }
         // 1) Кион — preferred (фон, избранное/скачанное)
         if (isInstalled(PKG_KION)) {
             val kion = playViaKion(query, scope)
@@ -137,7 +146,7 @@ class MusicTool(private val context: Context) : Tool {
         return if (intentHit) {
             ToolResult(
                 requestId, definition.id, ToolResultStatus.SUCCESS,
-                "Ищу и включаю «$searchQ» в музыкальном приложении.",
+                "Открыл поиск «$searchQ» в плеере, сэр. Сам трек включить не удалось.",
                 mapOf("query" to query, "scope" to scope, "via" to "intent"),
             )
         } else {
@@ -146,6 +155,77 @@ class MusicTool(private val context: Context) : Tool {
                 "Не нашёл плеер. Установи Кион/YouTube Music/Spotify или открой плеер один раз.",
             )
         }
+    }
+
+    /** [scope]: пусто значит продолжить последнее, favorites и wave идут из лайков. */
+    private fun playSoundCloud(requestId: String, query: String, scope: String = ""): ToolResult {
+        fun session() = allControllers().firstOrNull { it.packageName == PKG_SOUNDCLOUD }
+        fun title() = session()?.metadata?.getString(MediaMetadata.METADATA_KEY_TITLE)
+        val before = title()
+        val wasPlaying = session()?.playbackState?.state == PlaybackState.STATE_PLAYING
+        val started = { session()?.playbackState?.state == PlaybackState.STATE_PLAYING && (!wasPlaying || title() != before) }
+
+        // Сначала фоновый путь: экран не трогаем и работает на заблокированном телефоне.
+        val background = withBrowser(ComponentName(PKG_SOUNDCLOUD, SoundCloudDriver.SERVICE)) { browser, ctrl ->
+            val waitPlaying = { timeoutMs: Long ->
+                val until = SystemClock.elapsedRealtime() + timeoutMs
+                while (SystemClock.elapsedRealtime() < until && !started()) Thread.sleep(RESUME_POLL_MS)
+                started()
+            }
+            runCatching {
+                if (query.isNotBlank()) {
+                    ctrl.transportControls.playFromSearch(query, searchExtras(query))
+                } else {
+                    if (scope.isBlank()) {
+                        ctrl.transportControls.play()
+                        if (waitPlaying(RESUME_CONFIRM_MS)) return@withBrowser "ok"
+                    }
+                    // Лайки: «мою музыку» по порядку, подбор случайно.
+                    val likes = loadChildren(browser, SOUNDCLOUD_LIKES, BROWSE_TIMEOUT_MS).items.filter { it.isPlayable }
+                    val pick = if (scope == "favorites") likes.firstOrNull() else likes.randomOrNull()
+                    pick?.mediaId?.let { ctrl.transportControls.playFromMediaId(it, Bundle.EMPTY) }
+                }
+            }
+            val deadline = SystemClock.elapsedRealtime() + BACKGROUND_PLAY_MS
+            while (SystemClock.elapsedRealtime() < deadline) {
+                if (started()) return@withBrowser "ok"
+                Thread.sleep(RESUME_POLL_MS)
+            }
+            "ERR:тишина"
+        }
+        Log.i(TAG, "SoundCloud в фоне: $background")
+        if (background == "ok") return soundCloudPlaying(requestId)
+        if (query.isBlank()) {
+            return ToolResult(requestId, definition.id, ToolResultStatus.FAILED, "Скажите, что включить, сэр.")
+        }
+        return when (SoundCloudDriver(context, started).playSearch(query)) {
+            SoundCloudDriver.Result.PLAYING -> soundCloudPlaying(requestId)
+            SoundCloudDriver.Result.LOCKED -> ToolResult(
+                requestId, definition.id, ToolResultStatus.FAILED,
+                "Разблокируйте телефон, сэр, иначе я не смогу открыть плеер.",
+            )
+            SoundCloudDriver.Result.NO_ACCESS -> ToolResult(
+                requestId, definition.id, ToolResultStatus.FAILED,
+                "Для плеера нужна служба спец. возможностей Jarvis, сэр.",
+            )
+            SoundCloudDriver.Result.FAILED -> ToolResult(
+                requestId, definition.id, ToolResultStatus.FAILED,
+                "Не получилось включить, сэр. Плеер не отозвался.",
+            )
+        }
+    }
+
+    private fun soundCloudPlaying(requestId: String): ToolResult {
+        rememberPackage(PKG_SOUNDCLOUD)
+        val meta = allControllers().firstOrNull { it.packageName == PKG_SOUNDCLOUD }?.metadata
+        val title = meta?.getString(MediaMetadata.METADATA_KEY_TITLE).orEmpty()
+        val artist = meta?.getString(MediaMetadata.METADATA_KEY_ARTIST).orEmpty()
+        val track = listOf(artist, title).filter { it.isNotBlank() }.joinToString(", ").replace(UNSPEAKABLE, "").trim(' ', ',')
+        return ToolResult(
+            requestId, definition.id, ToolResultStatus.SUCCESS,
+            if (track.isBlank()) "Играю." else "Играет: $track.",
+            mapOf("package" to PKG_SOUNDCLOUD, "track" to track),
+        )
     }
 
     /** Кион MediaBrowser; null / ERR:… при неудаче. */
@@ -192,9 +272,7 @@ class MusicTool(private val context: Context) : Tool {
                 else title.ifBlank { query }
             }
         }
-        // команда ушла — считаем успехом с query
-        rememberPackage(ctrl.packageName)
-        return query
+        return null
     }
 
     private fun playViaSystemSearchIntent(query: String): Boolean {
@@ -235,7 +313,10 @@ class MusicTool(private val context: Context) : Tool {
         val error: String? = null,
     )
 
-    private fun withBrowser(block: (MediaBrowserCompat, MediaControllerCompat) -> String?): String? {
+    private fun withBrowser(
+        service: ComponentName = ComponentName(PKG_KION, SVC_KION),
+        block: (MediaBrowserCompat, MediaControllerCompat) -> String?,
+    ): String? {
         val result = AtomicReference<String?>(null)
         val done = CountDownLatch(1)
         val finished = AtomicBoolean(false)
@@ -260,7 +341,7 @@ class MusicTool(private val context: Context) : Tool {
             lateinit var browser: MediaBrowserCompat
             browser = MediaBrowserCompat(
                 context,
-                ComponentName(PKG_KION, SVC_KION),
+                service,
                 object : MediaBrowserCompat.ConnectionCallback() {
                     override fun onConnected() {
                         Log.i(TAG, "connected root=${browser.root}")
@@ -776,10 +857,18 @@ class MusicTool(private val context: Context) : Tool {
         block: (MediaController.TransportControls) -> Unit,
     ): ToolResult {
         val ctrl = activeController()
+        Log.i(TAG, "$label: ${ctrl?.packageName} ${ctrl?.playbackState?.state}")
+        if (label == "resume" && isInstalled(PKG_SOUNDCLOUD) && !hasLivePlayer(ctrl)) {
+            return playSoundCloud(requestId, "")
+        }
         if (ctrl != null) {
             block(ctrl.transportControls)
             rememberPackage(ctrl.packageName)
-            if (label == "resume") return confirmPlaying(requestId)
+            if (label == "resume") {
+                val played = confirmPlaying(requestId)
+                val dead = played.status != ToolResultStatus.SUCCESS && isInstalled(PKG_SOUNDCLOUD)
+                return if (dead) playSoundCloud(requestId, "") else played
+            }
             val msg = when (label) {
                 "pause" -> "Пауза."
                 "resume" -> "Играю."
@@ -822,7 +911,8 @@ class MusicTool(private val context: Context) : Tool {
     private fun confirmPlaying(requestId: String): ToolResult {
         val deadline = SystemClock.elapsedRealtime() + RESUME_CONFIRM_MS
         while (SystemClock.elapsedRealtime() < deadline) {
-            if (activeController()?.playbackState?.state == PlaybackState.STATE_PLAYING) {
+            val active = activeController()
+            if (active?.playbackState?.state == PlaybackState.STATE_PLAYING && !isFrozen(active)) {
                 return ToolResult(requestId, definition.id, ToolResultStatus.SUCCESS, "Играю.")
             }
             Thread.sleep(RESUME_POLL_MS)
@@ -871,12 +961,29 @@ class MusicTool(private val context: Context) : Tool {
         val cn = ComponentName(context, JarvisNotificationListenerService::class.java)
         return runCatching {
             val all = mgr.getActiveSessions(cn)
-            all.firstOrNull { c ->
-                val st = c.playbackState?.state
-                st == PlaybackState.STATE_PLAYING || st == PlaybackState.STATE_PAUSED ||
-                    st == PlaybackState.STATE_BUFFERING
-            } ?: all.firstOrNull { it.packageName == PKG_KION } ?: all.firstOrNull()
+            val preferred = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(PREF_PLAYER, PKG_SOUNDCLOUD)
+            all.firstOrNull { it.playbackState?.state == PlaybackState.STATE_PLAYING && !isFrozen(it) }
+                ?: all.firstOrNull { it.playbackState?.state == PlaybackState.STATE_BUFFERING }
+                ?: all.firstOrNull { it.packageName == preferred && it.playbackState?.state == PlaybackState.STATE_PAUSED }
+                ?: all.firstOrNull { it.packageName in PLAYERS && it.playbackState?.state == PlaybackState.STATE_PAUSED }
+                ?: all.firstOrNull { it.playbackState?.state == PlaybackState.STATE_PAUSED }
+                ?: all.firstOrNull { it.packageName == preferred }
+                ?: all.firstOrNull()
         }.getOrNull()
+    }
+
+    /** Сессия закрытого плеера остаётся в PLAYING, но её позиция стоит на нуле. */
+    private fun isFrozen(controller: MediaController): Boolean {
+        val state = controller.playbackState ?: return false
+        val age = SystemClock.elapsedRealtime() - state.lastPositionUpdateTime
+        return state.position == 0L && age > FROZEN_SESSION_MS
+    }
+
+    /** Плеер с остановленной сессией на «продолжи» не отзовётся: YouTube держит её часами. */
+    private fun hasLivePlayer(ctrl: MediaController?): Boolean = when (ctrl?.playbackState?.state) {
+        PlaybackState.STATE_PLAYING -> !isFrozen(ctrl)
+        PlaybackState.STATE_PAUSED, PlaybackState.STATE_BUFFERING -> true
+        else -> false
     }
 
     private fun allControllers(): List<MediaController> {
@@ -894,7 +1001,7 @@ class MusicTool(private val context: Context) : Tool {
     }
 
     private fun rememberPackage(packageName: String?) {
-        if (packageName.isNullOrBlank() || !isInstalled(packageName)) return
+        if (packageName !in PLAYERS || !isInstalled(packageName.orEmpty())) return
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit().putString(PREF_PLAYER, packageName).apply()
     }
@@ -922,6 +1029,15 @@ class MusicTool(private val context: Context) : Tool {
         private const val SVC_KION = "ru.mts.music.common.service.player.MusicService"
         private const val PKG_YT_MUSIC = "com.google.android.apps.youtube.music"
         private const val PKG_SPOTIFY = "com.spotify.music"
+        private const val PKG_SOUNDCLOUD = SoundCloudDriver.PACKAGE
+        private const val BACKGROUND_PLAY_MS = 6_000L
+        /** Смайлики и значки в названиях: голосом они не читаются. */
+        private val UNSPEAKABLE = Regex("[^\\p{L}\\p{N}\\s,.'&()!?-]")
+        private const val BROWSE_TIMEOUT_MS = 5_000L
+        private const val SOUNDCLOUD_LIKES = "likes"
+        private const val FROZEN_SESSION_MS = 15_000L
         private const val PKG_YANDEX = "ru.yandex.music"
+        /** Сессии есть у многих приложений, запоминать и продолжать надо только плееры. */
+        private val PLAYERS = setOf(PKG_SOUNDCLOUD, "com.ymliberty.app", PKG_YANDEX, PKG_KION, PKG_YT_MUSIC, PKG_SPOTIFY, "com.metrolist.music", "com.uma.musicvk")
     }
 }

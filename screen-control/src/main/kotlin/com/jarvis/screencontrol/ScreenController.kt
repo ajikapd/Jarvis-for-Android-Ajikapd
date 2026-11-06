@@ -143,6 +143,54 @@ object ScreenController {
         dumpTree().firstOrNull { it.focused && it.editable }
             ?: dumpTree().firstOrNull { it.editable }
 
+    /**
+     * Видимые узлы активного окна. В WebView скрытые страницы лежат в дереве с пустыми
+     * границами, и полный обход занимает секунды; поиск по тексту WebView не поддерживает.
+     */
+    fun visibleNodes(maxNodes: Int = 500): List<UiNode> {
+        val root = service?.rootInActiveWindow ?: return emptyList()
+        val out = ArrayList<UiNode>()
+        try {
+            walkVisible(root, out, maxNodes)
+        } finally {
+            root.recycle()
+        }
+        return out
+    }
+
+    private fun walkVisible(node: AccessibilityNodeInfo, out: MutableList<UiNode>, maxNodes: Int) {
+        if (out.size >= maxNodes || !node.isVisibleToUser) return
+        val item = uiNode(node, 0)
+        if (item.bounds.isEmpty) return
+        out += item
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i) ?: continue
+            try {
+                walkVisible(child, out, maxNodes)
+            } finally {
+                child.recycle()
+            }
+        }
+    }
+
+    private fun uiNode(node: AccessibilityNodeInfo, depth: Int): UiNode {
+        val bounds = Rect()
+        node.getBoundsInScreen(bounds)
+        return UiNode(
+            text = node.text?.toString().orEmpty(),
+            contentDescription = node.contentDescription?.toString().orEmpty(),
+            viewId = node.viewIdResourceName.orEmpty(),
+            className = node.className?.toString().orEmpty(),
+            packageName = node.packageName?.toString().orEmpty(),
+            bounds = bounds,
+            clickable = node.isClickable,
+            editable = node.isEditable || node.className?.toString()?.contains("EditText", true) == true,
+            focused = node.isFocused,
+            enabled = node.isEnabled,
+            depth = depth,
+        )
+    }
+
     private fun walk(
         node: AccessibilityNodeInfo,
         depth: Int,
@@ -150,21 +198,7 @@ object ScreenController {
         maxNodes: Int,
     ) {
         if (out.size >= maxNodes) return
-        val bounds = Rect()
-        node.getBoundsInScreen(bounds)
-        out += UiNode(
-            text = node.text?.toString().orEmpty(),
-            contentDescription = node.contentDescription?.toString().orEmpty(),
-            viewId = node.viewIdResourceName.orEmpty(),
-            className = node.className?.toString().orEmpty(),
-            packageName = node.packageName?.toString().orEmpty(),
-            bounds = Rect(bounds),
-            clickable = node.isClickable,
-            editable = node.isEditable || node.className?.toString()?.contains("EditText", true) == true,
-            focused = node.isFocused,
-            enabled = node.isEnabled,
-            depth = depth,
-        )
+        out += uiNode(node, depth)
         for (i in 0 until node.childCount) {
             val child = node.getChild(i) ?: continue
             try {
