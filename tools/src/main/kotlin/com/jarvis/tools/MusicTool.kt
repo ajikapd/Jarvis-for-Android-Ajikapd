@@ -829,7 +829,7 @@ class MusicTool(private val context: Context) : Tool {
         }
         return ToolResult(
             requestId, definition.id, ToolResultStatus.FAILED,
-            "Сейчас нечего продолжать. Скажи, что включить.",
+            "Сейчас нечего продолжать, сэр. Скажите, что включить.",
         )
     }
 
