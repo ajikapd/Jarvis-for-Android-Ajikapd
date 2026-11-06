@@ -62,6 +62,15 @@ class VoiceService : Service() {
     private var sayFocusHeld = false
     private var sayInFlight = false
 
+    /** Заряд на исходе: система шлёт это один раз за разряд, поэтому надоедать не будет. */
+    private val batteryLowReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val percent = getSystemService(android.os.BatteryManager::class.java)
+                ?.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY)
+            com.jarvis.app.proactive.ProactiveVoice.speak(context, "Сэр, заряд на исходе: $percent%.")
+        }
+    }
+
     private val coreListener = object : VoiceController.Listener {
         override fun onWake() {
             generationGate.cancelCurrent()
@@ -258,6 +267,7 @@ class VoiceService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        registerReceiver(batteryLowReceiver, android.content.IntentFilter(Intent.ACTION_BATTERY_LOW))
         VoiceController.addListener(coreListener)
         coreRegistered = true
     }
@@ -492,6 +502,7 @@ class VoiceService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        runCatching { unregisterReceiver(batteryLowReceiver) }
         finishProactiveSay("destroy")
         if (coreRegistered) VoiceController.removeListener(coreListener)
         engine?.stop()
