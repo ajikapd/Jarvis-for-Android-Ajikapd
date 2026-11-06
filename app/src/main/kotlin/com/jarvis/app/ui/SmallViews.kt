@@ -30,7 +30,7 @@ class WaveView(context: Context, private val skin: Skin) : View(context) {
             paint.color = alpha(skin.cyan, .45f + e * .5f)
             c.drawRect(i * bw, mid - b, i * bw + (bw * .42f).coerceAtLeast(1.6f), mid + b, paint)
         }
-        if (isShown) postInvalidateOnAnimation()
+        if (isShown) postInvalidateDelayed(33L)
     }
 }
 
@@ -99,7 +99,7 @@ class GlobeView(context: Context, private val skin: Skin) : View(context) {
         }
         grid.color = alpha(skin.cyan, .8f)
         c.drawCircle(cx, cy, r, grid)
-        if (isShown) postInvalidateOnAnimation()
+        if (isShown) postInvalidateDelayed(33L)
     }
 }
 

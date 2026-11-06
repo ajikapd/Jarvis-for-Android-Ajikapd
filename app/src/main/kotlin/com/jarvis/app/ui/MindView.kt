@@ -136,7 +136,7 @@ class MindView(context: Context, private val skin: Skin) : View(context) {
         oval.set(cx - r * .5f, base - r * .13f, cx + r * .5f, base + r * .13f)
         canvas.drawOval(oval, fill)
         fill.shader = null
-        if (isShown) postInvalidateOnAnimation()
+        if (isShown) postInvalidateDelayed(33L)
     }
 
     private companion object { const val TAU = 6.2831855f }

@@ -177,10 +177,12 @@ class ReactorView(context: Context, private val skin: Skin) : View(context) {
             fill.xfermode = null
         }
         canvas.restoreToCount(layer)
-        if (isShown) postInvalidateOnAnimation()
+        if (isShown) postInvalidateDelayed(FRAME_MS)
     }
 
     private companion object {
+        /** 30 кадров хватает глазу, а на полной частоте экрана реактор съедает целое ядро. */
+        const val FRAME_MS = 33L
         const val TAU = 6.2831855f
         const val HALF_PI = 1.5707964f
     }
