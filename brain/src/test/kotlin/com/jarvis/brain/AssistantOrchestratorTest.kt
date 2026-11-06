@@ -160,6 +160,32 @@ class AssistantOrchestratorTest {
         assertTrue(asked[1], asked[1].contains("Завтра дождь."))
     }
 
+    private class RecordingTool(id: String, private val log: MutableList<String>) : Tool {
+        override val definition = ToolDefinition(
+            id = id, name = id, description = "тест", parameters = emptyList(),
+            riskLevel = RiskLevel.SAFE, onlineRequirement = OnlineRequirement.LOCAL_ONLY,
+        )
+        override fun execute(call: ToolCall): ToolResult {
+            log += definition.id
+            return ToolResult(call.requestId, definition.id, ToolResultStatus.SUCCESS, "Ок.")
+        }
+    }
+
+    @Test
+    fun `routine runs its steps and answers once`() {
+        val done = mutableListOf<String>()
+        val registry = ToolRegistry().apply {
+            listOf("music", "flashlight", "brightness", "system.setting").forEach { register(RecordingTool(it, done)) }
+        }
+        val r = AssistantOrchestrator(
+            brainRouter = RuleBasedBrain(), skillRetriever = SkillRetriever(SkillManifestRegistry(), k = 6),
+            toolRegistry = registry, toolExecutor = DefaultToolExecutor(registry), toolPolicy = RiskBasedPolicy(),
+            context = ConversationContext(), longTermMemory = FakeMemory(), dialogue = FakeDialogue(),
+        ).process(UserRequest("я ложусь спать"))
+        assertEquals(listOf("music", "flashlight", "brightness", "system.setting"), done)
+        assertEquals("Спокойной ночи, сэр.", r.replyText)
+    }
+
     @Test
     fun `executed action gets the style but plain answers do not`() {
         val registry = ToolRegistry().apply { register(FakeFlashlightTool()) }

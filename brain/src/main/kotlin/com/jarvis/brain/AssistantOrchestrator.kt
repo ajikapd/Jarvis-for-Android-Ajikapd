@@ -118,6 +118,7 @@ class AssistantOrchestrator(
             else request.copy(text = normalizedText)
 
         if (context.pendingAction != null) return null
+        if (com.jarvis.core.nlp.Routines.find(normalizedRequest.text) != null) return null
 
         // Do not mutate conversation until CHAT streaming is confirmed
         val earlyFollowUp = FollowUpResolver.resolve(normalizedRequest.text, context.lastToolCall)
@@ -315,6 +316,12 @@ class AssistantOrchestrator(
 
         rememberUser(normalizedRequest.text)
         state(AssistantState.THINKING)
+
+        com.jarvis.core.nlp.Routines.find(normalizedRequest.text)?.let { routine ->
+            val done = processCompound(normalizedRequest, routine.steps, startedAt, trace)
+            val fine = done.status == AssistantResponseStatus.PROCESSED && routine.closing.isNotEmpty()
+            return finalizeTrace(if (fine) done.copy(replyText = routine.closing) else done, trace, startedAt)
+        }
 
         // Follow-up («выключи», «тише», «а в Донецке») — до semantic / incomplete
         val earlyFollowUp = FollowUpResolver.resolve(normalizedRequest.text, context.lastToolCall)
@@ -796,6 +803,10 @@ class AssistantOrchestrator(
             }
         }
 
+        // В цепочке обращение одно, в конце: «Фонарик включён. Тише, сэр.»
+        if (lastStatus == AssistantResponseStatus.PROCESSED && replies.isNotEmpty()) {
+            replies[replies.lastIndex] = confirmationStyle(replies.last())
+        }
         val combined = replies.joinToString(" ")
         // processSingle уже добавлял assistant-реплики; финальный ответ один.
         return AssistantResponse(
