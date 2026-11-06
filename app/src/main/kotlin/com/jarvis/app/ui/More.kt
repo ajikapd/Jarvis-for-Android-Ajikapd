@@ -20,9 +20,13 @@ import com.jarvis.app.SecureKeyStore
 import com.jarvis.app.TestConsoleActivity
 import com.jarvis.app.UsageGuideActivity
 import com.jarvis.app.VoiceController
+import com.jarvis.app.VoiceIdentity
 import com.jarvis.core.llm.CloudKeyValidator
 import com.jarvis.onboarding.PermissionsHelper
+import com.jarvis.wakeword.VoicePrint
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** Раздел «Ещё»: заголовок и построитель содержимого. */
 class MoreSection(val title: String, val sub: String, val icon: String, val build: SectionScreen.(LinearLayout) -> Unit)
@@ -205,6 +209,81 @@ class SectionScreen(host: JarvisActivity) : Screen(host) {
         })
     }
 
+    /** Запись образца голоса и включение режима «Только мой голос». */
+    fun voiceLock(): View {
+        val box = host.column(10)
+        val mgr = ModelManager.get(host)
+        val samples = ArrayList<FloatArray>()
+        var recording = false
+        var hint: String? = null
+        fun render() {
+            box.removeAllViews()
+            val needed = VoicePrint.SAMPLES_NEEDED
+            when {
+                !VoiceIdentity.modelReady(host) -> {
+                    val st = mgr.status(VoiceIdentity.MODEL_ID)
+                    if (st.state == ModelManager.State.DOWNLOADING) {
+                        box.addView(card("Скачивается модель", "${(st.progress * 100).toInt()}%"))
+                    } else {
+                        box.addView(card("Скачать модель узнавания", "Нужна один раз, 28 МБ") { mgr.download(VoiceIdentity.MODEL_ID) })
+                    }
+                }
+                samples.isNotEmpty() || !VoiceIdentity.enrolled(host) -> {
+                    val title = if (recording) "Говорите: «Джарвис»" else "Запись ${samples.size + 1} из $needed"
+                    val sub = hint ?: "Нажмите и скажите «Джарвис» как обычно. Две последние записи с двух шагов."
+                    box.addView(card(title, sub) {
+                        if (recording) return@card
+                        recording = true
+                        hint = null
+                        render()
+                        val started = VoiceController.recordVoiceSample(SAMPLE_MS) { pcm ->
+                            host.lifecycleScope.launch {
+                                val embedding = withContext(Dispatchers.Default) { VoiceIdentity.embedSample(host, pcm) }
+                                recording = false
+                                if (embedding == null) {
+                                    hint = "Не расслышал, повторите громче."
+                                } else {
+                                    samples += embedding
+                                    if (samples.size >= needed) {
+                                        withContext(Dispatchers.IO) { VoiceIdentity.save(host, samples.toList()) }
+                                        samples.clear()
+                                    }
+                                }
+                                render()
+                            }
+                        }
+                        if (!started) {
+                            recording = false
+                            hint = "Сначала включите ассистента."
+                            render()
+                        }
+                    })
+                }
+                else -> {
+                    box.addView(toggle("Только мой голос", "Чужой голос не разбудит Джарвиса", JarvisSettings.voiceLock(host)) {
+                        JarvisSettings.setVoiceLock(host, it)
+                        VoiceIdentity.warm(host)
+                    })
+                    box.addView(card("Записать голос заново", "Предыдущий образец будет заменён") {
+                        VoiceIdentity.forget(host)
+                        render()
+                    })
+                }
+            }
+        }
+        render()
+        val job = host.lifecycleScope.launch {
+            host.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                mgr.statuses.collect { if (box.isAttachedToWindow && samples.isEmpty() && !recording) render() }
+            }
+        }
+        box.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) = Unit
+            override fun onViewDetachedFromWindow(v: View) { job.cancel() }
+        })
+        return box
+    }
+
     /** Смена слова активации применяется перезапуском голосового движка. */
     fun restartVoice() {
         if (VoiceController.isRunning) {
@@ -236,6 +315,8 @@ class SectionScreen(host: JarvisActivity) : Screen(host) {
     }
 }
 
+private const val SAMPLE_MS = 2500
+
 object Sections {
     private val ASR_MODES = listOf("AUTO", "CLOUD_PREFERRED", "LOCAL_ONLY")
     private val MODE_LABELS = listOf("Авто", "Облако", "Локально")
@@ -249,6 +330,7 @@ object Sections {
             b.addView(head("Слово активации"))
             b.addView(toggle("Слово «Джарвис»", "Команда начинается с обращения", JarvisSettings.wakeEnabled(c)) { JarvisSettings.setWakeEnabled(c, it); restartVoice() })
             b.addView(options("Чувствительность", listOf("Низкая", "Средняя", "Высокая"), JarvisSettings.wakeSensitivity(c)) { JarvisSettings.setWakeSensitivity(c, it); restartVoice() })
+            b.addView(voiceLock())
             b.addView(head("Разговор"))
             b.addView(toggle("Продолжать разговор", "Без повторного обращения", JarvisSettings.conversationMode(c)) { JarvisSettings.setConversationMode(c, it) })
             b.addView(pref("Подстраивать слух", "Адаптивное прослушивание", "adaptive_listening", true))

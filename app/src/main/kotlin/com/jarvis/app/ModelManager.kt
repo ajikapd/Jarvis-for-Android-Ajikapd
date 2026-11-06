@@ -128,6 +128,7 @@ class ModelManager(context: Context) {
             }
             ModelCatalog.Kind.TTS -> Unit // JarvisSpeaker читает каталог при следующем старте сервиса
             ModelCatalog.Kind.ASR -> Unit
+            ModelCatalog.Kind.SPEAKER -> Unit
         }
     }
 

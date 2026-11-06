@@ -79,6 +79,13 @@ object JarvisSettings {
         prefs(context).edit().putInt("wake_sensitivity", value.coerceIn(0, 2)).apply()
     }
 
+    /** «Только мой голос»: действует, когда записан образец. */
+    fun voiceLock(context: Context): Boolean = prefs(context).getBoolean("voice_lock", true)
+
+    fun setVoiceLock(context: Context, on: Boolean) {
+        prefs(context).edit().putBoolean("voice_lock", on).apply()
+    }
+
     // ── ИИ / Brain ────────────────────────────────────────────────
     /** Чувствительность Brain: чем выше, тем охотнее выполняет команды. */
     fun brainConfidenceThreshold(context: Context): Float =

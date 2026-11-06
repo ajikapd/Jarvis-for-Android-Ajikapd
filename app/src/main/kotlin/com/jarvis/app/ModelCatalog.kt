@@ -6,7 +6,7 @@ package com.jarvis.app
  */
 object ModelCatalog {
 
-    enum class Kind { CHAT_LLM, TOOL_LLM, TTS, ASR }
+    enum class Kind { CHAT_LLM, TOOL_LLM, TTS, ASR, SPEAKER }
 
     enum class PackageKind {
         /** Один файл → relativePath */
@@ -104,6 +104,17 @@ object ModelCatalog {
             readyMarker = "sherpa-onnx-streaming-zipformer-small-ru-vosk-int8-2025-08-16/encoder.int8.onnx",
             sizeBytes = 45_000_000L,
             expectedMinBytes = 25_000_000L,
+        ),
+        Entry(
+            id = VoiceIdentity.MODEL_ID,
+            title = "Узнавание голоса · CAM++",
+            subtitle = "Для режима «Только мой голос»",
+            kind = Kind.SPEAKER,
+            packageKind = PackageKind.SINGLE_FILE,
+            url = "https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx",
+            relativePath = "speaker/campplus_zh_en.onnx",
+            readyMarker = "speaker/campplus_zh_en.onnx",
+            sizeBytes = 28_281_164L,
         ),
     )
 

@@ -24,6 +24,7 @@ import com.jarvis.core.voice.AsrPreference
 import com.jarvis.wakeword.WakeWordEngine
 import com.jarvis.asr.SherpaKeywordSpotter
 import com.jarvis.wakeword.OwwWakeSpotter
+import com.jarvis.wakeword.RecentAudio
 import com.jarvis.wakeword.WakeSpeechGate
 import com.jarvis.wakeword.WakeWordState
 import java.io.File
@@ -61,6 +62,8 @@ class VoiceEngine(
     private var kwsSpotter: OwwWakeSpotter? = null
     private var keywordSpotter: SherpaKeywordSpotter? = null
     private val speechGate = WakeSpeechGate()
+    private val recentAudio = RecentAudio(VOICE_CHECK_SAMPLES)
+    private var sampleTake: SampleTake? = null
     private var micRestartAtMs = 0L
     private var micRestarts = 0
     /** Когда детекторы последний раз получали звук: если давно, глух не микрофон, а конвейер. */
@@ -171,6 +174,7 @@ class VoiceEngine(
 
                 audioCapture = AudioCapture(app)
                 if (!liveMode && wakeEnabled) {
+                    VoiceIdentity.warm(app)
                     kwsSpotter = OwwWakeSpotter.tryCreate(
                         context = app,
                         sensitivityLevel = JarvisSettings.wakeSensitivity(app),
@@ -242,6 +246,7 @@ class VoiceEngine(
                 scope.launch {
                     audioCapture!!.chunks.collect { chunk ->
                         speechGate.onChunk(chunk.samples)
+                        if (takeSample(chunk.samples)) return@collect
                         reportBargeWindow()
                         syncLiveTalk()
                         if (VoiceController.liveMuted && VoiceController.liveTalk) return@collect
@@ -359,6 +364,7 @@ class VoiceEngine(
         if (engine.state != WakeWordState.IDLE) return
         if (!kws.isArmed) kws.armForNextWake(cooldownMs = 0)
         val now = SystemClock.elapsedRealtime()
+        recentAudio.push(samples)
         if (kws.process(samples)) {
             bargeOwwAt = now
             kws.armForNextWake(cooldownMs = 0)
@@ -375,12 +381,43 @@ class VoiceEngine(
         if (!heard || !speechGate.speechPresent()) return
         bargeOwwAt = 0L
         bargeKeywordAt = 0L
-        VoiceHealthLog.write(app, "barge-in")
+        // Здесь только журнал: в голосе смешано эхо Джарвиса, порог нужно снять на телефоне.
+        val voice = VoiceIdentity.check(app, recentAudio.snapshot())
+        VoiceHealthLog.write(app, "barge-in voice=${voice?.let(::voiceLine) ?: "off"}")
         bargeWake = true
         kws.disarm()
         keywordSpotter?.reset()
         engine.notifyExternalWake()
         maybeStartCloudCommandAfterWake()
+    }
+
+    private fun voiceLine(check: VoiceIdentity.Check) =
+        "${"%.2f".format(check.score)}/${"%.2f".format(check.threshold)}"
+
+    /** Запись образца голоса: на это время детекторы и команды не получают звук. */
+    fun recordSample(durationMs: Int, done: (FloatArray) -> Unit) {
+        sampleTake = SampleTake(16 * durationMs, done)
+    }
+
+    private fun takeSample(samples: FloatArray): Boolean {
+        val take = sampleTake ?: return false
+        if (take.add(samples)) {
+            sampleTake = null
+            take.done(take.pcm)
+        }
+        return true
+    }
+
+    private class SampleTake(size: Int, val done: (FloatArray) -> Unit) {
+        val pcm = FloatArray(size)
+        private var filled = 0
+
+        fun add(samples: FloatArray): Boolean {
+            val count = minOf(samples.size, pcm.size - filled)
+            samples.copyInto(pcm, filled, 0, count)
+            filled += count
+            return filled == pcm.size
+        }
     }
 
     private var liveTalkApplied = false
@@ -455,6 +492,7 @@ class VoiceEngine(
                 return
             }
             wakeFedAtMs = SystemClock.elapsedRealtime()
+            recentAudio.push(samples)
             val owwHit = kws.process(samples)
             val keywordHit = keywordSpotter?.process(samples) == true
             if (owwHit || keywordHit) {
@@ -468,9 +506,16 @@ class VoiceEngine(
                     keywordSpotter?.reset()
                     return
                 }
+                val voice = VoiceIdentity.check(app, recentAudio.snapshot())
+                if (voice?.accepted == false) {
+                    VoiceHealthLog.write(app, "wake rejected: voice ${voiceLine(voice)}")
+                    kws.armForNextWake()
+                    keywordSpotter?.reset()
+                    return
+                }
                 VoiceHealthLog.write(
                     app,
-                    "wake hit oww=$owwHit sherpa=$keywordHit score=${"%.3f".format(kws.lastScoreValue)} " +
+                    "wake hit voice=${voice?.let(::voiceLine) ?: "off"} oww=$owwHit sherpa=$keywordHit score=${"%.3f".format(kws.lastScoreValue)} " +
                         "voiced=${speechGate.voicedChunks()} floor=${"%.5f".format(speechGate.noiseFloor)}",
                 )
                 log("KWS джарвис hit oww=$owwHit sherpa=$keywordHit → listen command (KWS off)")
@@ -825,6 +870,8 @@ class VoiceEngine(
         private const val BARGE_WINDOW_MS = 1_000L
         private const val ECHO_HOLD_MS = 700L
         private const val WAKE_HOLDOFF_AFTER_SPEECH_MS = 1_500L
+        /** 1.5 с при 16 кГц: слово и немного до него. */
+        private const val VOICE_CHECK_SAMPLES = 24_000
         private const val MIC_WATCH_PERIOD_MS = 2_000L
         private const val MIC_HEARTBEAT_MS = 60_000L
         private const val MIC_DEAF_MS = 5_000L
@@ -894,6 +941,13 @@ object VoiceController {
 
     fun manualWake() {
         activeEngine?.manualWake()
+    }
+
+    /** false, если ассистент выключен и микрофон никто не слушает. */
+    fun recordVoiceSample(durationMs: Int, done: (FloatArray) -> Unit): Boolean {
+        val engine = activeEngine ?: return false
+        engine.recordSample(durationMs, done)
+        return true
     }
 
     fun cancelTurn(context: Context) {
