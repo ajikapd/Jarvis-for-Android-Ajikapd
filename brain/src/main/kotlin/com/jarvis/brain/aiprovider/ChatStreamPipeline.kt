@@ -86,7 +86,7 @@ class ChatStreamPipeline(
             var errorReason: String? = null
             var sentenceCount = 0
             var modelId = sel.modelId
-            var heldBack = false
+            var pushed = 0
             val streamStart = System.nanoTime()
 
             fun emitSentences(parts: List<String>): Boolean {
@@ -134,12 +134,10 @@ class ChatStreamPipeline(
                             full.append(ev.text)
                             // Вызов инструмента не озвучиваем: его разберёт оркестратор.
                             val text = full.toString()
-                            if (!CloudToolAction.mayBeAction(text)) {
-                                val unspoken = if (heldBack) text else ev.text
-                                heldBack = false
-                                emitSentences(segmenter.push(unspoken))
-                            } else {
-                                heldBack = true
+                            val safe = CloudToolAction.speakableLength(text)
+                            if (safe > pushed) {
+                                emitSentences(segmenter.push(text.substring(pushed, safe)))
+                                pushed = safe
                             }
                         }
                         AIStreamEventType.METADATA -> {
@@ -151,6 +149,12 @@ class ChatStreamPipeline(
                             }
                         }
                         AIStreamEventType.COMPLETE -> {
+                            // Хвост вроде «А» оказался обычным словом, а не началом вызова.
+                            val text = full.toString()
+                            if (CloudToolAction.actionStart(text) < 0 && pushed < text.length) {
+                                emitSentences(segmenter.push(text.substring(pushed)))
+                                pushed = text.length
+                            }
                             emitSentences(segmenter.flush())
                             session.transition(VoiceStreamState.DRAINING)
                             session.transition(VoiceStreamState.COMPLETED)

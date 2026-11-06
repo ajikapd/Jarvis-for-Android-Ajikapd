@@ -175,6 +175,10 @@ class VoiceService : Service() {
                             "reply=\"${SensitivityClassifier.mask(streamed.replyText).take(120)}\"",
                     )
                     if (usedStream) {
+                        // Модель сказала фразу и вызвала инструмент: результат озвучиваем следом.
+                        if (streamed.toolResult != null) {
+                            VoiceController.enqueueStreamSpeak(text = streamed.replyText, streamGeneration = streamGen)
+                        }
                         VoiceController.endStreamSpeak {
                             if (generationGate.isStale(gen)) return@endStreamSpeak
                             lat?.ttsCompleteAt = SystemClock.elapsedRealtime()

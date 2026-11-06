@@ -51,4 +51,17 @@ class CloudToolActionTest {
 
     @Test
     fun wordStartingWithMarker_isNotAction() = assertFalse(CloudToolAction.isAction("ACTION movie"))
+
+    @org.junit.Test fun `action after a phrase is found and not spoken`() {
+        val text = "Да, сэр, я к вашим услугам.ACT {\"tool\":\"system.status\",\"args\":{}}"
+        org.junit.Assert.assertTrue(CloudToolAction.isAction(text))
+        org.junit.Assert.assertEquals("system.status", CloudToolAction.parse(text, "r")?.toolId)
+        org.junit.Assert.assertEquals("Да, сэр, я к вашим услугам.", text.take(CloudToolAction.speakableLength(text)))
+    }
+
+    @org.junit.Test fun `possible start of action is held back but plain words are not`() {
+        org.junit.Assert.assertEquals(7, CloudToolAction.speakableLength("Готово AC"))
+        org.junit.Assert.assertEquals(11, CloudToolAction.speakableLength("Факт важнее"))
+        org.junit.Assert.assertEquals(-1, CloudToolAction.actionStart("Факт {важнее}"))
+    }
 }

@@ -9,6 +9,7 @@ import com.jarvis.core.common.model.ToolCall
  */
 object CloudToolAction {
     const val MARKER = "ACT"
+    private const val PARTIAL_TAIL = 4
 
     private val ALLOWED = setOf(
         "flashlight", "system.status", "web.answer", "notes", "app.action", "news", "rates", "location", "reminder", "briefing", "navigate", "web.search", "camera", "volume", "brightness", "timer", "launcher", "music", "weather",
@@ -57,12 +58,30 @@ object CloudToolAction {
         return t.startsWith(MARKER) || (t.length < MARKER.length && MARKER.startsWith(t))
     }
 
-    fun isAction(text: String): Boolean = text.trimStart().startsWith("$MARKER ")
+    /** Модель иногда дописывает вызов после обычной фразы: ищем его по всему тексту. */
+    private val ACTION_START = Regex("(?:^|(?<=[\\s.!?…»\"]))$MARKER\\s*\\{")
+
+    fun actionStart(text: String): Int = ACTION_START.find(text)?.range?.first ?: -1
+
+    fun isAction(text: String): Boolean = text.trimStart().startsWith("$MARKER ") || actionStart(text) >= 0
+
+    /** Сколько символов потокового текста уже можно озвучить: вызов и его возможное начало придерживаем. */
+    fun speakableLength(text: String): Int {
+        val start = actionStart(text)
+        if (start >= 0) return start
+        val tail = minOf(text.length, PARTIAL_TAIL)
+        for (keep in tail downTo 1) {
+            val end = text.substring(text.length - keep).trimEnd()
+            val atBoundary = text.length == keep || text[text.length - keep - 1].let { it.isWhitespace() || it in ".!?…»\"" }
+            if (atBoundary && end.isNotEmpty() && (end == MARKER || MARKER.startsWith(end))) return text.length - keep
+        }
+        return text.length
+    }
 
     /** @return вызов либо null, если это не вызов, он испорчен или инструмента нет в списке. */
     fun parse(text: String, requestId: String): ToolCall? {
-        if (!isAction(text)) return null
-        val body = text.trimStart().removePrefix(MARKER).trim()
+        val start = actionStart(text).takeIf { it >= 0 } ?: if (isAction(text)) text.indexOf(MARKER) else return null
+        val body = text.substring(start).removePrefix(MARKER).trim()
         val root = runCatching { MiniJson.parse(body) }.getOrNull() ?: return null
         val tool = root.opt("tool")?.asString()?.takeIf { it in ALLOWED } ?: return null
         val args = (root.opt("args") as? JsonVal.Obj)?.map.orEmpty()
