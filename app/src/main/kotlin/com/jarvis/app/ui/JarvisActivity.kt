@@ -67,6 +67,7 @@ class JarvisActivity : AppCompatActivity() {
     private var live: LiveScreen? = null
     private var pendingLive = false
     private var confirmJob: Job? = null
+    private var askingYesNo = false
 
     private val audioPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) askNotificationsThenStart()
@@ -103,7 +104,7 @@ class JarvisActivity : AppCompatActivity() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 when {
-                    sheetHost.childCount > 0 -> sheetHost.removeAllViews()
+                    sheetHost.childCount > 0 -> closeConfirm()
                     live != null -> closeLive()
                     current != HOME -> back()
                     else -> moveTaskToBack(true)
@@ -368,12 +369,17 @@ class JarvisActivity : AppCompatActivity() {
                 answerStep = 1
                 ConversationStore.pushUser(event.text)
                 ActivityFeed.push("Запрос", event.text, ActivityFeed.Item.Kind.VOICE)
+                // Ответили голосом: окно подтверждения больше не нужно.
+                if (askingYesNo) closeConfirm()
             }
             is AssistantEvent.ResponseGenerated -> {
                 lastResponse = event.text
                 answerStep = 3
                 ConversationStore.pushAi(event.text)
                 ActivityFeed.push("Ответ", event.text.take(FEED_TEXT), ActivityFeed.Item.Kind.VOICE)
+                // Любой другой ответ значит, что вопроса больше нет: кнопка «Да» не должна оставаться живой.
+                if (event.text.contains(YES_OR_NO)) showConfirm(event.text.substringBefore(YES_OR_NO).trim())
+                else if (askingYesNo) closeConfirm()
             }
             is AssistantEvent.IntentResolved -> answerStep = 2
             is AssistantEvent.ToolExecuted -> {
@@ -398,6 +404,7 @@ class JarvisActivity : AppCompatActivity() {
     fun showConfirm(message: String, title: String = "Подтвердите, сэр", onYes: (() -> Unit)? = null) {
         sheetHost.removeAllViews()
         confirmJob?.cancel()
+        askingYesNo = onYes == null
         val box = column(12).pad(16, 18).apply {
             background = GradientDrawable().apply {
                 setColor(mix(skin.bg, skin.accent, .12f))
@@ -409,8 +416,7 @@ class JarvisActivity : AppCompatActivity() {
         box.addView(label(title, 20f, skin.text, Fonts.display(this)))
         box.addView(label(message, 14f, skin.muted))
         fun answer(yes: Boolean) {
-            confirmJob?.cancel()
-            sheetHost.removeAllViews()
+            closeConfirm()
             if (onYes != null) {
                 if (yes) onYes()
             } else {
@@ -425,8 +431,14 @@ class JarvisActivity : AppCompatActivity() {
         sheetHost.addView(box, FrameLayout.LayoutParams(-1, -2).apply { gravity = Gravity.BOTTOM })
         if (onYes == null) confirmJob = lifecycleScope.launch {
             delay(CONFIRM_TIMEOUT_MS)
-            sheetHost.removeAllViews()
+            closeConfirm()
         }
+    }
+
+    private fun closeConfirm() {
+        askingYesNo = false
+        confirmJob?.cancel()
+        sheetHost.removeAllViews()
     }
 
     fun button(text: String, primary: Boolean, action: () -> Unit): TextView =
@@ -451,7 +463,8 @@ class JarvisActivity : AppCompatActivity() {
         private const val WAKE_SETTLE_MS = 400L
         private const val STARTUP_POLL_MS = 500L
         private const val FEED_TEXT = 120
-        private const val CONFIRM_TIMEOUT_MS = 10_000L
+        private const val YES_OR_NO = "Да или нет"
+        private const val CONFIRM_TIMEOUT_MS = 20_000L
     }
 }
 
