@@ -68,6 +68,7 @@ class DebugCommandReceiver : BroadcastReceiver() {
             ACTION_DEBUG_COMMAND -> handleCommand(context, intent)
             ACTION_DEBUG_VOICE -> handleVoice(context, intent)
             ACTION_DEBUG_TTS -> if (BuildConfig.DEBUG) handleTtsSample(context, intent)
+            ACTION_DEBUG_TTS_DUMP -> if (BuildConfig.DEBUG) handleTtsDump(context, intent)
             ACTION_ASR_TEST -> handleAsrTest(context, intent)
             ACTION_DEBUG_AUTONOMY -> handleAutonomy(context, intent)
             ACTION_DEBUG_SETTINGS -> handleSettings(context, intent)
@@ -408,6 +409,31 @@ class DebugCommandReceiver : BroadcastReceiver() {
     }
 
     /** Проба Gemini TTS на ключе с телефона: сэмпл в files/, ключ только в заголовке, не в логе. */
+    /** Сырой синтез без эффектов в cache/tts_<name>.pcm: проверка голоса и скорости на самом телефоне. */
+    private fun handleTtsDump(context: Context, intent: Intent) {
+        val app = context.applicationContext
+        val text = intent.getStringExtra(EXTRA_TEXT).orEmpty()
+        val name = intent.getStringExtra("name")?.filter { it.isLetterOrDigit() }.orEmpty().ifEmpty { "dump" }
+        val configs = JarvisSpeaker.voiceConfigs(app)
+        val index = intent.getIntExtra("voice", 0)
+        val config = configs.getOrNull(index) ?: run { Log.d(TAG, "tts-dump: нет голоса $index"); return }
+        val pending = goAsync()
+        Thread {
+            runCatching {
+                val tts = com.jarvis.tts.JarvisTts(config)
+                val t0 = android.os.SystemClock.elapsedRealtime()
+                val samples = tts.synthesize(text)
+                val ms = android.os.SystemClock.elapsedRealtime() - t0
+                val bytes = java.nio.ByteBuffer.allocate(samples.size * 2).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                samples.forEach { bytes.putShort((it.coerceIn(-1f, 1f) * 32767).toInt().toShort()) }
+                File(app.cacheDir, "tts_$name.pcm").writeBytes(bytes.array())
+                Log.d(TAG, "tts-dump $name dir=${config.modelDir.name} sr=${tts.sampleRate} samples=${samples.size} synthMs=$ms")
+                tts.release()
+            }.onFailure { Log.e(TAG, "tts-dump failed: ${it.message}") }
+            pending.finish()
+        }.start()
+    }
+
     private fun handleTtsSample(context: Context, intent: Intent) {
         val app = context.applicationContext
         val key = SecureKeyStore(context).getKey("gemini")
@@ -418,6 +444,11 @@ class DebugCommandReceiver : BroadcastReceiver() {
         val model = intent.getStringExtra("model")
         val voice = intent.getStringExtra("voice") ?: "Charon"
         val text = intent.getStringExtra(EXTRA_TEXT).orEmpty()
+        val searchModel = intent.getStringExtra("search")
+        if (searchModel != null) {
+            Thread { Log.d(TAG, "search-probe $searchModel: " + probeSearch(key, searchModel)) }.start()
+            return
+        }
         Thread {
             val base = "https://generativelanguage.googleapis.com/v1beta/models"
             runCatching {
@@ -448,7 +479,8 @@ class DebugCommandReceiver : BroadcastReceiver() {
                 if (code !in 200..299) {
                     Log.d(TAG, "tts: http=$code ms=$ms quota=" + Regex("(Quota exceeded[^\\n\"]*|quotaId\"[^,]*|quotaValue\"[^,]*|retryDelay\"[^,}]*)").findAll(reply).map { it.value }.toList())
                 } else if (model == null) {
-                    Log.d(TAG, "tts: models=" + Regex("models/[a-z0-9.-]*tts[a-z0-9.-]*").findAll(reply).map { it.value }.toSet())
+                    val filter = intent.getStringExtra("filter") ?: "tts"
+                    Log.d(TAG, "tts: models=" + Regex("models/[a-z0-9.-]*$filter[a-z0-9.-]*").findAll(reply).map { it.value }.toSet())
                 } else {
                     val data = org.json.JSONObject(reply).getJSONArray("candidates").getJSONObject(0)
                         .getJSONObject("content").getJSONArray("parts").getJSONObject(0)
@@ -460,6 +492,25 @@ class DebugCommandReceiver : BroadcastReceiver() {
             }.onFailure { Log.d(TAG, "tts: failed ${it.javaClass.simpleName} ${it.message?.take(160)}") }
         }.start()
     }
+
+    /** Проверка: даёт ли этот ключ поиск Google у модели. Пишем код и квоту, но не тело ответа целиком. */
+    private fun probeSearch(key: String, model: String): String = runCatching {
+        val url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent"
+        val conn = java.net.URI(url).toURL().openConnection() as java.net.HttpURLConnection
+        conn.setRequestProperty("x-goog-api-key", key)
+        conn.setRequestProperty("Content-Type", "application/json")
+        conn.connectTimeout = 10_000
+        conn.readTimeout = 30_000
+        conn.requestMethod = "POST"
+        conn.doOutput = true
+        val body = """{"contents":[{"parts":[{"text":"Какой сегодня курс доллара? Ответь одной фразой."}]}],"tools":[{"google_search":{}}]}"""
+        conn.outputStream.use { it.write(body.toByteArray()) }
+        val code = conn.responseCode
+        val reply = (if (code in 200..299) conn.inputStream else conn.errorStream)?.bufferedReader()?.readText().orEmpty()
+        val quota = Regex("\"quotaId\"\\s*:\\s*\"([^\"]*)").find(reply)?.groupValues?.get(1)
+        val queries = Regex("webSearchQueries").containsMatchIn(reply)
+        "http=$code searched=$queries quota=$quota"
+    }.getOrElse { it.javaClass.simpleName }
 
     private fun handleVoice(context: Context, intent: Intent) {
         when (intent.getStringExtra(EXTRA_ACTION)) {
@@ -701,6 +752,7 @@ class DebugCommandReceiver : BroadcastReceiver() {
         const val ACTION_DEBUG_COMMAND = "com.jarvis.assistant.DEBUG_COMMAND"
         const val ACTION_DEBUG_VOICE = "com.jarvis.assistant.DEBUG_VOICE"
         const val ACTION_DEBUG_TTS = "com.jarvis.assistant.DEBUG_TTS"
+        const val ACTION_DEBUG_TTS_DUMP = "com.jarvis.assistant.DEBUG_TTS_DUMP"
         const val ACTION_ASR_TEST = "com.jarvis.assistant.ASR_TEST"
         const val ACTION_DEBUG_AUTONOMY = "com.jarvis.assistant.DEBUG_AUTONOMY"
         const val ACTION_DEBUG_SETTINGS = "com.jarvis.assistant.DEBUG_SETTINGS"

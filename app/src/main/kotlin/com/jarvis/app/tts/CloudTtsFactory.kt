@@ -24,8 +24,8 @@ object CloudTtsFactory {
             caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
     }
 
-    fun localBackend(engine: () -> JarvisTts?): StreamingTtsBackend =
-        LocalPiperTtsBackend(engine = engine)
+    fun localBackend(voiceDir: String, engine: () -> JarvisTts?): StreamingTtsBackend =
+        LocalPiperTtsBackend(engine = engine, model = voiceDir, defaultVoice = voiceDir.substringBefore("-medium"))
 
     /**
      * One cloud backend: OpenAI speech when URL+key set, else Android TextToSpeech.
@@ -61,9 +61,10 @@ object CloudTtsFactory {
  */
 class HybridTtsBridge(
     private val app: Context,
+    voiceDir: String,
     private val localEngine: () -> JarvisTts?,
 ) {
-    private val local = CloudTtsFactory.localBackend(localEngine)
+    private val local = CloudTtsFactory.localBackend(voiceDir, localEngine)
     @Volatile private var cloud = CloudTtsFactory.cloudBackend(app)
     @Volatile private var router = StreamingTtsRouter(local, cloud)
     @Volatile private var synth = HybridTtsSynthesizer(router, local, cloud)

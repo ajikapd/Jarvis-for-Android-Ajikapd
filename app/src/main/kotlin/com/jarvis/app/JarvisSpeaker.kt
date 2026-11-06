@@ -31,16 +31,40 @@ class JarvisSpeaker(context: Context) {
     companion object {
         const val TTS_MODEL_DIR = "vits-piper-ru_RU-dmitri-medium"
         private const val TTS_MODEL_DIR_INT8 = "vits-piper-ru_RU-dmitri-medium-int8"
+        /** Дообученный голос Джарвиса: своя папка, потому что его словарь eSpeak исправлен и Dmitri не подходит. */
+        private const val JARVIS_VOICE_DIR = "jarvis-voice-ru"
+        private const val JARVIS_VOICE_ONNX = "jarvis.onnx"
+        private const val JARVIS_VOICE_SPEED = 1.12f
+        private const val DMITRI_ONNX = "ru_RU-dmitri-medium.onnx"
+        private const val DMITRI_SPEED = 1.08f
         private const val TAG = "Jarvis.Speaker"
         /** Большинство ответов целиком — один гладкий play. */
         private const val FULL_SYNTH_MAX_CHARS = 160
         /** Bound stream queue depth (sentence chunks). */
         private const val MAX_QUEUE_DEPTH = 12
+
+        /** Голоса по порядку предпочтения: первым идёт свой, Dmitri остаётся запасным. */
+        fun voiceConfigs(context: Context): List<JarvisTtsConfig> {
+            val root = File(context.getExternalFilesDir(null), "models")
+            val own = File(root, JARVIS_VOICE_DIR)
+            return buildList {
+                if (isVoiceComplete(own, JARVIS_VOICE_ONNX)) {
+                    add(JarvisTtsConfig(own, modelOnnx = JARVIS_VOICE_ONNX, numThreads = 4, speed = JARVIS_VOICE_SPEED))
+                }
+                listOf(TTS_MODEL_DIR, TTS_MODEL_DIR_INT8)
+                    .map { File(root, it) }
+                    .firstOrNull { File(it, DMITRI_ONNX).isFile }
+                    ?.let { add(JarvisTtsConfig(it, numThreads = 4, speed = DMITRI_SPEED)) }
+            }
+        }
+
+        /** Сбой sherpa при неполной папке роняет процесс, поэтому полноту проверяем заранее. */
+        private fun isVoiceComplete(dir: File, onnx: String): Boolean =
+            File(dir, onnx).isFile && File(dir, "tokens.txt").isFile && File(dir, "espeak-ng-data/ru_dict").isFile
     }
 
     private val appCtx = context.applicationContext
     private val foreignVoice by lazy { com.jarvis.app.tts.AndroidSystemTtsBackend(appCtx) }
-    private val ttsDir: File = resolveTtsDir(context)
     private val player = TtsPlayer()
     private val ttsExecutor = Executors.newSingleThreadExecutor { r ->
         Thread(r, "jarvis-tts").apply { priority = Thread.MAX_PRIORITY }
@@ -69,46 +93,26 @@ class JarvisSpeaker(context: Context) {
         _lastPlayEndAtMs = SystemClock.elapsedRealtime()
     }
 
-    private fun resolveTtsDir(context: Context): File {
-        val root = File(context.getExternalFilesDir(null), "models")
-        val medium = File(root, TTS_MODEL_DIR)
-        val int8 = File(root, TTS_MODEL_DIR_INT8)
-        return when {
-            File(medium, "ru_RU-dmitri-medium.onnx").isFile -> medium
-            File(int8, "ru_RU-dmitri-medium.onnx").isFile -> int8
-            medium.isDirectory -> medium
-            else -> int8
-        }
-    }
-
     init {
-        if (ttsDir.isDirectory) {
-            runCatching {
-                tts = JarvisTts(
-                    JarvisTtsConfig(
-                        modelDir = ttsDir,
-                        numThreads = 4,
-                        speed = 1.08f,
-                    ),
-                )
-                Log.d(TAG, "TTS ready (${tts!!.sampleRate} Hz) dir=${ttsDir.name}")
-                hybrid = HybridTtsBridge(appCtx) { tts }
-                Log.i(TAG, "hybrid TTS ${hybrid!!.decisionLabel()}")
-                scope.launch {
-                    runCatching {
-                        Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
-                        tts?.synthesize("ок")
-                        Log.d(TAG, "TTS warm-up done")
-                    }.onFailure { Log.w(TAG, "TTS warm-up failed: ${it.message}") }
-                }
-            }.onFailure {
-                Log.e(TAG, "TTS init failed: ${it.message}")
-                tts = null
-                hybrid = HybridTtsBridge(appCtx) { null }
+        val config = voiceConfigs(context).firstNotNullOfOrNull { candidate ->
+            runCatching { tts = JarvisTts(candidate) }
+                .onFailure { Log.e(TAG, "TTS init failed: ${candidate.modelDir.name}: ${it.message}") }
+                .map { candidate }
+                .getOrNull()
+        }
+        hybrid = HybridTtsBridge(appCtx, config?.modelDir?.name ?: TTS_MODEL_DIR) { tts }
+        if (config != null) {
+            Log.i(TAG, "TTS ready (${tts!!.sampleRate} Hz) dir=${config.modelDir.name} speed=${config.speed}")
+            Log.i(TAG, "hybrid TTS ${hybrid!!.decisionLabel()}")
+            scope.launch {
+                runCatching {
+                    Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
+                    tts?.synthesize("ок")
+                    Log.d(TAG, "TTS warm-up done")
+                }.onFailure { Log.w(TAG, "TTS warm-up failed: ${it.message}") }
             }
         } else {
-            Log.d(TAG, "TTS model dir missing: ${ttsDir.absolutePath}")
-            hybrid = HybridTtsBridge(appCtx) { null }
+            Log.w(TAG, "TTS: нет ни одного локального голоса")
         }
     }
 
