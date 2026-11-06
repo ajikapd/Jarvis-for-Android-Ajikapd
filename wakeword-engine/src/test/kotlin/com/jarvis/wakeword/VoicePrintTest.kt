@@ -33,6 +33,55 @@ class VoicePrintTest {
         assertEquals(0.3f, VoicePrint.enroll(scattered).threshold, 0.001f)
     }
 
+    @Test fun piecesOfOneRecordingDoNotRaiseThreshold() {
+        val same = floatArrayOf(1f, 0f)
+        val other = floatArrayOf(0f, 1f)
+        val print = VoicePrint.enrollGroups(listOf(listOf(same, same), listOf(other, other)))
+        assertEquals(0.3f, print.threshold, 0.001f)
+        assertEquals(4, print.samples.size)
+    }
+
+    @Test fun windowsCoverLongSpeechWithinLimit() {
+        assertEquals(0, VoiceTrim.windows(FloatArray(0)).size)
+        assertEquals(1, VoiceTrim.windows(FloatArray(8000)).size)
+        assertEquals(3, VoiceTrim.windows(FloatArray(48_000)).size)
+        val long = VoiceTrim.windows(FloatArray(16000 * 12))
+        assertTrue(long.size <= 6)
+        assertTrue(long.all { it.size == 24_000 })
+    }
+
+    @Test fun shortAnswerPassesLowerMinimum() {
+        val yes = FloatArray(16000).also { for (i in 0 until 2880) it[i] = 0.2f }
+        assertEquals(0, VoiceTrim.speech(yes).size)
+        assertEquals(2880, VoiceTrim.speech(yes, minSamples = 2400).size)
+    }
+
+    @Test fun learnedSamplesRaiseOwnerScoreWithoutChangingThreshold() {
+        val print = VoicePrint.enroll(owner)
+        val short = floatArrayOf(0f, 0f, 1f)
+        val learned = print.with(listOf(short, short, short))
+        assertEquals(print.threshold, learned.threshold, 0f)
+        assertTrue(learned.score(short) > print.score(short))
+    }
+
+    @Test fun memoryKeepsOnlyNewestSamples() {
+        val memory = VoiceMemory(2)
+        memory.add(floatArrayOf(1f))
+        memory.add(floatArrayOf(2f))
+        memory.add(floatArrayOf(3f))
+        assertEquals(2, memory.size)
+        assertArrayEquals(floatArrayOf(2f), memory.samples[0], 0f)
+    }
+
+    @Test fun memoryRoundTripSkipsDamagedLines() {
+        val memory = VoiceMemory(5)
+        memory.add(floatArrayOf(1f, 2f))
+        val back = VoiceMemory.decode(memory.encode() + "\noops\n3,4", 5)
+        assertEquals(2, back.size)
+        assertArrayEquals(floatArrayOf(3f, 4f), back.samples[1], 0f)
+        assertEquals(1, VoiceMemory.decode("1\n2\n3", 1).size)
+    }
+
     @Test fun oneBadRecordingDoesNotBlockOwner() {
         val print = VoicePrint(owner.dropLast(1) + floatArrayOf(0f, 1f, 0f), 0.5f)
         assertTrue(print.accepts(floatArrayOf(1f, 0f, 0f)))

@@ -91,6 +91,7 @@ class VoiceEngine(
     /** Запуск асинхронный — модель грузится в фоне, main-поток не блокируется (иначе ANR). */
     fun start(): Boolean {
         log("starting")
+        restoreVolume()
         JarvisEvents.publish(AssistantEvent.StateChanged(AssistantState.STARTING))
         if (!AudioCapture(app).hasPermission()) {
             log("RECORD_AUDIO permission denied (adb shell pm grant com.jarvis.assistant android.permission.RECORD_AUDIO)")
@@ -191,6 +192,7 @@ class VoiceEngine(
                             onPartial = ::publishPartial,
                             sensitivity = JarvisSettings.wakeSensitivity(app),
                             refineWithPcm = { pcm, streaming -> refineCommandPcm(pcm, streaming) },
+                            voiceAllowed = ::commandVoiceAllowed,
                         )
                         log(
                             "wake KWS=${kwsSpotter!!.engine} + sherpa=${keywordSpotter != null} " +
@@ -336,13 +338,83 @@ class VoiceEngine(
     private var bargePeak = 0f
     @Volatile private var bargeWake = false
     private var wasSpeaking = false
+    private val audioManager = app.getSystemService(android.media.AudioManager::class.java)
+    /** Звук видео или музыки: подавление эха убирает его из микрофона, как и свою речь. */
+    @Volatile private var mediaPlaying = false
+    private var hushRequest: android.media.AudioFocusRequest? = null
+    private var hushAtMs = 0L
+
+    /**
+     * Подавления эха мало: на время разговора видео должно замолчать. Приложения вроде YouTube
+     * уступают звук сами, а TikTok нет, тогда пока мы слушаем, громкость убавлена.
+     */
+    private fun hushMedia() {
+        if (hushRequest != null) return
+        val request = android.media.AudioFocusRequest.Builder(android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+            .setAudioAttributes(
+                android.media.AudioAttributes.Builder()
+                    .setUsage(android.media.AudioAttributes.USAGE_ASSISTANT)
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build(),
+            )
+            .setOnAudioFocusChangeListener { }
+            .build()
+        val result = audioManager?.requestAudioFocus(request)
+        hushRequest = request
+        hushAtMs = SystemClock.elapsedRealtime()
+        VoiceHealthLog.write(app, "media hush result=$result")
+    }
+
+    private fun releaseHush() {
+        restoreVolume()
+        val request = hushRequest ?: return
+        hushRequest = null
+        audioManager?.abandonAudioFocusRequest(request)
+        VoiceHealthLog.write(app, "media hush released")
+    }
+
+    private fun syncHush(speaking: Boolean) {
+        val listening = wakeWordEngine?.state.let { it != null && it != WakeWordState.IDLE } ||
+            hybridAsr?.isTurnActive() == true
+        val now = SystemClock.elapsedRealtime()
+        val settled = now - hushAtMs >= HUSH_DIP_DELAY_MS
+        if (hushRequest != null && listening && !speaking && settled && mediaPlaying) dipVolume()
+        if (!listening || speaking) restoreVolume()
+        if (hushRequest == null || listening || speaking || processingBusy) return
+        val playEnd = speaker?.lastPlayEndAtMs ?: 0L
+        if (now - hushAtMs >= HUSH_MIN_MS && now - playEnd >= HUSH_AFTER_SPEECH_MS) releaseHush()
+    }
+
+    private fun dipVolume() {
+        val am = audioManager ?: return
+        val prefs = JarvisSettings.prefs(app)
+        if (prefs.contains(HUSH_VOLUME_KEY)) return
+        val current = am.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)
+        val low = (am.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC) * HUSH_VOLUME_SHARE).toInt().coerceAtLeast(1)
+        if (current <= low) return
+        // Запись на диск первой: если приложение упадёт, громкость вернётся при запуске.
+        prefs.edit().putInt(HUSH_VOLUME_KEY, current).commit()
+        am.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, low, 0)
+        VoiceHealthLog.write(app, "media volume dip $current -> $low")
+    }
+
+    private fun restoreVolume() {
+        val prefs = JarvisSettings.prefs(app)
+        if (!prefs.contains(HUSH_VOLUME_KEY)) return
+        val saved = prefs.getInt(HUSH_VOLUME_KEY, 0)
+        audioManager?.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, saved, 0)
+        prefs.edit().remove(HUSH_VOLUME_KEY).apply()
+        VoiceHealthLog.write(app, "media volume restored $saved")
+    }
 
     /** Микрофон с подавлением эха только на время своей речи; итог окна идёт в журнал для разбора. */
     private fun reportBargeWindow() {
         val speaking = speaker?.speaking == true
         // Паузы между кусками ответа не должны дёргать источник микрофона.
         val sp = speaker
-        audioCapture?.echoCancel = speaking ||
+        mediaPlaying = audioManager?.isMusicActive == true
+        syncHush(speaking)
+        audioCapture?.echoCancel = speaking || mediaPlaying ||
             (sp != null && SystemClock.elapsedRealtime() - sp.lastPlayEndAtMs < ECHO_HOLD_MS)
         if (wasSpeaking && !speaking) {
             VoiceHealthLog.write(app, "speech end owwPeak=${"%.3f".format(bargePeak)}")
@@ -381,8 +453,13 @@ class VoiceEngine(
         if (!heard || !speechGate.speechPresent()) return
         bargeOwwAt = 0L
         bargeKeywordAt = 0L
-        // Здесь только журнал: в голосе смешано эхо Джарвиса, порог нужно снять на телефоне.
         val voice = VoiceIdentity.check(app, recentAudio.snapshot())
+        if (voice?.accepted == false) {
+            VoiceHealthLog.write(app, "barge rejected: voice ${voiceLine(voice)}")
+            bargeOwwAt = 0L
+            bargeKeywordAt = 0L
+            return
+        }
         VoiceHealthLog.write(app, "barge-in voice=${voice?.let(::voiceLine) ?: "off"}")
         bargeWake = true
         kws.disarm()
@@ -393,6 +470,23 @@ class VoiceEngine(
 
     private fun voiceLine(check: VoiceIdentity.Check) =
         "${"%.2f".format(check.score)}/${"%.2f".format(check.threshold)}"
+
+    /**
+     * Команду принимает только голос владельца. Если речи мало для сравнения, верим
+     * команде сразу после слова активации, а в ожидании без него не верим: «да» из видео
+     * не должно подтверждать действие.
+     */
+    private fun commandVoiceAllowed(pcm: FloatArray, awaited: Boolean): Boolean {
+        val check = VoiceIdentity.checkCommand(app, pcm, awaited, clean = !mediaPlaying)
+        val allowed = check?.accepted ?: (!awaited || !VoiceIdentity.commandLocked(app))
+        val score = check?.let { "${voiceLine(it)} ${"%.1f".format(it.seconds)}s" } ?: "none"
+        VoiceHealthLog.write(app, "command voice=$score awaited=$awaited media=$mediaPlaying allowed=$allowed")
+        if (!allowed) {
+            log("command rejected: not the owner's voice")
+            JarvisEvents.publish(AssistantEvent.StateChanged(AssistantState.READY))
+        }
+        return allowed
+    }
 
     /** Запись образца голоса: на это время детекторы и команды не получают звук. */
     fun recordSample(durationMs: Int, done: (FloatArray) -> Unit) {
@@ -444,6 +538,7 @@ class VoiceEngine(
     fun manualWake() {
         val engine = wakeWordEngine ?: return
         bargeWake = speaker?.speaking == true
+        if (!bargeWake && audioManager?.isMusicActive == true) hushMedia()
         kwsSpotter?.disarm()
         keywordSpotter?.reset()
         engine.notifyExternalWake()
@@ -473,6 +568,9 @@ class VoiceEngine(
         val before = engine.state
 
         if (bridge != null && bridge.isTurnActive()) {
+            synchronized(livePcmLock) {
+                if (livePcm.size < 16000 * 12) for (s in samples) livePcm.add(s)
+            }
             bridge.feed(samples)
             if (!pauseCaptureForCloudAsr) {
                 val probe = asrSession?.processChunk(samples)
@@ -506,9 +604,14 @@ class VoiceEngine(
                     keywordSpotter?.reset()
                     return
                 }
-                val voice = VoiceIdentity.check(app, recentAudio.snapshot())
+                val voice = VoiceIdentity.check(
+                    app,
+                    recentAudio.snapshot(),
+                    clean = !mediaPlaying,
+                    media = mediaPlaying,
+                )
                 if (voice?.accepted == false) {
-                    VoiceHealthLog.write(app, "wake rejected: voice ${voiceLine(voice)}")
+                    VoiceHealthLog.write(app, "wake rejected: voice ${voiceLine(voice)} media=$mediaPlaying")
                     kws.armForNextWake()
                     keywordSpotter?.reset()
                     return
@@ -519,6 +622,7 @@ class VoiceEngine(
                         "voiced=${speechGate.voicedChunks()} floor=${"%.5f".format(speechGate.noiseFloor)}",
                 )
                 log("KWS джарвис hit oww=$owwHit sherpa=$keywordHit → listen command (KWS off)")
+                if (mediaPlaying) hushMedia()
                 kws.disarm()
                 keywordSpotter?.reset()
                 engine.notifyExternalWake()
@@ -638,6 +742,12 @@ class VoiceEngine(
                 return@launch
             }
             var out = text.trim()
+            val heard = synchronized(livePcmLock) { FloatArray(livePcm.size) { i -> livePcm[i] } }
+            if (out.isNotBlank() && heard.isNotEmpty() && !commandVoiceAllowed(heard, awaited = liveRefine)) {
+                synchronized(livePcmLock) { livePcm.clear() }
+                pendingLivePrefix = ""
+                return@launch
+            }
             if (liveRefine && tel.asrRoute == "local") {
                 val pcmSnapshot = synchronized(livePcmLock) {
                     if (livePcm.isEmpty()) null
@@ -680,6 +790,7 @@ class VoiceEngine(
     }
 
     fun stop() {
+        releaseHush()
         log("stopping")
         disposed = true
         hybridAsr?.cancelTurn()
@@ -869,6 +980,11 @@ class VoiceEngine(
         private const val TAG = "Jarvis.Debug"
         private const val BARGE_WINDOW_MS = 1_000L
         private const val ECHO_HOLD_MS = 700L
+        private const val HUSH_MIN_MS = 1_500L
+        private const val HUSH_AFTER_SPEECH_MS = 800L
+        private const val HUSH_DIP_DELAY_MS = 300L
+        private const val HUSH_VOLUME_SHARE = 0.15f
+        private const val HUSH_VOLUME_KEY = "hush_saved_volume"
         private const val WAKE_HOLDOFF_AFTER_SPEECH_MS = 1_500L
         /** 1.5 с при 16 кГц: слово и немного до него. */
         private const val VOICE_CHECK_SAMPLES = 24_000

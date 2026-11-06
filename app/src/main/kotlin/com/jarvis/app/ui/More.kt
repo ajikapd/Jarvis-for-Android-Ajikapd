@@ -214,9 +214,28 @@ class SectionScreen(host: JarvisActivity) : Screen(host) {
         val box = host.column(10)
         val mgr = ModelManager.get(host)
         val samples = ArrayList<FloatArray>()
+        val phrases = ArrayList<List<FloatArray>>()
         var recording = false
         var hint: String? = null
-        fun render() {
+        lateinit var render: () -> Unit
+        fun record(ms: Int, onDone: suspend (FloatArray) -> Unit) {
+            recording = true
+            hint = null
+            render()
+            val started = VoiceController.recordVoiceSample(ms) { pcm ->
+                host.lifecycleScope.launch {
+                    onDone(pcm)
+                    recording = false
+                    render()
+                }
+            }
+            if (!started) {
+                recording = false
+                hint = "Сначала включите ассистента."
+                render()
+            }
+        }
+        render = render@{
             box.removeAllViews()
             val needed = VoicePrint.SAMPLES_NEEDED
             when {
@@ -230,40 +249,50 @@ class SectionScreen(host: JarvisActivity) : Screen(host) {
                 }
                 samples.isNotEmpty() || !VoiceIdentity.enrolled(host) -> {
                     val title = if (recording) "Говорите: «Джарвис»" else "Запись ${samples.size + 1} из $needed"
-                    val sub = hint ?: "Нажмите и скажите «Джарвис» как обычно. Две последние записи с двух шагов."
+                    val sub = hint ?: "Нажмите и скажите «Джарвис» как обычно. Три последние записи с двух шагов."
                     box.addView(card(title, sub) {
                         if (recording) return@card
-                        recording = true
-                        hint = null
-                        render()
-                        val started = VoiceController.recordVoiceSample(SAMPLE_MS) { pcm ->
-                            host.lifecycleScope.launch {
-                                val embedding = withContext(Dispatchers.Default) { VoiceIdentity.embedSample(host, pcm) }
-                                recording = false
-                                if (embedding == null) {
-                                    hint = "Не расслышал, повторите громче."
-                                } else {
-                                    samples += embedding
-                                    if (samples.size >= needed) {
-                                        withContext(Dispatchers.IO) { VoiceIdentity.save(host, samples.toList()) }
-                                        samples.clear()
-                                    }
+                        record(SAMPLE_MS) { pcm ->
+                            val embedding = withContext(Dispatchers.Default) { VoiceIdentity.embedSample(host, pcm) }
+                            if (embedding == null) {
+                                hint = "Не расслышал, повторите громче."
+                            } else {
+                                samples += embedding
+                                if (samples.size >= needed) {
+                                    withContext(Dispatchers.IO) { VoiceIdentity.save(host, samples.toList()) }
+                                    samples.clear()
                                 }
-                                render()
                             }
-                        }
-                        if (!started) {
-                            recording = false
-                            hint = "Сначала включите ассистента."
-                            render()
                         }
                     })
                 }
+                !VoiceIdentity.phrasesEnrolled(host) -> {
+                    val all = VoiceIdentity.PHRASES
+                    val title = if (recording) "Читайте вслух, 6 секунд" else "Фраза ${phrases.size + 1} из ${all.size}"
+                    val sub = "«${all[phrases.size]}»" + (hint?.let { "\n$it" } ?: "")
+                    box.addView(card(title, sub) {
+                        if (recording) return@card
+                        record(VoiceIdentity.PHRASE_MS) { pcm ->
+                            val pieces = withContext(Dispatchers.Default) { VoiceIdentity.embedPhrase(host, pcm) }
+                            if (pieces.isEmpty()) {
+                                hint = "Не расслышал, повторите громче."
+                            } else {
+                                phrases += pieces
+                                if (phrases.size >= all.size) {
+                                    withContext(Dispatchers.IO) { VoiceIdentity.savePhrases(host, phrases.toList()) }
+                                    phrases.clear()
+                                }
+                            }
+                        }
+                    })
+                    box.addView(note("Фразы нужны, чтобы Джарвис принимал команды только от вас."))
+                }
                 else -> {
-                    box.addView(toggle("Только мой голос", "Чужой голос не разбудит Джарвиса", JarvisSettings.voiceLock(host)) {
+                    box.addView(toggle("Только мой голос", "Чужой голос не разбудит Джарвиса и не отдаст команду", JarvisSettings.voiceLock(host)) {
                         JarvisSettings.setVoiceLock(host, it)
                         VoiceIdentity.warm(host)
                     })
+                    box.addView(note("Выучено на ваших командах: ${VoiceIdentity.learnedCount(host)}"))
                     box.addView(card("Записать голос заново", "Предыдущий образец будет заменён") {
                         VoiceIdentity.forget(host)
                         render()
@@ -274,7 +303,9 @@ class SectionScreen(host: JarvisActivity) : Screen(host) {
         render()
         val job = host.lifecycleScope.launch {
             host.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                mgr.statuses.collect { if (box.isAttachedToWindow && samples.isEmpty() && !recording) render() }
+                mgr.statuses.collect {
+                    if (box.isAttachedToWindow && samples.isEmpty() && phrases.isEmpty() && !recording) render()
+                }
             }
         }
         box.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {

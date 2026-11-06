@@ -112,6 +112,54 @@ class WakeWordEngineTest {
     }
 
     @Test
+    fun `foreign voice after wake gives no command`() = runBlocking(Dispatchers.Unconfined) {
+        val session = fakeSession("джарвис включи" to false, "джарвис включи фонарик" to true)
+        val engine = WakeWordEngine(
+            session,
+            CoroutineScope(Dispatchers.Unconfined),
+            voiceAllowed = { _, _ -> false },
+        )
+        val seen = mutableListOf<com.jarvis.core.common.model.UserRequest>()
+        val job = launch { engine.userRequests.collect { seen.add(it) } }
+        yield()
+
+        engine.onAudioChunk(floatArrayOf(0f))
+        engine.onAudioChunk(floatArrayOf(0f))
+        yield()
+
+        assertEquals(0, seen.size)
+        assertEquals(WakeWordState.IDLE, engine.state)
+        job.cancel()
+    }
+
+    @Test
+    fun `foreign voice in follow-up keeps waiting for the owner`() = runBlocking(Dispatchers.Unconfined) {
+        val session = fakeSession("чужая речь из видео" to true, "выключи фонарик" to true)
+        val verdicts = ArrayDeque(listOf(false, true))
+        val awaited = mutableListOf<Boolean>()
+        val engine = WakeWordEngine(
+            session,
+            CoroutineScope(Dispatchers.Unconfined),
+            voiceAllowed = { _, wait -> awaited += wait; verdicts.removeFirst() },
+        )
+        val seen = mutableListOf<com.jarvis.core.common.model.UserRequest>()
+        val job = launch { engine.userRequests.collect { seen.add(it) } }
+        yield()
+
+        engine.listenForFollowUp(60_000)
+        engine.onAudioChunk(floatArrayOf(0f))
+        yield()
+        assertEquals(0, seen.size)
+        assertEquals(WakeWordState.AWAITING_COMMAND, engine.state)
+
+        engine.onAudioChunk(floatArrayOf(0f))
+        yield()
+        assertEquals(listOf("выключи фонарик"), seen.map { it.text })
+        assertEquals(listOf(true, true), awaited)
+        job.cancel()
+    }
+
+    @Test
     fun `wakeDetected fires on wake word`() = runBlocking(Dispatchers.Unconfined) {
         val session = fakeSession("джарвис привет" to false, "джарвис привет" to true)
         val engine = WakeWordEngine(session, CoroutineScope(Dispatchers.Unconfined))

@@ -23,6 +23,8 @@ class WakeWordEngine(
     private val onPartial: (String) -> Unit = {},
     sensitivity: Int = DEFAULT_SENSITIVITY,
     private val refineWithPcm: ((FloatArray, String) -> CommandRefinePasses?)? = null,
+    /** Сказал ли это владелец; второй аргумент: команду ждали без слова активации. */
+    private val voiceAllowed: (FloatArray, Boolean) -> Boolean = { _, _ -> true },
 ) {
     private val maxFuzzyDist = fuzzyDistFor(sensitivity)
     private val _userRequests = MutableSharedFlow<UserRequest>(extraBufferCapacity = 8)
@@ -176,6 +178,7 @@ class WakeWordEngine(
 
     private fun finishCommand(rawText: String) {
         if (state != WakeWordState.LISTENING && state != WakeWordState.AWAITING_COMMAND) return
+        if (rejectForeignVoice(rawText)) return
         commandTimeoutJob?.cancel()
         commandTimeoutJob = null
         awaitTimeoutJob?.cancel()
@@ -226,6 +229,25 @@ class WakeWordEngine(
                 _userRequests.tryEmit(UserRequest(text = command, source = RequestSource.VOICE))
             }
         }
+    }
+
+    /** Чужая речь не становится командой, а окно ожидания дослушивается до своего срока. */
+    private fun rejectForeignVoice(rawText: String): Boolean {
+        if (rawText.isBlank() || commandPcm.isEmpty()) return false
+        val pcm = FloatArray(commandPcm.size) { commandPcm[it] }
+        val awaited = state == WakeWordState.AWAITING_COMMAND
+        if (voiceAllowed(pcm, awaited)) return false
+        session.reset()
+        clearHangover()
+        clearPcm()
+        pendingCommandPrefix = ""
+        lastPartial = ""
+        if (!awaited) {
+            commandTimeoutJob?.cancel()
+            commandTimeoutJob = null
+            state = WakeWordState.IDLE
+        }
+        return true
     }
 
     private fun appendPcm(samples: FloatArray) {
