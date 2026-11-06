@@ -245,6 +245,10 @@ class VoiceEngine(
                         val sp = speaker ?: return@collect
                         // Глушим mic только под TTS-речь (не под wake-чим) + короткий хвост
                         // против самоподхвата. Раньше playing+400 мс резали команду после wake.
+                        if (sp.speaking && !continuous) {
+                            handleBargeIn(chunk.samples)
+                            return@collect
+                        }
                         if (sp.speaking || SystemClock.elapsedRealtime() - sp.lastPlayEndAtMs < 220) {
                             return@collect
                         }
@@ -317,6 +321,34 @@ class VoiceEngine(
     }
 
     /** V2-08 wake path: KWS untouched; cloud command only when CLOUD_PREFERRED. */
+    private var bargeOwwAt = 0L
+    private var bargeKeywordAt = 0L
+
+    /**
+     * Прерывание голосом: «Джарвис» поверх собственной речи. Динамик рядом с микрофоном,
+     * поэтому нужны оба детектора в пределах секунды, иначе он перебивал бы сам себя.
+     */
+    private fun handleBargeIn(samples: FloatArray) {
+        val kws = kwsSpotter ?: return
+        val engine = wakeWordEngine ?: return
+        if (engine.state != WakeWordState.IDLE) return
+        val now = SystemClock.elapsedRealtime()
+        if (kws.process(samples)) {
+            bargeOwwAt = now
+            kws.armForNextWake(cooldownMs = 0)
+        }
+        if (keywordSpotter?.process(samples) == true) bargeKeywordAt = now
+        if (now - bargeOwwAt > BARGE_WINDOW_MS || now - bargeKeywordAt > BARGE_WINDOW_MS) return
+        if (!speechGate.speechPresent()) return
+        bargeOwwAt = 0L
+        bargeKeywordAt = 0L
+        VoiceHealthLog.write(app, "barge-in")
+        kws.disarm()
+        keywordSpotter?.reset()
+        engine.notifyExternalWake()
+        maybeStartCloudCommandAfterWake()
+    }
+
     private fun handleWakeChunk(samples: FloatArray) {
         if (WakeAudioDump.isActive) {
             WakeAudioDump.write(samples)
@@ -612,9 +644,9 @@ class VoiceEngine(
         }
     }
 
-    /** Слушать follow-up без wake (подтверждение / уточнение). */
-    fun listenForFollowUp() {
-        wakeWordEngine?.listenForFollowUp(10_000L)
+    /** Слушать follow-up без wake: подтверждение, уточнение или продолжение разговора. */
+    fun listenForFollowUp(timeoutMs: Long) {
+        wakeWordEngine?.listenForFollowUp(timeoutMs)
     }
 
     /** Плавающий орб — OverlayOrbService (ядро + мини-меню). Старый CoreView не поднимаем. */
@@ -718,6 +750,7 @@ class VoiceEngine(
 
     companion object {
         private const val TAG = "Jarvis.Debug"
+        private const val BARGE_WINDOW_MS = 1_000L
         private const val WAKE_HOLDOFF_AFTER_SPEECH_MS = 1_500L
         private const val MIC_WATCH_PERIOD_MS = 2_000L
         private const val MIC_HEARTBEAT_MS = 60_000L
@@ -850,8 +883,8 @@ object VoiceController {
         activeEngine?.endStreamSpeak(onComplete) ?: onComplete()
     }
 
-    fun listenForFollowUp() {
-        activeEngine?.listenForFollowUp()
+    fun listenForFollowUp(timeoutMs: Long = com.jarvis.core.nlp.ConversationWindow.CONFIRMATION_MS) {
+        activeEngine?.listenForFollowUp(timeoutMs)
     }
 
     /** Пауза ASR на время Brain/LLM (иначе tok/s падает из‑за конкуренции CPU). */

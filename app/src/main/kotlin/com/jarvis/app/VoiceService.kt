@@ -19,6 +19,7 @@ import androidx.core.app.NotificationCompat
 import com.jarvis.core.common.model.AssistantResponseStatus
 import com.jarvis.core.common.model.UserRequest
 import com.jarvis.core.event.JarvisEvents
+import com.jarvis.core.nlp.ConversationWindow
 import com.jarvis.core.model.AssistantState
 import com.jarvis.core.privacy.SensitivityClassifier
 import com.jarvis.core.runtime.ImmediateAckPolicy
@@ -184,6 +185,9 @@ class VoiceService : Service() {
                                 LatencyStatsStore.recordFrom(trace)
                             }
                             VoiceController.setProcessingBusy(false)
+                            if (JarvisSettings.conversationMode(this@VoiceService)) {
+                                VoiceController.listenForFollowUp(ConversationWindow.CONVERSATION_MS)
+                            }
                         }
                     } else {
                         // Fallback non-stream path inside streaming attempt
@@ -244,7 +248,12 @@ class VoiceService : Service() {
                     LatencyStatsStore.recordFrom(trace)
                 }
                 VoiceController.setProcessingBusy(false)
-                if (needsFollowUp) VoiceController.listenForFollowUp()
+                val isChat = (response?.route ?: trace?.route?.name) == "CHAT"
+                when {
+                    needsFollowUp -> VoiceController.listenForFollowUp()
+                    ConversationWindow.keepListening(text, isChat, JarvisSettings.conversationMode(this)) ->
+                        VoiceController.listenForFollowUp(ConversationWindow.CONVERSATION_MS)
+                }
             },
             onFirstAudio = { ttsFirstMs ->
                 if (generationGate.isStale(gen)) return@speak

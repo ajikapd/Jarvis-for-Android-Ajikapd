@@ -55,6 +55,12 @@ object JarvisSettings {
         prefs(context).edit().putBoolean("voice_wanted", wanted).apply()
     }
 
+    fun conversationMode(context: Context): Boolean = prefs(context).getBoolean("conversation_mode", true)
+
+    fun setConversationMode(context: Context, on: Boolean) {
+        prefs(context).edit().putBoolean("conversation_mode", on).apply()
+    }
+
     fun announceCalls(context: Context): Boolean = prefs(context).getBoolean("announce_calls", true)
 
     fun announceMessages(context: Context): Boolean = prefs(context).getBoolean("announce_messages", true)
