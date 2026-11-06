@@ -163,9 +163,9 @@ class SystemSettingTool(private val context: Context) : Tool {
                 definition.id,
                 if (r.success) ToolResultStatus.SUCCESS else ToolResultStatus.FAILED,
                 when (value) {
-                    "on" -> "Открыл Wi‑Fi. Включи вручную, если тумблер не переключился."
-                    "off" -> "Открыл Wi‑Fi. Выключи вручную, если тумблер не переключился."
-                    else -> r.message
+                    "on" -> "Открыл настройки Wi-Fi, сэр. Если тумблер не сработал, включите вручную."
+                    "off" -> "Открыл настройки Wi-Fi, сэр. Если тумблер не сработал, выключите вручную."
+                    else -> if (r.success) "Открыл настройки Wi-Fi, сэр." else r.message
                 },
             )
         }

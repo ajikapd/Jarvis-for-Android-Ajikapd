@@ -41,4 +41,9 @@ class WebAnswerToolTest {
     @Test fun `empty query asks back`() {
         assertEquals(ToolResultStatus.AMBIGUOUS, run({ null }, query = "").status)
     }
+
+    @Test fun `raw tool call is never spoken`() {
+        val r = run({ "ACT {\"tool\":\"web.answer\",\"args\":{}}" })
+        assertTrue(r.message.orEmpty(), r.message.orEmpty().startsWith("Канберра"))
+    }
 }

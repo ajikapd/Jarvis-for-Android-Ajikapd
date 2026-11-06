@@ -42,7 +42,7 @@ class WeatherTool(private val context: Context) : Tool {
             if (place == null) {
                 return ToolResult(
                     call.requestId, definition.id, ToolResultStatus.FAILED,
-                    "Не удалось определить место. Скажи город: «какая погода в Москве».",
+                    "Не удалось определить место. Назовите город, сэр.",
                 )
             }
             val url =
@@ -54,6 +54,20 @@ class WeatherTool(private val context: Context) : Tool {
                 ?: call.arguments["day"]?.toString()?.toIntOrNull()
                 ?: 0
             val dayIdx = dayOffset.coerceIn(0, 6)
+            if (call.arguments["week"] == true) {
+                val daily = json.optJSONObject("daily")
+                val highs = daily?.optJSONArray("temperature_2m_max")
+                val lows = daily?.optJSONArray("temperature_2m_min")
+                val codes = daily?.optJSONArray("weather_code")
+                if (highs != null && lows != null && codes != null) {
+                    val range = 0 until minOf(highs.length(), lows.length(), codes.length())
+                    val reply = weekSummary(
+                        place.name, range.map { lows.optDouble(it) }, range.map { highs.optDouble(it) },
+                        range.map { codes.optInt(it) }, java.time.LocalDate.now(),
+                    )
+                    return ToolResult(call.requestId, definition.id, ToolResultStatus.SUCCESS, reply, mapOf("city" to place.name))
+                }
+            }
             val current = json.getJSONObject("current")
             val daily = json.optJSONObject("daily")
             if (dayIdx > 0 && daily != null) {
@@ -167,7 +181,7 @@ class WeatherTool(private val context: Context) : Tool {
         val providers = listOf(LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER)
         for (p in providers) {
             val loc = runCatching { lm.getLastKnownLocation(p) }.getOrNull() ?: continue
-            return Place("вашем районе", loc.latitude, loc.longitude)
+            return Place("В вашем районе", loc.latitude, loc.longitude)
         }
         return null
     }
@@ -188,3 +202,19 @@ class WeatherTool(private val context: Context) : Tool {
         else -> "Переменная облачность"
     }
 }
+
+/** Неделя голосом: размах температур и дни с осадками, без перечисления всех семи дней. */
+internal fun weekSummary(place: String, lows: List<Double>, highs: List<Double>, codes: List<Int>, today: java.time.LocalDate): String {
+    val wet = codes.indices.filter { codes[it] >= FIRST_PRECIPITATION_CODE }
+        .map {
+            when (it) {
+                0 -> "сегодня"
+                1 -> "завтра"
+                else -> com.jarvis.core.reminder.ReminderSpeech.weekdayPhrase(today.plusDays(it.toLong()))
+            }
+        }
+    val rain = if (wet.isEmpty()) "Без осадков" else "Осадки ${wet.joinToString(", ")}"
+    return String.format(Locale.US, "%s на неделю: от %.0f° до %.0f°. %s, сэр.", place, lows.min(), highs.max(), rain)
+}
+
+private const val FIRST_PRECIPITATION_CODE = 51

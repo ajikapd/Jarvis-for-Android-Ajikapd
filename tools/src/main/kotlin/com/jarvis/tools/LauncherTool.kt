@@ -64,9 +64,9 @@ class LauncherTool(private val context: Context) : Tool {
     }
 
     private fun openApp(requestId: String, queryRaw: String?): ToolResult {
-        val query = queryRaw?.lowercase()?.trim()
+        val query = queryRaw?.lowercase()?.trim()?.takeUnless { it in OPEN_VERBS }
         if (query.isNullOrBlank()) {
-            return ToolResult(requestId, definition.id, ToolResultStatus.AMBIGUOUS, "Не указано, какое приложение открыть")
+            return ToolResult(requestId, definition.id, ToolResultStatus.AMBIGUOUS, "Что открыть, сэр?")
         }
         return try {
             val pm = context.packageManager
@@ -224,4 +224,8 @@ class LauncherTool(private val context: Context) : Tool {
     }
 
     private fun normalizeName(value: String): String = Transliterator.compareKey(value)
+
+    private companion object {
+        val OPEN_VERBS = setOf("открой", "запусти", "открыть", "запустить", "приложение")
+    }
 }

@@ -33,6 +33,7 @@ class PhoneControlTool(private val context: Context) : Tool {
             ?: return result(call, ToolResultStatus.FAILED, "Телефония недоступна, сэр.")
         return try {
             if (call.arguments["action"]?.toString() == "answer") {
+                if (!telecom.isInCall) return result(call, ToolResultStatus.SUCCESS, "Входящего звонка нет, сэр.")
                 telecom.acceptRingingCall()
                 result(call, ToolResultStatus.SUCCESS, "Соединяю, сэр.")
             } else if (telecom.endCall()) {

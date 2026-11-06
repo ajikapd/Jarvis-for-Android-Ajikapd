@@ -10,6 +10,7 @@ import java.util.UUID
  */
 object FollowUpResolver {
     /** Прямо названный таймер или будильник — новая команда, а не уточнение прошлой. */
+    private val ACTION_TOOLS = setOf("flashlight", "volume", "brightness", "music")
     private val TIMER_NOUNS = listOf("таймер", "будильник", "секундомер")
     private const val HOUR_AND_HALF_MINUTES = 90
     private const val HALF_HOUR_MINUTES = 30
@@ -21,6 +22,11 @@ object FollowUpResolver {
 
         if (isPlainReplay(t)) {
             return last.copy(requestId = newId())
+        }
+        // «через час выключи фонарик» — новая отложенная команда, выполнять сразу нельзя.
+        if (last.toolId in ACTION_TOOLS) {
+            val delayed = ReminderParser.parse(text, java.time.LocalDateTime.now())
+            if (delayed.at != null && delayed.text.isNotBlank()) return null
         }
 
         volumeFollowUp(t, last)?.let { return it }

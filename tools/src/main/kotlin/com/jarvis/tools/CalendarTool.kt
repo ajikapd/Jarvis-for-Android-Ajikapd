@@ -72,17 +72,20 @@ class CalendarTool(private val context: Context) : Tool {
         }
         val limit = (call.arguments["limit"] as? Number)?.toInt()
             ?: call.arguments["limit"]?.toString()?.toIntOrNull()
-            ?: 5
+            ?: if (call.arguments.containsKey("days")) WEEK_LIMIT else 5
         val now = System.currentTimeMillis()
         val day = (call.arguments["day"] as? Number)?.toInt() ?: call.arguments["day"]?.toString()?.toIntOrNull()
         val zone = java.time.ZoneId.systemDefault()
         val dayStart = day?.let { java.time.LocalDate.now().plusDays(it.toLong()).atStartOfDay(zone).toInstant().toEpochMilli() }
         val begin = dayStart ?: now
-        val end = dayStart?.plus(DAY_MS) ?: (now + LIST_WINDOW_DAYS * DAY_MS)
+        val days = (call.arguments["days"] as? Number)?.toInt()
+        val end = dayStart?.plus(DAY_MS) ?: (now + (days ?: LIST_WINDOW_DAYS).toLong() * DAY_MS)
         // Instances, а не Events: повторяющиеся встречи иначе не попадают в список.
         val instances = CalendarContract.Instances.CONTENT_URI.buildUpon()
             .appendPath(begin.toString()).appendPath(end.toString()).build()
         val fmt = SimpleDateFormat(if (day != null) "HH:mm" else "dd.MM HH:mm", Locale.getDefault())
+        // Событие на весь день хранится в полночь UTC: местное время показало бы 03:00.
+        val dayFormat = SimpleDateFormat("d MMMM", Locale("ru")).apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }
         return try {
             val rows = ArrayList<String>()
             context.contentResolver.query(
@@ -90,6 +93,7 @@ class CalendarTool(private val context: Context) : Tool {
                 arrayOf(
                     CalendarContract.Instances.TITLE,
                     CalendarContract.Instances.BEGIN,
+                    CalendarContract.Instances.ALL_DAY,
                 ),
                 null,
                 null,
@@ -100,8 +104,9 @@ class CalendarTool(private val context: Context) : Tool {
                 var n = 0
                 while (c.moveToNext() && n < limit.coerceIn(1, 20)) {
                     val title = c.getString(iTitle)?.takeIf { it.isNotBlank() } ?: "без названия"
-                    val start = fmt.format(Date(c.getLong(iStart)))
-                    rows += "$title ($start)"
+                    val allDay = c.getInt(c.getColumnIndexOrThrow(CalendarContract.Instances.ALL_DAY)) == 1
+                    rows += if (allDay) "$title (${dayFormat.format(Date(c.getLong(iStart)))})"
+                    else "$title (${fmt.format(Date(c.getLong(iStart)))})"
                     n++
                 }
             }
@@ -198,6 +203,7 @@ class CalendarTool(private val context: Context) : Tool {
     private companion object {
         const val HOUR_MS = 60 * 60 * 1000L
         const val DAY_MS = 24 * HOUR_MS
+        const val WEEK_LIMIT = 12
         const val LIST_WINDOW_DAYS = 30
     }
 }

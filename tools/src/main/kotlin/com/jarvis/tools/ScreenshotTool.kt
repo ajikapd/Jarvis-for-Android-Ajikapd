@@ -62,7 +62,7 @@ class ScreenshotTool(private val context: Context) : Tool {
                     call.requestId,
                     definition.id,
                     ToolResultStatus.SUCCESS,
-                    "Скриншот сохранён: $name",
+                    "Скриншот сохранён, сэр.",
                     mapOf("uri" to uri.toString(), "name" to name),
                 )
             }

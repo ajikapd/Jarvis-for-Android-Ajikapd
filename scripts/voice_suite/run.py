@@ -134,24 +134,40 @@ def run_case(case, default_timeout):
     return res
 
 
+def snapshot():
+    """Настройки, которые команды меняют: после прогона телефон возвращается к ним."""
+    return dict(brightness=adb("settings get system screen_brightness"), volume=probe("volume"),
+                zen=adb("settings get global zen_mode"))
+
+
+def restore(state):
+    adb(f"settings put system screen_brightness {state['brightness']}")
+    adb(f"cmd media_session volume --stream 3 --set {state['volume']}")
+    if state["zen"] == "0":
+        adb("cmd notification set_dnd off")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--only")
     ap.add_argument("--json")
+    ap.add_argument("--file", help="другой список команд")
     ap.add_argument("--timeout", type=float, default=30)
     a = ap.parse_args()
-    cases = json.load(open(os.path.join(os.path.dirname(__file__), "commands.json"), encoding="utf8"))
+    cases = json.load(open(a.file or os.path.join(os.path.dirname(__file__), "commands.json"), encoding="utf8"))
     if a.only:
         cases = [c for c in cases if c["group"] in a.only.split(",")]
     threading.Thread(target=logcat, daemon=True).start()
     time.sleep(1.5)
     results = []
+    state = snapshot()
     for c in cases:
         r = run_case(c, a.timeout)
         results.append(r)
         print(("PASS" if r["ok"] else "FAIL"), f"{r.get('group',''):10} {r.get('ms',0):6}ms {r.get('route') or '-':11}",
               c["say"][:42].ljust(42), "→", str(r.get("reply", ""))[:80], "; ".join(r["bad"]), flush=True)
         adb("input keyevent KEYCODE_HOME") if c.get("home") else None
+    restore(state)
     if reader:
         reader.terminate()
     ok = sum(r["ok"] for r in results)

@@ -12,6 +12,11 @@ import com.jarvis.core.common.model.ToolResultStatus
 import com.jarvis.screencontrol.JarvisNotificationListenerService
 
 class NotificationTool : Tool {
+    private companion object {
+        const val OWN_PACKAGE = "com.jarvis.assistant"
+        const val SPOKEN_ITEMS = 5
+    }
+
 
     override val definition = ToolDefinition(
         id = "notifications.list",
@@ -48,6 +53,7 @@ class NotificationTool : Tool {
             "list" -> {
                 val q = call.arguments["query"]?.toString()?.lowercase().orEmpty()
                 var items = JarvisNotificationListenerService.snapshot()
+                    .filter { it.packageName != OWN_PACKAGE && it.title.isNotBlank() && it.text.isNotBlank() }
                 if (q.isNotBlank()) {
                     items = items.filter {
                         it.title.lowercase().contains(q) || it.text.lowercase().contains(q) ||
@@ -57,15 +63,12 @@ class NotificationTool : Tool {
                 if (items.isEmpty()) {
                     ToolResult(call.requestId, definition.id, ToolResultStatus.SUCCESS, "Нет активных уведомлений.")
                 } else {
-                    val summary = items.take(8).joinToString("; ") {
-                        val reply = if (it.actions.any { a -> a.canReply }) " [reply]" else ""
-                        "${it.title.ifBlank { it.packageName }}: ${it.text.take(60)}$reply"
-                    }
+                    val summary = items.take(SPOKEN_ITEMS).joinToString("; ") { "${it.title}: ${it.text.take(60)}" }
                     ToolResult(
                         call.requestId,
                         definition.id,
                         ToolResultStatus.SUCCESS,
-                        "Уведомления (${items.size}): $summary",
+                        "Уведомлений: ${items.size}, сэр. $summary.",
                         mapOf("count" to items.size, "keys" to items.take(8).joinToString("|") { it.key }),
                     )
                 }

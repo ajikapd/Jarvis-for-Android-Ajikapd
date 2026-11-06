@@ -563,4 +563,41 @@ class RuleBasedBrainTest {
         val forbidden = com.jarvis.core.autonomy.ActionArgumentRules.GLOBAL_FORBIDDEN_KEYS
         assertTrue(keys.toString(), keys.none { key -> forbidden.any { key.lowercase().contains(it) } })
     }
+
+    @Test fun `alarm hour with tens and units`() {
+        for ((say, hour, minute) in listOf(
+            Triple("поставь будильник на двадцать три пятьдесят девять", 23, 59),
+            Triple("поставь будильник на двадцать три", 23, 0),
+            Triple("поставь будильник на семь пятнадцать", 7, 15),
+            Triple("поставь будильник на двадцать тридцать", 20, 30),
+            Triple("поставь будильник на шесть ноль пять", 6, 5),
+        )) {
+            val args = slots(say, IntentType.TIMER)
+            assertEquals(say, hour, args["hour"])
+            assertEquals(say, minute, args["minute"])
+        }
+    }
+
+    @Test fun `alarm questions read the next alarm`() {
+        for (say in listOf("какие будильники", "когда будильник", "какой будильник стоит")) {
+            assertEquals(say, "alarm_status", slots(say, IntentType.TIMER)["action"])
+        }
+    }
+
+    @Test fun `weather city stops before the period`() {
+        assertEquals("Сочи", slots("погода в сочи на выходные", IntentType.WEATHER)["city"])
+        assertEquals("Сочи", slots("погода в сочи на неделю", IntentType.WEATHER)["city"])
+        assertEquals(true, slots("погода в сочи на неделю", IntentType.WEATHER)["week"])
+        assertEquals(true, slots("погода на неделю", IntentType.WEATHER)["week"])
+    }
+
+    @Test fun `week plans read the calendar`() {
+        assertEquals(7, slots("что у меня на этой неделе", IntentType.CREATE_EVENT)["days"])
+    }
+
+    @Test fun `named currency is read alone`() {
+        assertEquals("EUR", slots("сколько стоит евро", IntentType.RATES)["code"])
+        assertEquals("USD", slots("какой курс доллара", IntentType.RATES)["code"])
+        assertEquals(null, slots("курс валют", IntentType.RATES)["code"])
+    }
 }

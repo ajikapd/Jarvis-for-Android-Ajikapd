@@ -101,6 +101,10 @@ class RuleBasedBrain(
             LOCATION_PHRASES.any { text == it || text.startsWith("$it ") } -> IntentType.LOCATION
             else -> null
         }
+        if (type == IntentType.RATES) {
+            val named = CURRENCY_CODES.filterKeys { text.contains(it) }.values
+            return skill(type, if (named.size == 1) mapOf("code" to named.first()) else emptyMap(), text, 0.93f)
+        }
         if (type != null) return skill(type, emptyMap(), text, 0.93f)
         if (text.contains("приложени") && APP_LIST_PHRASES.any { text.contains(it) }) {
             return skill(IntentType.LAUNCH_APP, mapOf("action" to "list"), text, 0.9f)
@@ -229,7 +233,9 @@ class RuleBasedBrain(
             text.contains("сегодня") -> 0
             else -> null
         }
+        val week = text.contains("недел") && !words.any { it in EVENT_VERBS }
         val hit = text.contains("что в календаре") || text.contains("какие события") ||
+            (week && (text.contains("что у меня") || text.contains("планы"))) ||
             text.contains("что у меня завтра") || text.contains("что у меня послезавтра") ||
             text.contains("планы на завтра") || text.contains("планы на послезавтра") ||
             text.contains("ближайшие события") || text.contains("расписание") ||
@@ -243,7 +249,7 @@ class RuleBasedBrain(
                 normalizedText = text,
                 slots = buildMap {
                     put("action", Slot("action", "list"))
-                    if (day != null) put("day", Slot("day", day))
+                    if (week) put("days", Slot("days", DAYS_IN_WEEK)) else if (day != null) put("day", Slot("day", day))
                 },
                 confidence = 0.9f,
                 confidenceLevel = ConfidenceLevel.HIGH,
@@ -440,15 +446,18 @@ class RuleBasedBrain(
     }
 
     private fun timer(words: List<String>, request: UserRequest): BrainResult? {
-        val isTimer = words.any { it in TIMER_NOUNS || it.startsWith("секундомер") } ||
+        val isTimer = words.any { it in TIMER_NOUNS || it.startsWith("секундомер") || it.startsWith("будильник") } ||
             words.any { it in REMIND_VERBS } || words.contains("разбуди") ||
             (words.contains("засеки") && words.any { it in MINUTE_WORDS || it in SECOND_WORDS || it in HOUR_WORDS })
         if (!isTimer) return null
         val text = words.joinToString(" ")
         if (words.any { it.startsWith("секундомер") }) return stopwatch(words, text)
-        if (words.contains("будильник") || words.contains("будильника") || words.contains("разбуди")) {
+        if (words.any { it.startsWith("будильник") } || words.contains("разбуди")) {
             if (words.any { it in TIMER_CANCEL_VERBS }) {
                 return skill(IntentType.TIMER, mapOf("action" to "alarm_cancel"), text, 0.94f)
+            }
+            if (words.any { it in ALARM_STATUS_WORDS }) {
+                return skill(IntentType.TIMER, mapOf("action" to "alarm_status"), text, 0.94f)
             }
             return if (words.contains("через")) alarmAfter(request, text) else alarm(words)
         }
@@ -505,8 +514,13 @@ class RuleBasedBrain(
         }
         val first = (na + 1 until words.size).firstOrNull { RuNumbers.endingAt(words, it) != null }
             ?: return BrainResult.Clarify(question = "На какое время поставить будильник, сэр?", confidence = 0.5f)
-        val hourRaw = RuNumbers.endingAt(words, first) ?: 0
-        val minute = numberEnds.lastOrNull()?.takeIf { it > first }?.let { RuNumbers.endingAt(words, it) } ?: 0
+        // «двадцать три пятьдесят девять»: десятки с единицами — один час, а не час и минуты.
+        var hourEnd = first
+        val tens = RuNumbers.endingAt(words, first) ?: 0
+        val compound = RuNumbers.endingAt(words, first + 1)
+        if (tens == 20 && compound != null && compound - tens in 1..3) hourEnd = first + 1
+        val hourRaw = RuNumbers.endingAt(words, hourEnd) ?: 0
+        val minute = numberEnds.lastOrNull()?.takeIf { it > hourEnd }?.let { RuNumbers.endingAt(words, it) } ?: 0
         val pm = words.any { it in ALARM_PM_WORDS }
         val hour = if (pm && hourRaw in 1..11) hourRaw + 12 else hourRaw
         return skill(
@@ -744,7 +758,7 @@ class RuleBasedBrain(
         if (words.none { it in CALL_VERBS }) return null
         val contact = words.dropWhile { it !in CALL_VERBS }.drop(1).joinToString(" ").trim()
         if (contact.isBlank()) {
-            return BrainResult.Clarify(question = "Кому позвонить?", confidence = 0.5f)
+            return BrainResult.Clarify(question = "Кому позвонить, сэр?", confidence = 0.5f)
         }
         return BrainResult.SkillCall(
             intent = Intent(
@@ -951,7 +965,8 @@ class RuleBasedBrain(
                 normalizedText = text,
                 slots = buildMap {
                     if (!city.isNullOrBlank()) put("city", Slot("city", city))
-                    if (day != null) put("day", Slot("day", day))
+                    if (text.contains("недел")) put("week", Slot("week", true))
+                    else if (day != null) put("day", Slot("day", day))
                 },
                 confidence = 0.92f,
                 confidenceLevel = ConfidenceLevel.HIGH,
@@ -1178,7 +1193,10 @@ class RuleBasedBrain(
     private fun extractCityAfter(words: List<String>, markers: Set<String>): String? {
         val idx = words.indexOfFirst { it in markers }
         if (idx < 0 || idx >= words.lastIndex) return null
-        val city = words.drop(idx + 1).takeWhile { it !in WEATHER_WORDS }.joinToString(" ").trim()
+        val tail = words.drop(idx + 1)
+        val city = tail.withIndex().takeWhile { (i, word) ->
+            word !in WEATHER_WORDS && word !in CITY_END_WORDS && !(word == "на" && tail.getOrNull(i + 1) != "дону")
+        }.joinToString(" ") { it.value }.trim()
         return normalizeCity(city)?.takeIf { it.length >= 2 }
     }
 
@@ -1351,6 +1369,11 @@ class RuleBasedBrain(
         private val VOLUME_MAX = setOf("максимальную", "максимальная", "на максимум", "громкость на макс")
 
         // яркость экрана
+        private val ALARM_STATUS_WORDS = setOf("какие", "какой", "когда", "покажи", "стоит", "ближайший", "следующий")
+        private val CITY_END_WORDS = setOf(
+            "завтра", "послезавтра", "сегодня", "сейчас", "будет", "выходные", "неделю", "неделе",
+        )
+        private val CURRENCY_CODES = mapOf("доллар" to "USD", "евро" to "EUR", "юан" to "CNY")
         private val TOO_BRIGHT = listOf("слишком ярко", "очень ярко", "глаза режет", "слепит")
         private val TOO_DARK = listOf("слишком темно", "очень темно", "плохо видно экран", "экран тёмный", "экран темный")
         private val BRIGHTNESS_NOUNS = setOf("яркость", "ярче", "экран", "дисплей", "темнее", "тусклее")

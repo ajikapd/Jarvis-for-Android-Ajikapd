@@ -69,6 +69,7 @@ class TimerTool(private val context: Context) : Tool {
             "status" -> return status(call)
             "alarm" -> return setAlarm(call)
             "alarm_cancel" -> return cancelAlarm(call)
+            "alarm_status" -> return nextAlarm(call)
             "stopwatch" -> return stopwatch(call)
         }
         val minutes = (call.arguments["minutes"] as? Number)?.toInt() ?: 0
@@ -138,13 +139,25 @@ class TimerTool(private val context: Context) : Tool {
     }
 
     /** Системные часы сами спросят, какой будильник снять, если их несколько. */
+    private fun nextAlarm(call: ToolCall): ToolResult {
+        val next = context.getSystemService(android.app.AlarmManager::class.java)?.nextAlarmClock
+            ?: return done(call, "Будильников нет, сэр.")
+        val at = java.time.Instant.ofEpochMilli(next.triggerTime).atZone(java.time.ZoneId.systemDefault()).toLocalDateTime()
+        return done(call, "Ближайший будильник ${com.jarvis.core.reminder.ReminderSpeech.whenPhrase(at, java.time.LocalDateTime.now())}, сэр.")
+    }
+
     private fun cancelAlarm(call: ToolCall): ToolResult = try {
+        val alarms = context.getSystemService(android.app.AlarmManager::class.java)
+        val before = alarms?.nextAlarmClock?.triggerTime
         context.startActivity(
             Intent(AlarmClock.ACTION_DISMISS_ALARM)
                 .putExtra(AlarmClock.EXTRA_ALARM_SEARCH_MODE, AlarmClock.ALARM_SEARCH_MODE_NEXT)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
         )
-        done(call, "Снимаю будильник, сэр.")
+        // Часы могут только открыть список: снятым будильник считаем, если ближайший и правда сменился.
+        Thread.sleep(ALARM_SETTLE_MS)
+        val after = alarms?.nextAlarmClock?.triggerTime
+        done(call, if (before != null && before != after) "Будильник снят, сэр." else "Открыл будильники, сэр. Снимите нужный вручную.")
     } catch (t: Throwable) {
         Log.w(TAG, "alarm cancel failed: ${t.message}", t)
         ToolResult(call.requestId, definition.id, ToolResultStatus.FAILED, "Не удалось снять будильник.")
@@ -182,6 +195,7 @@ class TimerTool(private val context: Context) : Tool {
     }
 
     companion object {
+        private const val ALARM_SETTLE_MS = 1_200L
         private const val TAG = "Jarvis.Tools"
         private const val RING_MS = 6_000L
     }

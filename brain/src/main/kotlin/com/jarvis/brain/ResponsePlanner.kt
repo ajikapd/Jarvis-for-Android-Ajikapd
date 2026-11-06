@@ -214,12 +214,13 @@ object ToolCallFactory {
                     arguments = buildMap {
                         if (city != null) put("city", city)
                         if (day != null) put("day", day)
+                        if (intent.slots.containsKey("week")) put("week", true)
                     },
                 )
             }
 
             IntentType.NEWS -> ToolCall(requestId = requestId, toolId = "news", arguments = emptyMap())
-            IntentType.RATES -> ToolCall(requestId = requestId, toolId = "rates", arguments = emptyMap())
+            IntentType.RATES -> ToolCall(requestId = requestId, toolId = "rates", arguments = slotsToArgs(intent))
             IntentType.LOCATION -> ToolCall(requestId = requestId, toolId = "location", arguments = emptyMap())
 
             IntentType.PHONE_CONTROL ->

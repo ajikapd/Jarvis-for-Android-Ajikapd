@@ -9,6 +9,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FollowUpResolverTest {
+    @Test
+    fun `delayed command is not a patch of the last action`() {
+        val torch = ToolCall(requestId = "x", toolId = "flashlight", arguments = mapOf("action" to "on"))
+        assertEquals(null, FollowUpResolver.resolve("через десять минут выключи фонарик", torch))
+        assertEquals("off", FollowUpResolver.resolve("выключи", torch)?.arguments?.get("action"))
+    }
+
     private fun timer(vararg args: Pair<String, Any>) = ToolCall(requestId = "x", toolId = "timer", arguments = mapOf(*args))
 
     @Test

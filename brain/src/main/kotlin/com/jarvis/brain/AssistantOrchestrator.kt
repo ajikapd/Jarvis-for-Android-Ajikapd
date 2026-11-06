@@ -1549,8 +1549,8 @@ class AssistantOrchestrator(
             "phone.call" -> {
                 val name = toolCall.arguments["contact"]?.toString()
                     ?: toolCall.arguments["number"]?.toString()
-                    ?: "контакт"
-                "Позвонить «$name»? Да или нет, сэр?"
+                if (name == null) "Перезвонить на последний номер? Да или нет, сэр?"
+                else "Позвонить «$name»? Да или нет, сэр?"
             }
             "launcher" -> {
                 val app = toolCall.arguments["app"]?.toString().orEmpty().ifBlank { "приложение" }

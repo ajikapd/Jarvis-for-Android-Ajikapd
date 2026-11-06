@@ -375,6 +375,7 @@ object BrainGraph {
                     com.jarvis.brain.aiprovider.AICompletionRequest(
                         requestId = java.util.UUID.randomUUID().toString(),
                         userText = prompt,
+                        taskType = com.jarvis.brain.aiprovider.AiTaskType.GENERAL,
                     ),
                 )?.text
             }),

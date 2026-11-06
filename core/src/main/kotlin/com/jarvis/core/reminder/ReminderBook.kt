@@ -27,7 +27,8 @@ object ReminderSpeech {
 
     /** Когда сработает: «через 20 минут», «завтра в 9:00», «в пятницу в 18:30». */
     fun whenPhrase(at: LocalDateTime, now: LocalDateTime): String {
-        val minutes = Duration.between(now, at).toMinutes()
+        // К концу разбора фразы уже прошли доли минуты: «через десять минут» не должно стать девятью.
+        val minutes = Duration.between(now, at).plusSeconds(30).toMinutes()
         if (minutes in 0..59 && at.toLocalDate() == now.toLocalDate()) {
             return if (minutes == 0L) "через минуту" else "через $minutes мин"
         }

@@ -30,10 +30,11 @@ private abstract class ReadTool(id: String, name: String, description: String, o
     )
 
     protected abstract fun read(): String?
+    protected open fun read(call: ToolCall): String? = read()
     protected abstract val failure: String
 
     override fun execute(call: ToolCall): ToolResult {
-        val text = runCatching { read() }.getOrNull()
+        val text = runCatching { read(call) }.getOrNull()
         return if (text.isNullOrBlank()) {
             ToolResult(call.requestId, definition.id, ToolResultStatus.FAILED, failure)
         } else {
@@ -55,6 +56,10 @@ fun newsTool(): Tool = object : ReadTool("news", "Новости", "Свежие
 fun ratesTool(): Tool = object : ReadTool("rates", "Курсы валют", "Курс доллара, евро и юаня", OnlineRequirement.ONLINE_ALLOWED) {
     override val failure = "Курсы сейчас недоступны, сэр."
     override fun read(): String? = InfoFeeds.ratesReport(SimpleHttp.get(RATES_URL, RATES_TTL_MS))
+    override fun read(call: ToolCall): String? {
+        val code = call.arguments["code"]?.toString() ?: return read()
+        return InfoFeeds.rateReport(SimpleHttp.get(RATES_URL, RATES_TTL_MS), code)
+    }
 }
 
 /** Где находится телефон: адрес по последнему известному положению. */

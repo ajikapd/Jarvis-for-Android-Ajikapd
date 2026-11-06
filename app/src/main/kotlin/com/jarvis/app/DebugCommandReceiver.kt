@@ -542,6 +542,10 @@ class DebugCommandReceiver : BroadcastReceiver() {
      *     --es preferCloud true|false
      */
     private fun handleSettings(context: Context, intent: Intent) {
+        intent.getStringExtra("persona")?.takeIf { it in JarvisSettings.PERSONAS }?.let {
+            JarvisSettings.setPersona(context, it)
+            Log.d(TAG, "settings persona=$it")
+        }
         val preferCloud = intent.getStringExtra("preferCloud")?.trim()?.lowercase()
         if (preferCloud != null) {
             val enabled = preferCloud == "true" || preferCloud == "1" || preferCloud == "on"

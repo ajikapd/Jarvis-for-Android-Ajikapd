@@ -46,6 +46,15 @@ object InfoFeeds {
         }
     }
 
+    /** Одна валюта: «Евро 91 рубль 65 копеек, сэр.» */
+    fun rateReport(json: String, code: String): String? {
+        val rub = rate(json, "RUB") ?: return null
+        val value = if (code == "USD") rub else rub / (rate(json, code)?.takeIf { it > 0 } ?: return null)
+        return "${CURRENCY_NAMES[code] ?: return null} ${rubles(value)}, сэр."
+    }
+
+    private val CURRENCY_NAMES = mapOf("USD" to "Доллар", "EUR" to "Евро", "CNY" to "Юань")
+
     fun ratesReport(json: String): String? {
         val rub = rate(json, "RUB") ?: return null
         val eur = rate(json, "EUR")?.takeIf { it > 0 } ?: return null
