@@ -9,6 +9,10 @@ import java.util.UUID
  * погода, знания, лаунчер («а теперь вк»), громкость, фонарик, таймер, музыка…
  */
 object FollowUpResolver {
+    /** Прямо названный таймер или будильник — новая команда, а не уточнение прошлой. */
+    private val TIMER_NOUNS = listOf("таймер", "будильник", "секундомер")
+    private const val HOUR_AND_HALF_MINUTES = 90
+    private const val HALF_HOUR_MINUTES = 30
 
     fun resolve(text: String, last: ToolCall?): ToolCall? {
         if (last == null) return null
@@ -244,9 +248,12 @@ object FollowUpResolver {
     }
 
     private fun timerFollowUp(t: String, last: ToolCall): ToolCall? {
-        if (last.toolId != "timer") return null
+        if (last.toolId != "timer" || last.arguments.containsKey("action")) return null
+        if (TIMER_NOUNS.any { t.contains(it) }) return null
         val minutes = Regex("""(\d+)\s*(?:мин|минут)""").find(t)?.groupValues?.getOrNull(1)?.toIntOrNull()
             ?: when {
+                t.contains("полтора") -> HOUR_AND_HALF_MINUTES
+                t.contains("полчаса") -> HALF_HOUR_MINUTES
                 t.contains("час") && !t.contains("минут") -> 60
                 else -> null
             }

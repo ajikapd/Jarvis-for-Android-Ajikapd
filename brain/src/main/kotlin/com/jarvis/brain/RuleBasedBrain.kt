@@ -321,6 +321,15 @@ class RuleBasedBrain(
     }
 
     private fun brightness(words: List<String>, request: UserRequest): BrainResult? {
+        val phrase = words.joinToString(" ")
+        val comfort = when {
+            TOO_BRIGHT.any { phrase.contains(it) } -> "down"
+            TOO_DARK.any { phrase.contains(it) } -> "up"
+            else -> null
+        }
+        if (comfort != null) {
+            return skill(IntentType.BRIGHTNESS, mapOf("direction" to comfort), phrase, 0.9f)
+        }
         val isBright = words.any { it in BRIGHTNESS_NOUNS }
         if (!isBright) return null
         val up = words.any { it in BRIGHT_UP }
@@ -398,7 +407,7 @@ class RuleBasedBrain(
         if (parsed.at == null || parsed.text.split(' ').first() !in SCHEDULED_VERBS) return null
         return skill(
             IntentType.REMINDER,
-            mapOf("action" to "add", "phrase" to request.text, "command" to true),
+            mapOf("action" to "add", "phrase" to request.text, "deferred" to true),
             words.joinToString(" "),
             0.93f,
         )
@@ -431,11 +440,12 @@ class RuleBasedBrain(
     }
 
     private fun timer(words: List<String>, request: UserRequest): BrainResult? {
-        val isTimer = words.any { it in TIMER_NOUNS } || words.any { it in REMIND_VERBS } || words.contains("разбуди") ||
+        val isTimer = words.any { it in TIMER_NOUNS || it.startsWith("секундомер") } ||
+            words.any { it in REMIND_VERBS } || words.contains("разбуди") ||
             (words.contains("засеки") && words.any { it in MINUTE_WORDS || it in SECOND_WORDS || it in HOUR_WORDS })
         if (!isTimer) return null
         val text = words.joinToString(" ")
-        if (words.contains("секундомер")) return stopwatch(words, text)
+        if (words.any { it.startsWith("секундомер") }) return stopwatch(words, text)
         if (words.contains("будильник") || words.contains("будильника") || words.contains("разбуди")) {
             if (words.any { it in TIMER_CANCEL_VERBS }) {
                 return skill(IntentType.TIMER, mapOf("action" to "alarm_cancel"), text, 0.94f)
@@ -1341,6 +1351,8 @@ class RuleBasedBrain(
         private val VOLUME_MAX = setOf("максимальную", "максимальная", "на максимум", "громкость на макс")
 
         // яркость экрана
+        private val TOO_BRIGHT = listOf("слишком ярко", "очень ярко", "глаза режет", "слепит")
+        private val TOO_DARK = listOf("слишком темно", "очень темно", "плохо видно экран", "экран тёмный", "экран темный")
         private val BRIGHTNESS_NOUNS = setOf("яркость", "ярче", "экран", "дисплей", "темнее", "тусклее")
         private val BRIGHT_UP = setOf("ярче", "прибавь", "прибавить", "увеличь", "увеличить", "максимальную", "максимальная", "поярче")
         private val BRIGHT_DOWN = setOf("темнее", "тусклее", "уменьши", "уменьшить", "приглуши", "приглушить")
@@ -1359,7 +1371,7 @@ class RuleBasedBrain(
             "памят" to "storage", "хранилищ" to "storage", "приложени" to "apps",
             "геолокац" to "location", "местоположен" to "location", "уведомлен" to "notifications",
             "безопасност" to "security", "блютус" to "bluetooth", "блютуз" to "bluetooth",
-            "bluetooth" to "bluetooth",
+            "bluetooth" to "bluetooth", "вайфа" to "wifi", "вай фа" to "wifi", "wifi" to "wifi", "wi fi" to "wifi",
         )
         private val STATUS_PHRASES = listOf(
             "статус систем", "состояние систем", "отчёт о систем", "отчет о систем", "доложи о систем",

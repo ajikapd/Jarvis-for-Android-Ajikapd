@@ -17,6 +17,7 @@ TAGS = ["Jarvis.VoiceService:V", "Jarvis.Trace:I", "Jarvis.Speaker:D", "Jarvis.D
 DONE_RE = re.compile(r"(stream-chat|brain) (\d+)ms status=(\w+)(?: route=(\w+))?.*?reply=\"(.*)\"?$")
 
 lines, lock = [], threading.Lock()
+reader = None
 
 
 def adb(cmd, timeout=15):
@@ -27,9 +28,10 @@ def adb(cmd, timeout=15):
 
 
 def logcat():
-    p = subprocess.Popen(["adb", "logcat", "-T", "1", "-v", "time"] + TAGS, stdout=subprocess.PIPE,
-                         text=True, errors="ignore")
-    for line in p.stdout:
+    global reader
+    reader = subprocess.Popen(["adb", "logcat", "-T", "1", "-v", "time"] + TAGS, stdout=subprocess.PIPE,
+                              stderr=subprocess.DEVNULL, text=True, errors="ignore")
+    for line in reader.stdout:
         with lock:
             lines.append(line.rstrip())
 
@@ -150,6 +152,8 @@ def main():
         print(("PASS" if r["ok"] else "FAIL"), f"{r.get('group',''):10} {r.get('ms',0):6}ms {r.get('route') or '-':11}",
               c["say"][:42].ljust(42), "→", str(r.get("reply", ""))[:80], "; ".join(r["bad"]), flush=True)
         adb("input keyevent KEYCODE_HOME") if c.get("home") else None
+    if reader:
+        reader.terminate()
     ok = sum(r["ok"] for r in results)
     print(f"\nИтог: {ok}/{len(results)}")
     if a.json:

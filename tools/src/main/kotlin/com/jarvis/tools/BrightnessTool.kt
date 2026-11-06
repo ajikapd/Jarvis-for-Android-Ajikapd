@@ -48,7 +48,7 @@ class BrightnessTool(private val context: Context) : Tool {
                 context.contentResolver, Settings.System.SCREEN_BRIGHTNESS, 128
             )
             val max = 255
-            val direction = call.arguments["direction"] as? String
+            val direction = (call.arguments["direction"] ?: call.arguments["action"]) as? String
 
             val target = when (direction) {
                 "up" -> minOf(current + 30, max)

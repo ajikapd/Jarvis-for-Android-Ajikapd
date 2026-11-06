@@ -33,7 +33,7 @@ class ReminderToolTest {
     }
 
     @Test fun scheduledCommand() {
-        val r = run("phrase" to "через 10 минут выключи фонарик", "command" to true)
+        val r = run("phrase" to "через 10 минут выключи фонарик", "deferred" to true)
         assertEquals("Выполню через 10 мин, сэр: выключи фонарик.", r.message)
         assertTrue(book.items.single().command)
     }

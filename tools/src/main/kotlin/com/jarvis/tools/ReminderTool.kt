@@ -49,7 +49,7 @@ class ReminderTool(
     private fun add(call: ToolCall): ToolResult {
         val parsed = ReminderParser.parse(call.arguments["phrase"]?.toString().orEmpty(), now())
         val at = parsed.at ?: return result(call, ToolResultStatus.AMBIGUOUS, "Когда напомнить, сэр?")
-        val saved = book.add(at, parsed.text, parsed.daily, command = call.arguments["command"] == true)
+        val saved = book.add(at, parsed.text, parsed.daily, command = call.arguments["deferred"] == true)
         return ok(call, confirmation(saved))
     }
 

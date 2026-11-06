@@ -45,7 +45,7 @@ class VolumeTool(private val context: Context) : Tool {
     )
 
     override fun execute(call: ToolCall): ToolResult {
-        val direction = call.arguments["direction"] as? String
+        val direction = (call.arguments["direction"] ?: call.arguments["action"]) as? String
         return try {
             val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
             val current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)

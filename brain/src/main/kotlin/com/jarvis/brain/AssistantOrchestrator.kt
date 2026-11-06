@@ -1431,12 +1431,12 @@ class AssistantOrchestrator(
             is com.jarvis.core.runtime.ExecutionOrchestrator.Outcome.Denied -> {
                 return respond(
                     request,
-                    outcome.reason,
+                    DENIED_REPLY,
                     AssistantResponseStatus.DENIED,
                     startedAt,
                     intent,
                     route = routeHint.name,
-                    routeReason = "denied",
+                    routeReason = "denied: ${outcome.reason}",
                 )
             }
             is com.jarvis.core.runtime.ExecutionOrchestrator.Outcome.Failed -> {
@@ -1814,6 +1814,8 @@ class AssistantOrchestrator(
     }
 
     companion object {
+        /** Причина отказа остаётся в журнале маршрута: её внутренний текст не для голоса. */
+        private const val DENIED_REPLY = "Этого я выполнить не могу, сэр: действие запрещено правилами безопасности."
         /** Первый SkillCall + до 2 продолжений = 3 шага. */
         private const val REACT_MAX_STEPS = 3
 

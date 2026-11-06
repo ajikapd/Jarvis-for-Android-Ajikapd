@@ -369,7 +369,16 @@ object BrainGraph {
         )
         // 9б-2b: ChainCloudProvider поверх цепочки (legacy = CloudLLMProvider как fallback; не регистрируем CloudLLMProvider напрямую)
         val keyStore = SecureKeyStore(ctx)
-        toolRegistry.register(com.jarvis.tools.WebAnswerTool { keyStore.getKey(it) })
+        toolRegistry.register(
+            com.jarvis.tools.WebAnswerTool(ask = { prompt ->
+                chainCloudProvider?.complete(
+                    com.jarvis.brain.aiprovider.AICompletionRequest(
+                        requestId = java.util.UUID.randomUUID().toString(),
+                        userText = prompt,
+                    ),
+                )?.text
+            }),
+        )
         val chainProvider = com.jarvis.brain.cloud.ChainCloudProvider(
             legacy = com.jarvis.brain.aiprovider.CloudLLMProvider(
                 client = cloudClient,

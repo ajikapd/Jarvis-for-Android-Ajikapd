@@ -55,7 +55,7 @@ class RuleBasedBrainTest {
             "каждое утро в восемь делай сводку", "выключи фонарик через час",
         )) {
             val s = slots(say, IntentType.REMINDER)
-            assertEquals(say, true, s["command"])
+            assertEquals(say, true, s["deferred"])
         }
     }
 
@@ -538,5 +538,29 @@ class RuleBasedBrainTest {
     fun `slang mute is not louder`() {
         assertEquals("mute", slots("выруби звук")["direction"])
         assertEquals("mute", slots("отключи звук")["direction"])
+    }
+
+    @Test fun `stopwatch in any case form`() {
+        val args = slots("сколько на секундомере", IntentType.TIMER)
+        assertEquals("stopwatch", args["action"])
+        assertEquals("status", args["mode"])
+    }
+
+    @Test fun `comfort phrases change brightness`() {
+        for ((say, want) in listOf("слишком ярко" to "down", "глаза режет" to "down", "слишком темно" to "up")) {
+            assertEquals(say, want, slots(say, IntentType.BRIGHTNESS)["direction"])
+        }
+    }
+
+    @Test fun `wifi settings section in genitive`() {
+        val args = slots("открой настройки вайфая", IntentType.SYSTEM_SETTING)
+        assertEquals("wifi", args["name"])
+        assertEquals("open", args["value"])
+    }
+
+    @Test fun `deferred command passes the safety gate keys`() {
+        val keys = slots("через десять минут выключи фонарик", IntentType.REMINDER).keys
+        val forbidden = com.jarvis.core.autonomy.ActionArgumentRules.GLOBAL_FORBIDDEN_KEYS
+        assertTrue(keys.toString(), keys.none { key -> forbidden.any { key.lowercase().contains(it) } })
     }
 }

@@ -9,6 +9,22 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FollowUpResolverTest {
+    private fun timer(vararg args: Pair<String, Any>) = ToolCall(requestId = "x", toolId = "timer", arguments = mapOf(*args))
+
+    @Test
+    fun `named timer is a new command not a patch of stopwatch`() {
+        assertEquals(null, FollowUpResolver.resolve("поставь таймер на полтора часа", timer("action" to "stopwatch", "mode" to "stop")))
+        assertEquals(null, FollowUpResolver.resolve("поставь таймер на час", timer("minutes" to 5, "seconds" to 0)))
+    }
+
+    @Test
+    fun `short patch of a timer keeps working`() {
+        val set = timer("minutes" to 5, "seconds" to 0)
+        assertEquals(10, FollowUpResolver.resolve("а на 10 минут", set)?.arguments?.get("minutes"))
+        assertEquals(90, FollowUpResolver.resolve("а на полтора часа", set)?.arguments?.get("minutes"))
+        assertEquals(30, FollowUpResolver.resolve("а на полчаса", set)?.arguments?.get("minutes"))
+    }
+
     @org.junit.Test
     fun `reminder time answer completes the phrase`() {
         val last = com.jarvis.core.common.model.ToolCall(toolId = "reminder", requestId = "1", arguments = mapOf("action" to "add", "phrase" to "напомни купить хлеб"))
