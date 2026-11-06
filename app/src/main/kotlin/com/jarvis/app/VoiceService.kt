@@ -286,6 +286,9 @@ class VoiceService : Service() {
         announcements = AnnouncementWatcher(this).also { it.start() }
         VoiceController.addListener(coreListener)
         coreRegistered = true
+        widgetJob = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch {
+            JarvisEvents.assistantState.collect { JarvisWidgetProvider.refresh(this@VoiceService) }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -517,7 +520,10 @@ class VoiceService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    private var widgetJob: kotlinx.coroutines.Job? = null
+
     override fun onDestroy() {
+        widgetJob?.cancel()
         runCatching { unregisterReceiver(batteryLowReceiver) }
         announcements?.stop()
         finishProactiveSay("destroy")

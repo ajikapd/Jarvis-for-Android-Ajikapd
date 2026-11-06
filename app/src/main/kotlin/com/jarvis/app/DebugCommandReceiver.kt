@@ -69,6 +69,7 @@ class DebugCommandReceiver : BroadcastReceiver() {
             ACTION_DEBUG_VOICE -> handleVoice(context, intent)
             ACTION_DEBUG_TTS -> if (BuildConfig.DEBUG) handleTtsSample(context, intent)
             ACTION_DEBUG_TTS_DUMP -> if (BuildConfig.DEBUG) handleTtsDump(context, intent)
+            ACTION_DEBUG_WIDGETS -> if (BuildConfig.DEBUG) handleWidgets(context)
             ACTION_DEBUG_ECHO_PROBE -> if (BuildConfig.DEBUG) handleEchoProbe()
             ACTION_ASR_TEST -> handleAsrTest(context, intent)
             ACTION_DEBUG_AUTONOMY -> handleAutonomy(context, intent)
@@ -451,6 +452,31 @@ class DebugCommandReceiver : BroadcastReceiver() {
         }.start()
     }
 
+    /** Виджеты теми же средствами, что у лаунчера, в картинки cache/widget_*.png: без установки на экран. */
+    private fun handleWidgets(context: Context) {
+        val app = context.applicationContext
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            listOf(
+                Triple("large", JarvisWidgetProvider(), 340 to 140),
+                Triple("square", JarvisWidgetSquare(), 160 to 160),
+                Triple("strip", JarvisWidgetStrip(), 340 to 66),
+            ).forEach { (name, provider, size) ->
+                runCatching {
+                    val d = app.resources.displayMetrics.density
+                    val w = (size.first * d).toInt()
+                    val h = (size.second * d).toInt()
+                    val view = provider.views(app).apply(app, android.widget.FrameLayout(app))
+                    view.measure(android.view.View.MeasureSpec.makeMeasureSpec(w, android.view.View.MeasureSpec.EXACTLY), android.view.View.MeasureSpec.makeMeasureSpec(h, android.view.View.MeasureSpec.EXACTLY))
+                    view.layout(0, 0, w, h)
+                    val bmp = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
+                    view.draw(android.graphics.Canvas(bmp))
+                    File(app.cacheDir, "widget_$name.png").outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+                    Log.d(TAG, "widget $name ok")
+                }.onFailure { Log.e(TAG, "widget $name failed: ${it.message}") }
+            }
+        }
+    }
+
     /** Сырой синтез без эффектов в cache/tts_<name>.pcm: проверка голоса и скорости на самом телефоне. */
     private fun handleTtsDump(context: Context, intent: Intent) {
         val app = context.applicationContext
@@ -799,6 +825,7 @@ class DebugCommandReceiver : BroadcastReceiver() {
         const val ACTION_DEBUG_VOICE = "com.jarvis.assistant.DEBUG_VOICE"
         const val ACTION_DEBUG_TTS = "com.jarvis.assistant.DEBUG_TTS"
         const val ACTION_DEBUG_TTS_DUMP = "com.jarvis.assistant.DEBUG_TTS_DUMP"
+        const val ACTION_DEBUG_WIDGETS = "com.jarvis.assistant.DEBUG_WIDGETS"
         const val ACTION_DEBUG_ECHO_PROBE = "com.jarvis.assistant.DEBUG_ECHO_PROBE"
         const val ACTION_ASR_TEST = "com.jarvis.assistant.ASR_TEST"
         const val ACTION_DEBUG_AUTONOMY = "com.jarvis.assistant.DEBUG_AUTONOMY"

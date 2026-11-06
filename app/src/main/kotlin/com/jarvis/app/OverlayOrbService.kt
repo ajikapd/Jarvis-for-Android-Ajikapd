@@ -15,9 +15,22 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.app.NotificationCompat
+import com.jarvis.app.ui.Fonts
+import com.jarvis.app.ui.ReactorView
+import com.jarvis.app.ui.Skin
+import com.jarvis.app.ui.Skins
+import com.jarvis.app.ui.alpha
+import com.jarvis.app.ui.column
+import com.jarvis.app.ui.dp
+import com.jarvis.app.ui.glassBg
+import com.jarvis.app.ui.label
+import com.jarvis.app.ui.pad
+import com.jarvis.app.ui.rowLayout
+import com.jarvis.core.event.AssistantEvent
 import com.jarvis.core.event.JarvisEvents
 import com.jarvis.core.model.AssistantState
 import kotlinx.coroutines.CoroutineScope
@@ -27,14 +40,16 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 /**
- * Floating 56dp core plus a compact HUD pod. Drag snaps to the nearer screen edge.
+ * Орб разговора Live: реактор с главного экрана и панель. Появляется только при сворачивании Live.
  */
 class OverlayOrbService : Service() {
 
     private var window: WindowManager? = null
     private var root: LinearLayout? = null
     private var params: WindowManager.LayoutParams? = null
-    private var core: OverlayCoreView? = null
+    private var core: ReactorView? = null
+    private var said: TextView? = null
+    private var lastState = AssistantState.LISTENING
     private var pod: LinearLayout? = null
     private var status: TextView? = null
     private var expanded = false
@@ -47,11 +62,9 @@ class OverlayOrbService : Service() {
                 stopSelf()
                 return START_NOT_STICKY
             }
-            ACTION_SPEAK -> VoiceController.start(this)
-            ACTION_STOP_SPEAK -> VoiceController.stopSpeaking()
             ACTION_LIVE -> openLive()
         }
-        if (!Settings.canDrawOverlays(this)) {
+        if (!VoiceController.liveTalk || !Settings.canDrawOverlays(this)) {
             stopSelf()
             return START_NOT_STICKY
         }
@@ -68,18 +81,28 @@ class OverlayOrbService : Service() {
     private fun show() {
         if (root != null) return
         window = getSystemService(WindowManager::class.java)
-        val d = resources.displayMetrics.density
-        val coreSize = (56 * d).toInt()
-        val coreView = OverlayCoreView(this)
-        core = coreView
-        val podView = buildPod(d)
+        val skin = Skins.current(this)
+        val size = dp(ORB_DP)
+        val reactor = ReactorView(this, skin)
+        core = reactor
+        // Тот же реактор, что на главном экране, на тёмной подложке, чтобы читался поверх любого приложения.
+        val orb = FrameLayout(this).apply {
+            background = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.OVAL
+                setColor(alpha(skin.bg, .92f))
+                setStroke(dp(1), alpha(skin.accent, .8f))
+            }
+            contentDescription = "Орб Live"
+            addView(reactor, FrameLayout.LayoutParams(-1, -1))
+        }
+        val podView = buildPod(skin)
         pod = podView
         podView.visibility = View.GONE
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            addView(coreView, LinearLayout.LayoutParams(coreSize, coreSize))
-            addView(podView)
+            addView(orb, LinearLayout.LayoutParams(size, size))
+            addView(podView, LinearLayout.LayoutParams(dp(POD_DP), -2).apply { marginStart = dp(8) })
         }
         root = box
         val lp = WindowManager.LayoutParams(
@@ -91,72 +114,88 @@ class OverlayOrbService : Service() {
         ).apply {
             gravity = Gravity.TOP or Gravity.START
             val prefs = getSharedPreferences("jarvis_prefs", MODE_PRIVATE)
-            x = prefs.getInt("overlay_x", resources.displayMetrics.widthPixels - coreSize - (16 * d).toInt())
-            y = prefs.getInt("overlay_y", resources.displayMetrics.heightPixels / 2)
+            // Сохранённое место могло остаться от другого размера: орб всегда виден целиком.
+            val maxX = resources.displayMetrics.widthPixels - size - dp(12)
+            val maxY = resources.displayMetrics.heightPixels - size - dp(12)
+            x = prefs.getInt("overlay_x", maxX).coerceIn(dp(12), maxX)
+            y = prefs.getInt("overlay_y", resources.displayMetrics.heightPixels / 2).coerceIn(dp(12), maxY)
         }
         params = lp
-        coreView.setOnTouchListener(dragListener(box, lp))
+        orb.setOnTouchListener(dragListener(box, lp))
         runCatching { window?.addView(box, lp) }
         scope.launch {
             JarvisEvents.assistantState.collect { state ->
-                coreView.assistantState = state
-                status?.text = statusFor(state)
+                lastState = state
+                paint()
+            }
+        }
+        scope.launch {
+            JarvisEvents.events.collect { event ->
+                when (event) {
+                    is AssistantEvent.RequestReceived -> said?.text = "«${event.text}»"
+                    is AssistantEvent.ResponseGenerated -> said?.text = event.text
+                    else -> Unit
+                }
             }
         }
     }
 
-    private fun buildPod(d: Float): LinearLayout {
-        val pad = (8 * d).toInt()
-        return LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(pad, pad, pad, pad)
-            background = androidx.core.content.ContextCompat.getDrawable(this@OverlayOrbService, R.drawable.bg_hud_panel)
-            val label = TextView(this@OverlayOrbService).apply {
-                text = "JARVIS · STANDBY"
-                setTextColor(0xFF62E9F4.toInt())
-                textSize = 11f
-                typeface = android.graphics.Typeface.MONOSPACE
-                maxLines = 3
-            }
-            status = label
-            addView(label)
-            val row = LinearLayout(this@OverlayOrbService).apply {
-                orientation = LinearLayout.HORIZONTAL
-                val top = (6 * d).toInt()
-                setPadding(0, top, 0, 0)
-            }
-            row.addView(chip("MIC") { VoiceController.start(this@OverlayOrbService) })
-            row.addView(chip("STOP") { VoiceController.stopSpeaking() })
-            row.addView(chip("LIVE") { openLive() })
-            row.addView(chip("X") {
-                remove()
-                stopSelf()
-            })
-            addView(row)
+    private fun paint() {
+        val muted = VoiceController.liveMuted
+        core?.mode = when {
+            muted -> ReactorView.Mode.OFF
+            lastState == AssistantState.THINKING -> ReactorView.Mode.THINK
+            lastState == AssistantState.EXECUTING -> ReactorView.Mode.ACT
+            lastState == AssistantState.SPEAKING -> ReactorView.Mode.SPEAK
+            else -> ReactorView.Mode.LISTEN
+        }
+        status?.text = when {
+            muted -> "Микрофон выключен"
+            lastState == AssistantState.THINKING || lastState == AssistantState.EXECUTING -> "Думаю"
+            lastState == AssistantState.SPEAKING -> "Говорю"
+            else -> "Слушаю"
         }
     }
 
-    private fun chip(label: String, click: () -> Unit): TextView {
-        val d = resources.displayMetrics.density
-        return TextView(this).apply {
-            text = label
-            setTextColor(0xFF62E9F4.toInt())
-            textSize = 9f
-            typeface = android.graphics.Typeface.MONOSPACE
+    private fun buildPod(skin: Skin): LinearLayout {
+        val box = column(8).pad(12).apply { background = glassBg(skin, 18, alpha(skin.bg, .96f), skin.line) }
+        val st = label("", 12f, skin.good)
+        status = st
+        box.addView(st)
+        val text = label("Разговор продолжается, сэр.", 14f, skin.text, Fonts.body(this, 600), lines = 3)
+        said = text
+        box.addView(text)
+        val row = rowLayout(6)
+        val micText = chip(skin, "Микрофон", skin.text) {}
+        micText.setOnClickListener {
+            VoiceController.liveMuted = !VoiceController.liveMuted
+            micText.text = if (VoiceController.liveMuted) "Включить" else "Микрофон"
+            paint()
+        }
+        row.addView(micText, LinearLayout.LayoutParams(0, dp(38), 1f))
+        row.addView(chip(skin, "В Live", skin.text) { openLive() }, LinearLayout.LayoutParams(0, dp(38), 1f))
+        row.addView(chip(skin, "Завершить", skin.danger) { endTalk() }, LinearLayout.LayoutParams(0, dp(38), 1.2f))
+        box.addView(row)
+        return box
+    }
+
+    private fun chip(skin: Skin, text: String, color: Int, click: () -> Unit): TextView =
+        label(text, 11.5f, color, gravity = Gravity.CENTER, lines = 1).apply {
             gravity = Gravity.CENTER
-            setPadding((8 * d).toInt(), (6 * d).toInt(), (8 * d).toInt(), (6 * d).toInt())
-            background = androidx.core.content.ContextCompat.getDrawable(this@OverlayOrbService, R.drawable.bg_fui_active)
-            val lp = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            )
-            lp.marginEnd = (4 * d).toInt()
-            layoutParams = lp
+            background = glassBg(skin, 12, alpha(skin.text, .05f), if (color == skin.danger) skin.danger else skin.line)
             setOnClickListener {
                 HudFeedback.tick(this)
                 click()
             }
         }
+
+    /** Разговор завершён: орбу больше нечего показывать. */
+    private fun endTalk() {
+        VoiceController.liveTalk = false
+        VoiceController.liveMuted = false
+        VoiceController.stopSpeaking()
+        remove()
+        stopSelf()
     }
 
     private fun dragListener(view: View, lp: WindowManager.LayoutParams) = View.OnTouchListener { _, event ->
@@ -208,7 +247,10 @@ class OverlayOrbService : Service() {
         view.post {
             val screenW = resources.displayMetrics.widthPixels
             val margin = (12 * resources.displayMetrics.density).toInt()
-            if (lp.x > screenW / 2) lp.x = screenW - view.width - margin
+            // Панель раскрывается в сторону экрана: орб не должен уезжать за край.
+            if (lp.x + view.width > screenW - margin || !expanded) {
+                if (lp.x > screenW / 3) lp.x = screenW - view.width - margin
+            }
             runCatching { window?.updateViewLayout(view, lp) }
         }
     }
@@ -218,14 +260,6 @@ class OverlayOrbService : Service() {
         launch?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         launch?.putExtra("open_live", true)
         if (launch != null) startActivity(launch)
-    }
-
-    private fun statusFor(state: AssistantState): String = when (state) {
-        AssistantState.LISTENING -> "ASR · слушаю"
-        AssistantState.THINKING, AssistantState.EXECUTING -> "LLM · думаю"
-        AssistantState.SPEAKING -> "TTS · отвечаю"
-        AssistantState.OFFLINE, AssistantState.ERROR -> "Ожидание · нажми MIC"
-        else -> "WAKE · готов"
     }
 
     private fun remove() {
@@ -241,13 +275,13 @@ class OverlayOrbService : Service() {
         val channelId = "jarvis_overlay"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             getSystemService(NotificationManager::class.java).createNotificationChannel(
-                NotificationChannel(channelId, "JARVIS overlay", NotificationManager.IMPORTANCE_LOW),
+                NotificationChannel(channelId, "Орб Live", NotificationManager.IMPORTANCE_LOW),
             )
         }
         return NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle("JARVIS")
-            .setContentText("Overlay orb")
+            .setContentText("Идёт разговор Live")
             .setOngoing(true)
             .build()
     }
@@ -262,12 +296,14 @@ class OverlayOrbService : Service() {
     companion object {
         const val ACTION_SHOW = "com.jarvis.assistant.OVERLAY_SHOW"
         const val ACTION_HIDE = "com.jarvis.assistant.OVERLAY_HIDE"
-        const val ACTION_SPEAK = "com.jarvis.assistant.OVERLAY_SPEAK"
-        const val ACTION_STOP_SPEAK = "com.jarvis.assistant.OVERLAY_STOP_SPEAK"
         const val ACTION_LIVE = "com.jarvis.assistant.OVERLAY_LIVE"
         private const val NOTIFICATION_ID = 42
+        private const val ORB_DP = 76
+        private const val POD_DP = 236
 
+        /** Орб существует только во время разговора Live. */
         fun show(context: Context) {
+            if (!VoiceController.liveTalk) return
             val intent = Intent(context, OverlayOrbService::class.java).setAction(ACTION_SHOW)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)

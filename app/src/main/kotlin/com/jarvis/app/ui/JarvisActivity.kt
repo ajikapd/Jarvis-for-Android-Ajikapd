@@ -148,6 +148,8 @@ class JarvisActivity : AppCompatActivity() {
                     delay(STARTUP_POLL_MS)
                 }
             }
+        } else if (intent.action == ACTION_POWER_ON) {
+            powerOn()
         } else if (intent.getBooleanExtra("open_live", false)) {
             openLive()
         }
@@ -164,6 +166,9 @@ class JarvisActivity : AppCompatActivity() {
         VoiceController.hideOverlay()
         OverlayOrbService.hide(this)
         screens[current]?.onShow()
+        // Вернулись из орба или разговор завершён в нём: экран Live следует за настоящим состоянием.
+        if (VoiceController.liveTalk) openLive()
+        live?.sync()
     }
 
     override fun onPause() {
@@ -449,6 +454,7 @@ class JarvisActivity : AppCompatActivity() {
         }
 
     companion object {
+        const val ACTION_POWER_ON = "com.jarvis.assistant.POWER_ON"
         const val HOME = "home"
         const val CHAT = "chat"
         const val MEMORY = "memory"

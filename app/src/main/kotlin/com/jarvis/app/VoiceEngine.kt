@@ -890,6 +890,7 @@ object VoiceController {
     /** Разговор Live без слова активации; движок подхватывает это на следующем куске звука. */
     @Volatile var liveTalk: Boolean = false
     @Volatile var liveMuted: Boolean = false
+    @Volatile var liveStartedAt: Long = 0L
 
     fun manualWake() {
         activeEngine?.manualWake()

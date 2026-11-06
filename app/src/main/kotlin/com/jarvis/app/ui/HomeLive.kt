@@ -5,6 +5,8 @@ import android.view.View
 import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.lifecycle.lifecycleScope
+import com.jarvis.app.JarvisSettings
+import com.jarvis.app.JarvisWidgetProvider
 import com.jarvis.app.VoiceController
 import com.jarvis.core.common.model.ToolCall
 import com.jarvis.core.model.AssistantState
@@ -155,6 +157,8 @@ class HomeScreen(host: JarvisActivity) : Screen(host) {
             if (degrees == null) { weatherAt = 0; return@launch }
             weather.text = (if (degrees.startsWith("-")) "" else "+") + "$degrees°"
             weatherSub.text = message.split(". ").getOrNull(1).orEmpty()
+            JarvisSettings.prefs(host).edit().putString(JarvisWidgetProvider.PREF_WEATHER, "${weather.text}, ${weatherSub.text.toString().lowercase()}").apply()
+            JarvisWidgetProvider.refresh(host)
         }
     }
 
@@ -242,12 +246,11 @@ class LiveScreen(host: JarvisActivity) : Screen(host) {
     private val chips = listOf("Слушаю", "Думаю", "Говорю").map { host.label(it, 11f, skin.muted, gravity = Gravity.CENTER) }
     private val chipBox = host.column(6)
     private var talking = false
-    private var startedAt = 0L
     private var pendingStart = false
     private val ticker = object : Runnable {
         override fun run() {
             if (talking) {
-                val s = (System.currentTimeMillis() - startedAt) / 1000
+                val s = (System.currentTimeMillis() - VoiceController.liveStartedAt) / 1000
                 time.text = "%02d:%02d".format(s / 60, s % 60)
                 view.postDelayed(this, 1000)
             }
@@ -306,7 +309,7 @@ class LiveScreen(host: JarvisActivity) : Screen(host) {
         if (!host.isOn) host.powerOn()
         pendingStart = !VoiceController.isRunning
         talking = true
-        startedAt = System.currentTimeMillis()
+        VoiceController.liveStartedAt = System.currentTimeMillis()
         VoiceController.liveTalk = true
         VoiceController.liveMuted = false
         him.text = "Я здесь, сэр. Говорите, когда будете готовы."
@@ -346,9 +349,19 @@ class LiveScreen(host: JarvisActivity) : Screen(host) {
     }
 
     override fun onShow() {
-        talking = false
+        talking = VoiceController.liveTalk
         him.text = "Нажмите «Начать разговор», чтобы говорить без слова активации, сэр."
         ui()
+        if (talking) { view.removeCallbacks(ticker); view.post(ticker); onData() }
+    }
+
+    /** Разговор могли завершить в орбе, пока окно было свёрнуто. */
+    fun sync() {
+        if (talking == VoiceController.liveTalk) return
+        talking = VoiceController.liveTalk
+        if (!talking) him.text = "Разговор завершён, сэр."
+        ui()
+        if (talking) { view.removeCallbacks(ticker); view.post(ticker) }
     }
 
     /** Уход с экрана завершает разговор: Live не должен слушать незаметно. */
