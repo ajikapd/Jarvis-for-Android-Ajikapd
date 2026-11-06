@@ -21,6 +21,7 @@ class ReminderReceiver : BroadcastReceiver() {
             runCommand(context.applicationContext, id, reminder.text)
         } else {
             deliver(context, id, ReminderSpeech.firing(reminder.text))
+            JarvisWidgetProvider.refresh(context)
         }
     }
 
@@ -40,38 +41,40 @@ class ReminderReceiver : BroadcastReceiver() {
         }, "jarvis-scheduled").start()
     }
 
-    private fun deliver(context: Context, id: Long, text: String) {
-        val spoken = ProactiveVoice.speak(context, text).requested
-        notify(context, id, text, silent = spoken)
-        VoiceHealthLog.write(context, "reminder fired id=$id spoken=$spoken")
-    }
-
-    private fun notify(context: Context, id: Long, text: String, silent: Boolean) {
-        val manager = context.getSystemService(NotificationManager::class.java) ?: return
-        manager.createNotificationChannel(
-            NotificationChannel(CHANNEL, "Напоминания", NotificationManager.IMPORTANCE_HIGH),
-        )
-        val open = PendingIntent.getActivity(
-            context, id.toInt(),
-            Intent(context, DashboardActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-        val note = NotificationCompat.Builder(context, CHANNEL)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle("Jarvis")
-            .setContentText(text)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
-            .setContentIntent(open)
-            .setAutoCancel(true)
-            .setSilent(silent)
-            .setCategory(NotificationCompat.CATEGORY_REMINDER)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .build()
-        runCatching { manager.notify(BASE_NOTIFICATION + id.toInt(), note) }
-    }
-
     companion object {
         private const val TAG = "Jarvis.Reminders"
+
+        /** Голосом, если контур слушает, и всегда уведомлением. */
+        fun deliver(context: Context, id: Long, text: String) {
+            val spoken = ProactiveVoice.speak(context, text).requested
+            notify(context, id, text, silent = spoken)
+            VoiceHealthLog.write(context, "delivered id=$id spoken=$spoken")
+        }
+
+        private fun notify(context: Context, id: Long, text: String, silent: Boolean) {
+            val manager = context.getSystemService(NotificationManager::class.java) ?: return
+            manager.createNotificationChannel(
+                NotificationChannel(CHANNEL, "Напоминания", NotificationManager.IMPORTANCE_HIGH),
+            )
+            val open = PendingIntent.getActivity(
+                context, id.toInt(),
+                Intent(context, DashboardActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+            val note = NotificationCompat.Builder(context, CHANNEL)
+                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setContentTitle("Jarvis")
+                .setContentText(text)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+                .setContentIntent(open)
+                .setAutoCancel(true)
+                .setSilent(silent)
+                .setCategory(NotificationCompat.CATEGORY_REMINDER)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .build()
+            runCatching { manager.notify(BASE_NOTIFICATION + id.toInt(), note) }
+        }
+
         private const val ACTION = "com.jarvis.assistant.REMINDER_FIRE"
         private const val EXTRA_ID = "id"
         private const val CHANNEL = "jarvis_reminders"

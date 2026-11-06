@@ -830,7 +830,10 @@ object VoiceController {
         startInternal(context, liveMode = true, entry = ENTRY_SYSTEM_ASSIST)
     }
 
+    @Volatile private var appContextForWidget: Context? = null
+
     private fun startInternal(context: Context, liveMode: Boolean, entry: String) {
+        appContextForWidget = context.applicationContext
         lastEntry = entry
         JarvisSettings.setVoiceWanted(context, true)
         if (liveMode) isLiveSession = true
@@ -914,6 +917,7 @@ object VoiceController {
 
     internal fun setRunning(running: Boolean) {
         isRunning = running
+        appContextForWidget?.let { JarvisWidgetProvider.refresh(it) }
         if (!running) {
             activeEngine = null
             isLiveSession = false

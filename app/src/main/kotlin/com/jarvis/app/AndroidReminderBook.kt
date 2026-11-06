@@ -113,6 +113,7 @@ class AndroidReminderBook(context: Context) : ReminderBook {
         val edit = prefs.edit().putString(KEY_ITEMS, array.toString())
         nextId?.let { edit.putLong(KEY_NEXT, it) }
         edit.apply()
+        JarvisWidgetProvider.refresh(ctx)
     }
 
     private fun timeToMillis(t: LocalDateTime) = t.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()

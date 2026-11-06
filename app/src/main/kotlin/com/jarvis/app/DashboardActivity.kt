@@ -59,6 +59,8 @@ import kotlinx.coroutines.launch
 
 class DashboardActivity : AppCompatActivity() {
 
+    private val reminderBook by lazy { AndroidReminderBook(this) }
+
     private lateinit var screenContainer: FrameLayout
     private lateinit var bottomNav: LinearLayout
 
@@ -970,6 +972,8 @@ class DashboardActivity : AppCompatActivity() {
                 plaque(R.id.svcWake, "WAKE", if (JarvisSettings.wakeEnabled(this@DashboardActivity)) "ARMED" else "PAUSED", JarvisSettings.wakeEnabled(this@DashboardActivity))
                 val router = JarvisSettings.routerMode(this@DashboardActivity)
                 plaque(R.id.svcRouter, "ROUTER", router, router != "LOCAL")
+                val next = com.jarvis.core.reminder.HudText.next(reminderBook.all(), java.time.LocalDateTime.now())
+                plaque(R.id.svcNext, "NEXT", next, !next.startsWith("Напоминаний нет"))
                 plaque(
                     R.id.svcPipeline,
                     "ASR / TTS",

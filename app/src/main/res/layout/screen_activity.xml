@@ -79,6 +79,15 @@
             <TextView android:id="@+id/svcPipeline" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="● ASR / TTS\nAUTO" android:textColor="@color/jarvis_text" android:textSize="10sp" android:fontFamily="monospace" android:background="@drawable/bg_hud_panel" android:padding="10dp" />
         </LinearLayout>
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="6dp">
+
+            <TextView android:id="@+id/svcNext" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="2" android:text="● NEXT\n—" android:textColor="@color/jarvis_text" android:textSize="10sp" android:fontFamily="monospace" android:background="@drawable/bg_hud_panel" android:padding="10dp" android:layout_marginEnd="6dp" />
+        </LinearLayout>
+
         <TextView android:id="@+id/systemServices" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
 
         <TextView
