@@ -1,10 +1,14 @@
 package com.jarvis.app
 
+import android.app.SearchManager
 import android.content.Context
+import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.widget.Toast
+import com.jarvis.core.agent.AgentShortcut
+import com.jarvis.core.agent.AgentShortcuts
 import com.jarvis.core.agent.AgentStep
 import com.jarvis.core.agent.AppAgentRules
 import com.jarvis.core.agent.RawNode
@@ -14,6 +18,7 @@ import com.jarvis.core.common.model.ToolResultStatus
 import com.jarvis.screencontrol.ScreenController
 import com.jarvis.screencontrol.UiNode
 import com.jarvis.tools.LauncherTool
+import com.jarvis.tools.SystemSettingTool
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -29,6 +34,7 @@ class AppAgentRunner(
     private val launcher = LauncherTool(context)
 
     fun start(goal: String): String {
+        shortcut(goal)?.let { return it }
         if (!ScreenController.isAvailable()) return "Для этого нужна служба спец. возможностей Jarvis, сэр."
         if (!running.compareAndSet(false, true)) return "Я уже занят задачей, сэр. Скажите «стоп», чтобы прервать."
         cancelled = false
@@ -44,6 +50,35 @@ class AppAgentRunner(
             VoiceController.speak(reply)
         }, "jarvis-agent").start()
         return "Приступаю, сэр."
+    }
+
+    /** Прямой путь: приложение делает это само, без модели и угадывания. */
+    private fun shortcut(goal: String): String? = when (val found = AgentShortcuts.match(goal)) {
+        is AgentShortcut.YouTubeSearch -> runCatching {
+            val search = Intent(Intent.ACTION_SEARCH).apply {
+                setPackage(YOUTUBE)
+                putExtra(SearchManager.QUERY, found.query)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(search)
+            VoiceHealthLog.write(context, "agent shortcut youtube")
+            "Открыл результаты, сэр."
+        }.getOrNull()
+        is AgentShortcut.Setting -> {
+            val done = settings(found.name)
+            if (done) VoiceHealthLog.write(context, "agent shortcut setting ${found.name}")
+            if (done) "Открыл настройки, сэр." else null
+        }
+        null -> null
+    }
+
+    private fun settings(name: String): Boolean {
+        val call = ToolCall(
+            requestId = "agent",
+            toolId = "system.setting",
+            arguments = mapOf("name" to name, "value" to "open"),
+        )
+        return runCatching { SystemSettingTool(context).execute(call).status == ToolResultStatus.SUCCESS }.getOrDefault(false)
     }
 
     private fun work(goal: String): String {
@@ -191,6 +226,7 @@ class AppAgentRunner(
 
     companion object {
         private const val TAG = "Jarvis.Agent"
+        private const val YOUTUBE = "com.google.android.youtube"
         private const val START_PAUSE_MS = 1_500L
         private const val STEP_PAUSE_MS = 1_500L
         private const val CONFIRM_WAIT_MS = 10_000L
