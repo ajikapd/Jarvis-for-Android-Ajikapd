@@ -210,7 +210,8 @@ class VoiceEngine(
                         log("wake detected")
                         JarvisEvents.publish(AssistantEvent.WakeDetected)
                         JarvisEvents.publish(AssistantEvent.StateChanged(AssistantState.LISTENING))
-                        speaker?.onWakeDetected()
+                        speaker?.onWakeDetected(chime = !bargeWake)
+                        bargeWake = false
                         onWake()
                     }
                 }
@@ -325,12 +326,16 @@ class VoiceEngine(
     private var bargeOwwAt = 0L
     private var bargeKeywordAt = 0L
     private var bargePeak = 0f
+    @Volatile private var bargeWake = false
     private var wasSpeaking = false
 
     /** Микрофон с подавлением эха только на время своей речи; итог окна идёт в журнал для разбора. */
     private fun reportBargeWindow() {
         val speaking = speaker?.speaking == true
-        audioCapture?.echoCancel = speaking
+        // Паузы между кусками ответа не должны дёргать источник микрофона.
+        val sp = speaker
+        audioCapture?.echoCancel = speaking ||
+            (sp != null && SystemClock.elapsedRealtime() - sp.lastPlayEndAtMs < ECHO_HOLD_MS)
         if (wasSpeaking && !speaking) {
             VoiceHealthLog.write(app, "speech end owwPeak=${"%.3f".format(bargePeak)}")
             bargePeak = 0f
@@ -368,6 +373,7 @@ class VoiceEngine(
         bargeOwwAt = 0L
         bargeKeywordAt = 0L
         VoiceHealthLog.write(app, "barge-in")
+        bargeWake = true
         kws.disarm()
         keywordSpotter?.reset()
         engine.notifyExternalWake()
@@ -776,6 +782,7 @@ class VoiceEngine(
     companion object {
         private const val TAG = "Jarvis.Debug"
         private const val BARGE_WINDOW_MS = 1_000L
+        private const val ECHO_HOLD_MS = 700L
         private const val WAKE_HOLDOFF_AFTER_SPEECH_MS = 1_500L
         private const val MIC_WATCH_PERIOD_MS = 2_000L
         private const val MIC_HEARTBEAT_MS = 60_000L

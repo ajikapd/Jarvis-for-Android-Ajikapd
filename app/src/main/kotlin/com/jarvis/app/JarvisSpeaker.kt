@@ -42,6 +42,8 @@ class JarvisSpeaker(context: Context) {
         private const val FULL_SYNTH_MAX_CHARS = 160
         /** Bound stream queue depth (sentence chunks). */
         private const val MAX_QUEUE_DEPTH = 12
+        /** Сколько готовых фраз может ждать воспроизведения. */
+        private const val READ_AHEAD_CHUNKS = 2
 
         /** Голоса по порядку предпочтения: первым идёт свой, Dmitri остаётся запасным. */
         fun voiceConfigs(context: Context): List<JarvisTtsConfig> {
@@ -66,10 +68,18 @@ class JarvisSpeaker(context: Context) {
     private val appCtx = context.applicationContext
     private val foreignVoice by lazy { com.jarvis.app.tts.AndroidSystemTtsBackend(appCtx) }
     private val player = TtsPlayer()
+    /** Свой плеер: иначе остановка речи при активации обрывает и сам сигнал. */
+    private val chimePlayer = TtsPlayer()
     private val ttsExecutor = Executors.newSingleThreadExecutor { r ->
         Thread(r, "jarvis-tts").apply { priority = Thread.MAX_PRIORITY }
     }
     private val ttsDispatcher = ttsExecutor.asCoroutineDispatcher()
+    private val chimeExecutor = Executors.newSingleThreadExecutor { r -> Thread(r, "jarvis-chime") }
+    /** Звук играет отдельно от синтеза: следующая фраза готовится, пока звучит текущая. */
+    private val playExecutor = Executors.newSingleThreadExecutor { r ->
+        Thread(r, "jarvis-play").apply { priority = Thread.MAX_PRIORITY }
+    }
+    private val readAhead = java.util.concurrent.Semaphore(READ_AHEAD_CHUNKS)
     private val scope = CoroutineScope(SupervisorJob() + ttsDispatcher)
     private var tts: JarvisTts? = null
     private var hybrid: HybridTtsBridge? = null
@@ -119,13 +129,13 @@ class JarvisSpeaker(context: Context) {
         }
     }
 
-    fun onWakeDetected() {
+    /** @param chime false при перебивании: прервавшаяся речь сама показывает, что он услышал. */
+    fun onWakeDetected(chime: Boolean = true) {
         stopSpeaking()
+        if (!chime) return
         // Чим асинхронно и без mic-gate / setPlayEnd — иначе ~0.4–0.6 с глухоты
         // поверх команды «джарвис, …» (частая жалоба тестеров).
-        scope.launch {
-            runCatching { player.playChime() }
-        }
+        chimeExecutor.execute { runCatching { chimePlayer.playChime() } }
     }
 
     fun sayListening() = speak(JarvisStyle.listening(listeningTurn++))
@@ -240,11 +250,38 @@ class JarvisSpeaker(context: Context) {
         return JarvisVoiceFx.process(engine.synthesize(text), engine.sampleRate) to engine.sampleRate
     }
 
+    private fun playQueued(next: QueuedUtterance, samples: FloatArray, rate: Int, t0: Long, synthMs: Long) {
+        if (next.streamGen != speakGeneration) {
+            next.onDone()
+            return
+        }
+        if (samples.isNotEmpty()) {
+            if (!streamFirstAudioSent) {
+                streamFirstAudioSent = true
+                val audioMs = SystemClock.elapsedRealtime() - t0
+                lastTtsTelemetry?.ttsFirstAudioMs = audioMs
+                lastTtsTelemetry?.ttsFirstPlaybackMs = audioMs
+                next.onFirstAudio?.invoke(audioMs)
+            }
+            val playStart = SystemClock.elapsedRealtime()
+            val waited = playStart - t0 - synthMs
+            player.play(samples, rate)
+            val playMs = SystemClock.elapsedRealtime() - playStart
+            lastTtsTelemetry?.ttsPlaybackMs = (lastTtsTelemetry?.ttsPlaybackMs ?: 0L) + playMs
+            Log.d(TAG, "chunk chars=${next.text.length} audio=${samples.size * 1000L / rate}ms synth=${synthMs}ms wait=${waited}ms play=${playMs}ms")
+        } else if (!streamFirstAudioSent) {
+            streamFirstAudioSent = true
+            next.onFirstAudio?.invoke(0L)
+        }
+        next.onDone()
+    }
+
     private fun pumpUtteranceQueue() {
         speakJob = scope.launch {
             speechPlaying = true
             try {
                 Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO)
+                var lastPlay: java.util.concurrent.Future<*>? = null
                 while (true) {
                     val (next, depth) = synchronized(utteranceQueue) {
                         if (utteranceQueue.isEmpty()) {
@@ -260,34 +297,26 @@ class JarvisSpeaker(context: Context) {
                         continue
                     }
                     if (next.isEndMarker) {
-                        next.onDone()
+                        lastPlay = playExecutor.submit { next.onDone() }
                         continue
                     }
                     val t0 = SystemClock.elapsedRealtime()
                     val (samples, rate) = synthPcm(next.text, next.streamGen, depth)
+                    val synthMs = SystemClock.elapsedRealtime() - t0
                     if (next.streamGen != speakGeneration) {
                         next.onDone()
                         continue
                     }
-                    if (samples.isNotEmpty()) {
-                        if (!streamFirstAudioSent) {
-                            streamFirstAudioSent = true
-                            val audioMs = SystemClock.elapsedRealtime() - t0
-                            lastTtsTelemetry?.ttsFirstAudioMs = audioMs
-                            lastTtsTelemetry?.ttsFirstPlaybackMs = audioMs
-                            next.onFirstAudio?.invoke(audioMs)
+                    readAhead.acquire()
+                    lastPlay = playExecutor.submit {
+                        try {
+                            playQueued(next, samples, rate, t0, synthMs)
+                        } finally {
+                            readAhead.release()
                         }
-                        val playStart = SystemClock.elapsedRealtime()
-                        player.play(samples, rate)
-                        lastTtsTelemetry?.ttsPlaybackMs =
-                            (lastTtsTelemetry?.ttsPlaybackMs ?: 0L) +
-                                (SystemClock.elapsedRealtime() - playStart)
-                    } else if (!streamFirstAudioSent) {
-                        streamFirstAudioSent = true
-                        next.onFirstAudio?.invoke(0L)
                     }
-                    next.onDone()
                 }
+                lastPlay?.get()
             } finally {
                 speechPlaying = false
                 setPlayEnd()
