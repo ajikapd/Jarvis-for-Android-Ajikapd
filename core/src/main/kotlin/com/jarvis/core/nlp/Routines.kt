@@ -1,7 +1,12 @@
 package com.jarvis.core.nlp
 
 /** Именованный сценарий: несколько обычных команд и одна итоговая реплика. */
-data class Routine(val steps: List<String>, val closing: String)
+data class Routine(
+    val steps: List<String>,
+    val closing: String,
+    /** Команда, чей ответ произносится перед итоговой репликой. */
+    val report: String? = null,
+)
 
 object Routines {
     private val SLEEP = Routine(
@@ -13,7 +18,7 @@ object Routines {
         "Приятного просмотра, сэр.",
     )
     private val FOCUS = Routine(listOf("останови музыку", "включи режим не беспокоить"), "Вас не потревожат, сэр.")
-    private val LEAVING = Routine(listOf("останови музыку", "выключи фонарик"), "Хорошего пути, сэр.")
+    private val LEAVING = Routine(listOf("останови музыку", "выключи фонарик"), "Хорошего пути, сэр.", report = "погода")
     private val MORNING = Routine(listOf("выключи режим не беспокоить", "яркость на шестьдесят", "сводка на день"), "")
 
     private val PHRASES = mapOf(

@@ -101,6 +101,9 @@ enum class IntentType {
     /** Ответить на звонок или сбросить его. */
     PHONE_CONTROL,
 
+    /** Что Джарвис объявляет сам. */
+    ANNOUNCE_SETTINGS,
+
     /** Забыть факт из памяти. */
     FORGET,
 

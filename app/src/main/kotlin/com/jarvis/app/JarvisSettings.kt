@@ -55,6 +55,17 @@ object JarvisSettings {
         prefs(context).edit().putBoolean("voice_wanted", wanted).apply()
     }
 
+    fun announceCalls(context: Context): Boolean = prefs(context).getBoolean("announce_calls", true)
+
+    fun announceMessages(context: Context): Boolean = prefs(context).getBoolean("announce_messages", true)
+
+    fun announceHints(context: Context): Boolean = prefs(context).getBoolean("announce_hints", true)
+
+    /** [kind]: calls, messages или hints. */
+    fun setAnnounce(context: Context, kind: String, on: Boolean) {
+        prefs(context).edit().putBoolean("announce_$kind", on).apply()
+    }
+
     fun wakeSensitivity(context: Context): Int =
         prefs(context).getInt("wake_sensitivity", 2)
 

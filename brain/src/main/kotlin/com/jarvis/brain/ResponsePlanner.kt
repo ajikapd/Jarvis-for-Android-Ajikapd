@@ -225,6 +225,9 @@ object ToolCallFactory {
             IntentType.PHONE_CONTROL ->
                 ToolCall(requestId = requestId, toolId = "phone.control", arguments = slotsToArgs(intent))
 
+            IntentType.ANNOUNCE_SETTINGS ->
+                ToolCall(requestId = requestId, toolId = "announce.settings", arguments = slotsToArgs(intent))
+
             IntentType.FORGET ->
                 ToolCall(requestId = requestId, toolId = "memory.forget", arguments = slotsToArgs(intent))
 

@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.os.SystemClock
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import com.jarvis.core.announce.IncomingMessage
 import android.util.Log
 import com.jarvis.core.companion.ObservationSource
 import com.jarvis.core.companion.ObservationType
@@ -49,12 +50,21 @@ class JarvisNotificationListenerService : NotificationListenerService() {
         val info = toInfo(sbn)
         synchronized(cache) { cache[keyOf(sbn)] = info }
         publishToBus(sbn, posted = true)
+        notifyMessage(sbn, info)
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
         sbn ?: return
         synchronized(cache) { cache.remove(keyOf(sbn)) }
         publishToBus(sbn, posted = false)
+    }
+
+    private fun notifyMessage(sbn: StatusBarNotification, info: NotificationInfo) {
+        val listener = messageListener ?: return
+        if (shouldIgnore(sbn) || sbn.isOngoing) return
+        if (sbn.notification.flags and Notification.FLAG_GROUP_SUMMARY != 0) return
+        val group = sbn.notification.extras?.getBoolean(Notification.EXTRA_IS_GROUP_CONVERSATION) == true
+        listener(keyOf(sbn), IncomingMessage(sbn.packageName.orEmpty(), info.title, info.text, group))
     }
 
     private fun publishToBus(sbn: StatusBarNotification, posted: Boolean) {
@@ -207,6 +217,12 @@ class JarvisNotificationListenerService : NotificationListenerService() {
         private const val TAG = "Jarvis.NLS"
         @Volatile var instance: JarvisNotificationListenerService? = null
             private set
+
+        /** Сообщения из мессенджеров для голосового объявления. */
+        @Volatile var messageListener: ((String, IncomingMessage) -> Unit)? = null
+
+        /** На что отвечать по фразе «ответь, что понял». */
+        @Volatile var lastAnnouncedKey: String? = null
 
         /** FIFO-кэш: вытесняется самая старая запись, содержимое уже обезличено. */
         private val cache = object : LinkedHashMap<String, NotificationInfo>(16, 0.75f, false) {

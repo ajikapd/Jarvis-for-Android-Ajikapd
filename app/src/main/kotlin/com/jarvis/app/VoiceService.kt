@@ -62,6 +62,8 @@ class VoiceService : Service() {
     private var sayFocusHeld = false
     private var sayInFlight = false
 
+    private var announcements: AnnouncementWatcher? = null
+
     /** Заряд на исходе: система шлёт это один раз за разряд, поэтому надоедать не будет. */
     private val batteryLowReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -268,6 +270,7 @@ class VoiceService : Service() {
     override fun onCreate() {
         super.onCreate()
         registerReceiver(batteryLowReceiver, android.content.IntentFilter(Intent.ACTION_BATTERY_LOW))
+        announcements = AnnouncementWatcher(this).also { it.start() }
         VoiceController.addListener(coreListener)
         coreRegistered = true
     }
@@ -503,6 +506,7 @@ class VoiceService : Service() {
 
     override fun onDestroy() {
         runCatching { unregisterReceiver(batteryLowReceiver) }
+        announcements?.stop()
         finishProactiveSay("destroy")
         if (coreRegistered) VoiceController.removeListener(coreListener)
         engine?.stop()

@@ -269,6 +269,7 @@ object BrainGraph {
             register(com.jarvis.tools.ratesTool())
             register(com.jarvis.tools.locationTool(ctx))
             register(com.jarvis.tools.PhoneControlTool(ctx))
+            register(com.jarvis.tools.AnnounceSettingsTool { kind, on -> JarvisSettings.setAnnounce(ctx, kind, on) })
             register(MusicTool(ctx))
             register(KnowledgeTool())
         }

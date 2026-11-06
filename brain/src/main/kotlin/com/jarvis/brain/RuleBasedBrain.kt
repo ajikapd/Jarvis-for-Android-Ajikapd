@@ -41,6 +41,8 @@ class RuleBasedBrain(
         calendarList(words, request)?.let { return it }
         systemStatus(words)?.let { return it }
         infoRequest(words)?.let { return it }
+        announceSettings(words)?.let { return it }
+        replyToMessage(words)?.let { return it }
         forget(words)?.let { return it }
         briefing(words)?.let { return it }
         // ── громкость ──────────────────────────────────────────────
@@ -104,6 +106,27 @@ class RuleBasedBrain(
         } else {
             skill(IntentType.PHONE_CONTROL, mapOf("action" to call), text, 0.93f)
         }
+    }
+
+    private fun announceSettings(words: List<String>): BrainResult? {
+        val text = words.joinToString(" ")
+        if (words.none { it in ANNOUNCE_VERBS }) return null
+        val kind = when {
+            words.any { it.startsWith("звонк") || it.startsWith("звонок") } -> "calls"
+            words.any { it.startsWith("сообщени") } -> "messages"
+            words.any { it.startsWith("подсказ") || it.startsWith("встреч") } -> "hints"
+            else -> return null
+        }
+        return skill(IntentType.ANNOUNCE_SETTINGS, mapOf("kind" to kind, "on" to (!words.contains("не")).toString()), text, 0.92f)
+    }
+
+    /** «ответь, что понял»: отвечаем на только что прочитанное сообщение. */
+    private fun replyToMessage(words: List<String>): BrainResult? {
+        if (words.firstOrNull() != "ответь" || words.size < 2) return null
+        if (words.any { it.startsWith("уведомлен") || it.startsWith("звон") }) return null
+        val body = words.drop(1).dropWhile { it in REPLY_FILLERS }
+        if (body.isEmpty()) return null
+        return skill(IntentType.NOTIFICATIONS, mapOf("action" to "reply", "text" to body.joinToString(" ")), words.joinToString(" "), 0.9f)
     }
 
     private fun forget(words: List<String>): BrainResult? {
@@ -1302,6 +1325,8 @@ class RuleBasedBrain(
             "сколько памяти", "сколько места", "свободной памяти", "свободного места",
         )
         private const val MIN_BRIGHTNESS = 5
+        private val ANNOUNCE_VERBS = setOf("объявляй", "озвучивай", "читай", "сообщай", "говори", "докладывай")
+        private val REPLY_FILLERS = setOf("ему", "ей", "им", "что", "чтобы", "пожалуйста")
         private val TIME_MARKERS = setOf(
             "через", "завтра", "послезавтра", "каждый", "каждое", "ежедневно", "утра", "утром", "вечера", "вечером",
         )

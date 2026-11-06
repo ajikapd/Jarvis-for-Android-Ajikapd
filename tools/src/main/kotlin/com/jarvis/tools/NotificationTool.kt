@@ -132,7 +132,7 @@ class NotificationTool : Tool {
         val key = call.arguments["key"]?.toString().orEmpty()
         if (key.isNotBlank()) return key
         val q = call.arguments["query"]?.toString()?.lowercase().orEmpty()
-        if (q.isBlank()) return null
+        if (q.isBlank()) return JarvisNotificationListenerService.lastAnnouncedKey
         return JarvisNotificationListenerService.snapshot().firstOrNull {
             it.title.lowercase().contains(q) || it.text.lowercase().contains(q) ||
                 it.packageName.lowercase().contains(q)

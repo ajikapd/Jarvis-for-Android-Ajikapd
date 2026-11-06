@@ -9,6 +9,23 @@ import org.junit.Test
 
 class RuleBasedBrainTest {
     @org.junit.Test
+    fun `announcement switches`() {
+        val off = slots("не объявляй звонки", IntentType.ANNOUNCE_SETTINGS)
+        assertEquals("calls", off["kind"])
+        assertEquals("false", off["on"])
+        assertEquals("true", slots("читай сообщения вслух", IntentType.ANNOUNCE_SETTINGS)["on"])
+    }
+
+    @org.junit.Test
+    fun `reply to the announced message`() {
+        val r = slots("ответь что понял", IntentType.NOTIFICATIONS)
+        assertEquals("reply", r["action"])
+        assertEquals("понял", r["text"])
+        assertEquals("буду позже", slots("ответь ему буду позже", IntentType.NOTIFICATIONS)["text"])
+        assertEquals(IntentType.PHONE_CONTROL, (route("ответь на звонок") as BrainResult.SkillCall).intent.type)
+    }
+
+    @org.junit.Test
     fun `delayed command is scheduled not executed`() {
         for (say in listOf(
             "через десять минут выключи фонарик", "завтра в восемь утра включи музыку",

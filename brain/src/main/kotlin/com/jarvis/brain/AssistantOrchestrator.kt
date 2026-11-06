@@ -320,7 +320,15 @@ class AssistantOrchestrator(
         com.jarvis.core.nlp.Routines.find(normalizedRequest.text)?.let { routine ->
             val done = processCompound(normalizedRequest, routine.steps, startedAt, trace)
             val fine = done.status == AssistantResponseStatus.PROCESSED && routine.closing.isNotEmpty()
-            return finalizeTrace(if (fine) done.copy(replyText = routine.closing) else done, trace, startedAt)
+            if (!fine) return finalizeTrace(done, trace, startedAt)
+            val report = routine.report?.let { step ->
+                processSingle(
+                    normalizedRequest.copy(text = step), startedAt,
+                    preferUiType = false, addUser = false, allowReact = false, trace = trace,
+                ).takeIf { it.status == AssistantResponseStatus.PROCESSED }?.replyText
+            }
+            val reply = listOfNotNull(report, routine.closing).joinToString(" ")
+            return finalizeTrace(done.copy(replyText = reply), trace, startedAt)
         }
 
         // Follow-up («выключи», «тише», «а в Донецке») — до semantic / incomplete
