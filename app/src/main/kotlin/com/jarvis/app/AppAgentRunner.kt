@@ -3,6 +3,7 @@ package com.jarvis.app
 import android.app.SearchManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -69,8 +70,19 @@ class AppAgentRunner(
             if (done) VoiceHealthLog.write(context, "agent shortcut setting ${found.name}")
             if (done) "Открыл настройки, сэр." else null
         }
+        is AgentShortcut.MapSearch -> open(Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=${Uri.encode(found.place)}")), "Открыл карту, сэр.")
+        is AgentShortcut.WebSearch -> open(
+            Intent(Intent.ACTION_VIEW, Uri.parse("https://yandex.ru/search/?text=${Uri.encode(found.query)}")),
+            "Открыл поиск, сэр.",
+        )
         null -> null
     }
+
+    private fun open(intent: Intent, reply: String): String? = runCatching {
+        context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        VoiceHealthLog.write(context, "agent shortcut view")
+        reply
+    }.getOrNull()
 
     private fun settings(name: String): Boolean {
         val call = ToolCall(

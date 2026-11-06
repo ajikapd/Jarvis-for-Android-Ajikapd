@@ -24,6 +24,12 @@ class AgentShortcutsTest {
         assertEquals(AgentShortcut.Setting("wifi"), AgentShortcuts.match("открой настройки вайфая"))
     }
 
+    @Test fun mapsAndWeb() {
+        assertEquals(AgentShortcut.MapSearch("аптеку"), AgentShortcuts.match("найди на карте аптеку"))
+        assertEquals(AgentShortcut.MapSearch("кафе рядом"), AgentShortcuts.match("найди кафе рядом в яндекс картах"))
+        assertEquals(AgentShortcut.WebSearch("рецепт борща"), AgentShortcuts.match("найди в интернете рецепт борща"))
+    }
+
     @Test fun anotherActionStaysWithAgent() {
         assertNull(AgentShortcuts.match("открой настройки блютуз и выключи его"))
         assertNull(AgentShortcuts.match("открой телеграм и напиши привет"))
