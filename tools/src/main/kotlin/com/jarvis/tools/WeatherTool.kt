@@ -48,12 +48,12 @@ class WeatherTool(private val context: Context) : Tool {
             val url =
                 "https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}" +
                     "&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m" +
-                    "&daily=temperature_2m_max,temperature_2m_min,weather_code&forecast_days=3&timezone=auto"
+                    "&daily=temperature_2m_max,temperature_2m_min,weather_code&forecast_days=7&timezone=auto"
             val json = SimpleHttp.getJson(url, ttlMs = 12 * 60_000L)
             val dayOffset = (call.arguments["day"] as? Number)?.toInt()
                 ?: call.arguments["day"]?.toString()?.toIntOrNull()
                 ?: 0
-            val dayIdx = dayOffset.coerceIn(0, 2)
+            val dayIdx = dayOffset.coerceIn(0, 6)
             val current = json.getJSONObject("current")
             val daily = json.optJSONObject("daily")
             if (dayIdx > 0 && daily != null) {
@@ -63,7 +63,8 @@ class WeatherTool(private val context: Context) : Tool {
                 val label = when (dayIdx) {
                     1 -> "завтра"
                     2 -> "послезавтра"
-                    else -> "сегодня"
+                    0 -> "сегодня"
+                    else -> com.jarvis.core.reminder.ReminderSpeech.weekdayPhrase(java.time.LocalDate.now().plusDays(dayIdx.toLong()))
                 }
                 val desc = weatherCodeRu(code)
                 val reply = if (tmax != null && tmin != null) {

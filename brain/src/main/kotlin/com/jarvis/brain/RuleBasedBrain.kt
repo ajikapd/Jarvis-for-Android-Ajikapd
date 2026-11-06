@@ -38,6 +38,8 @@ class RuleBasedBrain(
         smsRead(words, request)?.let { return it }
         calendarList(words, request)?.let { return it }
         systemStatus(words)?.let { return it }
+        infoRequest(words)?.let { return it }
+        forget(words)?.let { return it }
         briefing(words)?.let { return it }
         // ── громкость ──────────────────────────────────────────────
         volume(request.text, words, request)?.let { return it }
@@ -81,6 +83,32 @@ class RuleBasedBrain(
     }
 
     // ── правила скиллов ───────────────────────────────────────────
+
+    private fun infoRequest(words: List<String>): BrainResult? {
+        val text = words.joinToString(" ")
+        val type = when {
+            NEWS_PHRASES.any { text.contains(it) } -> IntentType.NEWS
+            RATE_PHRASES.any { text.contains(it) } -> IntentType.RATES
+            LOCATION_PHRASES.any { text == it || text.startsWith("$it ") } -> IntentType.LOCATION
+            else -> null
+        }
+        if (type != null) return skill(type, emptyMap(), text, 0.93f)
+        if (text.contains("приложени") && APP_LIST_PHRASES.any { text.contains(it) }) {
+            return skill(IntentType.LAUNCH_APP, mapOf("action" to "list"), text, 0.9f)
+        }
+        val call = CALL_CONTROL[text.removeSuffix(" пожалуйста")] ?: return null
+        return if (call == "redial") {
+            skill(IntentType.CALL, mapOf("action" to "redial"), text, 0.93f)
+        } else {
+            skill(IntentType.PHONE_CONTROL, mapOf("action" to call), text, 0.93f)
+        }
+    }
+
+    private fun forget(words: List<String>): BrainResult? {
+        if (words.firstOrNull() != "забудь") return null
+        val query = words.drop(1).filter { it !in FORGET_FILLERS }.joinToString(" ")
+        return skill(IntentType.FORGET, mapOf("query" to query), words.joinToString(" "), 0.92f)
+    }
 
     private fun briefing(words: List<String>): BrainResult? {
         val text = words.joinToString(" ")
@@ -165,7 +193,15 @@ class RuleBasedBrain(
 
     private fun calendarList(words: List<String>, request: UserRequest): BrainResult? {
         val text = words.joinToString(" ")
+        val day = when {
+            text.contains("послезавтра") -> 2
+            text.contains("завтра") -> 1
+            text.contains("сегодня") -> 0
+            else -> null
+        }
         val hit = text.contains("что в календаре") || text.contains("какие события") ||
+            text.contains("что у меня завтра") || text.contains("что у меня послезавтра") ||
+            text.contains("планы на завтра") || text.contains("планы на послезавтра") ||
             text.contains("ближайшие события") || text.contains("расписание") ||
             (words.any { it in setOf("покажи", "какие", "что") } &&
                 words.any { it.startsWith("календар") || it.startsWith("событ") || it == "встречи" })
@@ -175,7 +211,10 @@ class RuleBasedBrain(
             intent = Intent(
                 type = IntentType.CREATE_EVENT,
                 normalizedText = text,
-                slots = mapOf("action" to Slot("action", "list")),
+                slots = buildMap {
+                    put("action", Slot("action", "list"))
+                    if (day != null) put("day", Slot("day", day))
+                },
                 confidence = 0.9f,
                 confidenceLevel = ConfidenceLevel.HIGH,
             ),
@@ -519,6 +558,8 @@ class RuleBasedBrain(
         // Отбрасываем служебные слова: глагол + объектное существительное («событие», «встреча»)
         var titleWords = words.dropWhile { it !in EVENT_VERBS }.drop(1)
         titleWords = titleWords.dropWhile { it in EVENT_NOUNS }
+        if (titleWords.take(2) == listOf("в", "календарь")) titleWords = titleWords.drop(2)
+        titleWords = titleWords.dropWhile { it in EVENT_NOUNS }
         if (titleWords.isEmpty()) {
             return BrainResult.Clarify(question = "Какое событие добавить в календарь?", confidence = 0.5f)
         }
@@ -790,19 +831,25 @@ class RuleBasedBrain(
         return null
     }
 
+    private fun daysUntil(day: java.time.DayOfWeek): Int =
+        Math.floorMod(day.value - java.time.LocalDate.now().dayOfWeek.value, DAYS_IN_WEEK)
+
     private fun weather(words: List<String>, request: UserRequest): BrainResult? {
         val text = words.joinToString(" ")
         val hit = words.any { it in WEATHER_WORDS } ||
             text.contains("градус") || text.contains("на улице")
         if (!hit) return null
         // «будет ли дождь в Москве» / «погода в казани»
-        val city = extractCityAfter(words, setOf("в", "во"))
-            ?: extractCityAfter(words, setOf("погода"))
+        val city = (extractCityAfter(words, setOf("в", "во")) ?: extractCityAfter(words, setOf("погода")))
+            ?.takeUnless { c ->
+                c.lowercase().let { low -> low.startsWith("на ") || low.startsWith("выходн") || WEEKDAY_WORDS.keys.any { it.startsWith(low) } }
+            }
         val day = when {
             text.contains("послезавтра") -> 2
             text.contains("завтра") -> 1
             text.contains("сегодня") -> 0
-            else -> null
+            text.contains("выходн") -> daysUntil(java.time.DayOfWeek.SATURDAY)
+            else -> WEEKDAY_WORDS.entries.firstOrNull { it.key in words }?.let { daysUntil(it.value) }
         }
         return BrainResult.SkillCall(
             intent = Intent(
@@ -1234,6 +1281,13 @@ class RuleBasedBrain(
             "сколько памяти", "сколько места", "свободной памяти", "свободного места",
         )
         private const val MIN_BRIGHTNESS = 5
+        private const val DAYS_IN_WEEK = 7
+        private val WEEKDAY_WORDS = mapOf(
+            "понедельник" to java.time.DayOfWeek.MONDAY, "вторник" to java.time.DayOfWeek.TUESDAY,
+            "среду" to java.time.DayOfWeek.WEDNESDAY, "четверг" to java.time.DayOfWeek.THURSDAY,
+            "пятницу" to java.time.DayOfWeek.FRIDAY, "субботу" to java.time.DayOfWeek.SATURDAY,
+            "воскресенье" to java.time.DayOfWeek.SUNDAY,
+        )
         private const val HOUR_AND_HALF_MINUTES = 90
         private const val MINUTE_AND_HALF_SECONDS = 90
         private val PHRASE_SETTINGS = linkedMapOf(
@@ -1249,6 +1303,19 @@ class RuleBasedBrain(
         /** Без глагола это всё равно просьба включить: «поставь на беззвучный». */
         private val SWITCH_SETTINGS = setOf("dnd", "silent", "vibrate", "auto_brightness", "auto_rotate")
         private val NOTIFICATION_CLEAR_VERBS = setOf("очисти", "очистить", "убери", "удали", "закрой", "смахни", "скрой")
+        private val NEWS_PHRASES = listOf("какие новости", "что нового в мире", "последние новости", "новости сегодня", "главные новости", "расскажи новости")
+        private val RATE_PHRASES = listOf(
+            "курс доллара", "курс евро", "курс юаня", "курс валют", "курсы валют", "сколько стоит доллар",
+            "сколько стоит евро", "почём доллар", "почем доллар", "почём евро", "почем евро",
+        )
+        private val LOCATION_PHRASES = listOf("где я", "где я нахожусь", "где мы", "мой адрес", "моё местоположение", "мое местоположение")
+        private val APP_LIST_PHRASES = listOf("какие у меня", "какие приложения", "список приложений", "список установленных")
+        private val CALL_CONTROL = mapOf(
+            "перезвони" to "redial", "перезвони ему" to "redial", "перезвони ей" to "redial", "набери ещё раз" to "redial",
+            "ответь на звонок" to "answer", "ответь" to "answer", "прими звонок" to "answer", "возьми трубку" to "answer",
+            "сбрось звонок" to "end", "сбрось" to "end", "отклони звонок" to "end", "положи трубку" to "end", "заверши звонок" to "end",
+        )
+        private val FORGET_FILLERS = setOf("про", "о", "об", "что", "это", "пожалуйста")
         private val BRIEFING_PHRASES = listOf(
             "сводк", "брифинг", "что у меня на сегодня", "что у меня сегодня", "что на сегодня",
             "планы на сегодня", "план на сегодня", "план на день", "планы на день",

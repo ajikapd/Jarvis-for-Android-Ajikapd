@@ -65,7 +65,7 @@ open class DialogueResponder(
         fun shortEnough(max: Int) = t.length <= max && !hasConversationalWrapper()
 
         if (shortEnough(36) &&
-            (t.contains("сколько времени") || t.contains("который час") || t.contains("сколько время") ||
+            (t.contains("сколько времени") || t.contains("сколько сейчас времени") || t.contains("который час") || t.contains("сколько время") ||
                 t == "время" || t == "текущее время")
         ) {
             val time = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
@@ -74,7 +74,7 @@ open class DialogueResponder(
             return DialogueResult(text, DialogueResult.Kind.TEMPLATE, reason = "time")
         }
         if (shortEnough(40) &&
-            (t.contains("какая дата") || t.contains("какое число") || t.contains("какой сегодня день"))
+            (t.contains("какая дата") || t.contains("какое число") || t.contains("какое сегодня число") || t.contains("какой сегодня день"))
         ) {
             val date = java.text.SimpleDateFormat("EEEE, d MMMM yyyy", java.util.Locale("ru"))
                 .format(java.util.Date())
@@ -103,6 +103,20 @@ open class DialogueResponder(
                         DialogueResult.Kind.TEMPLATE,
                         reason = "thanks",
                     )
+                t in setOf("хватит", "замолчи", "помолчи", "тихо", "умолкни", "заткнись") ->
+                    return DialogueResult("Умолкаю, сэр.", DialogueResult.Kind.TEMPLATE, reason = "hush")
+                t in setOf("отмена", "отмени", "не надо", "нет не надо", "ничего") ->
+                    return DialogueResult("Хорошо, сэр.", DialogueResult.Kind.TEMPLATE, reason = "dismiss")
+                t.startsWith("спокойной ночи") ->
+                    return DialogueResult("Спокойной ночи, сэр.", DialogueResult.Kind.TEMPLATE, reason = "good_night")
+                t == "помощь" || t == "помоги" ->
+                    return DialogueResult(CAPABILITIES, DialogueResult.Kind.TEMPLATE, reason = "capabilities")
+                t in setOf("что ты сказал", "что ты сказала", "не расслышал", "не понял") && history.isNotEmpty() ->
+                    return DialogueResult(
+                        lastAssistant.ifBlank { "Пока нечего повторить, сэр." },
+                        DialogueResult.Kind.TEMPLATE,
+                        reason = "repeat",
+                    )
                 has("пока", "до свидания") && t.length <= 24 ->
                     return DialogueResult(
                         "До встречи, сэр. Буду на связи.",
@@ -127,7 +141,7 @@ open class DialogueResponder(
         // «что ты умеешь» — short template OK; long conversational about capabilities → LLM
         if (shortEnough(40) && has("что ты умеешь", "что умеешь", "твои возможности")) {
             return DialogueResult(
-                "Управляю телефоном и приложениями, сэр. Музыка, звонки, сообщения, погода, напоминания, маршруты, сводка на день. На вопросы тоже отвечаю.",
+                CAPABILITIES,
                 DialogueResult.Kind.TEMPLATE,
                 reason = "capabilities",
             )
@@ -288,6 +302,9 @@ open class DialogueResponder(
     }
 
     companion object {
+        private const val CAPABILITIES = "Управляю телефоном и приложениями, сэр. Музыка, звонки, сообщения, погода, " +
+            "напоминания, маршруты, новости, курсы валют, сводка на день. На вопросы тоже отвечаю."
+
         private const val TAG = "Jarvis.Dialogue"
     }
 }

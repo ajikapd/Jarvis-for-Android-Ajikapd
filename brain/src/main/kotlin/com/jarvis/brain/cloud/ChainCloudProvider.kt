@@ -287,7 +287,8 @@ class ChainCloudProvider(
         val base = legacy.resolveSystem(request)
         val chat = !request.wantStructured &&
             (request.taskType == null || request.taskType == com.jarvis.brain.aiprovider.AiTaskType.CHAT)
-        return if (chat) "$base\n${CloudToolAction.PROMPT}" else base
+        val today = java.text.SimpleDateFormat("EEEE, d MMMM yyyy, HH:mm", java.util.Locale("ru")).format(java.util.Date())
+        return if (chat) "$base\nСейчас: $today.\n${CloudToolAction.PROMPT}" else base
     }
 
     private fun buildCloudCall(request: AICompletionRequest): CloudCall =

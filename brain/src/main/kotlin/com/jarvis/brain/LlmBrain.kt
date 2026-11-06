@@ -440,6 +440,9 @@ class LlmBrain(
         skillId.contains("system.status", true) -> IntentType.SYSTEM_STATUS
         skillId.contains("reminder", true) -> IntentType.REMINDER
         skillId.contains("briefing", true) -> IntentType.BRIEFING
+        skillId.contains("news", true) -> IntentType.NEWS
+        skillId.contains("rates", true) -> IntentType.RATES
+        skillId.contains("location", true) -> IntentType.LOCATION
         skillId.contains("navigate", true) -> IntentType.NAVIGATE
         skillId.contains("web.search", true) -> IntentType.WEB_SEARCH
         skillId.contains("camera", true) -> IntentType.CAMERA

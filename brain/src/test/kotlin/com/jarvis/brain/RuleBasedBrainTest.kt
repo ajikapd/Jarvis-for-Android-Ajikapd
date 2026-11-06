@@ -8,6 +8,43 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RuleBasedBrainTest {
+    @org.junit.Test
+    fun `info requests`() {
+        assertEquals(IntentType.NEWS, (route("какие новости") as BrainResult.SkillCall).intent.type)
+        assertEquals(IntentType.RATES, (route("какой курс доллара") as BrainResult.SkillCall).intent.type)
+        assertEquals(IntentType.LOCATION, (route("где я нахожусь") as BrainResult.SkillCall).intent.type)
+        assertEquals("list", slots("какие у меня приложения", IntentType.LAUNCH_APP)["action"])
+    }
+
+    @org.junit.Test
+    fun `call control`() {
+        assertEquals("redial", slots("перезвони", IntentType.CALL)["action"])
+        assertEquals("answer", slots("ответь на звонок", IntentType.PHONE_CONTROL)["action"])
+        assertEquals("end", slots("сбрось звонок", IntentType.PHONE_CONTROL)["action"])
+    }
+
+    @org.junit.Test
+    fun `calendar days and titles`() {
+        assertEquals(1, slots("что у меня завтра", IntentType.CREATE_EVENT)["day"])
+        assertEquals(1, slots("какие планы на завтра", IntentType.CREATE_EVENT)["day"])
+        assertEquals("встречу завтра в три", slots("запиши в календарь встречу завтра в три", IntentType.CREATE_EVENT)["title"])
+    }
+
+    @org.junit.Test
+    fun `weather on a named day is not a city`() {
+        val weekend = slots("погода на выходные", IntentType.WEATHER)
+        assertEquals(null, weekend["city"])
+        assertTrue(weekend["day"] is Int)
+        val friday = slots("какая погода в пятницу", IntentType.WEATHER)
+        assertEquals(null, friday["city"])
+        assertTrue(friday["day"] is Int)
+    }
+
+    @org.junit.Test
+    fun `forget a fact`() {
+        assertEquals("кофе", slots("забудь про кофе", IntentType.FORGET)["query"])
+    }
+
     private fun slots(say: String, type: IntentType): Map<String, Any?> {
         val r = route(say) as? BrainResult.SkillCall ?: throw AssertionError("$say -> ${route(say)}")
         assertEquals(say, type, r.intent.type)

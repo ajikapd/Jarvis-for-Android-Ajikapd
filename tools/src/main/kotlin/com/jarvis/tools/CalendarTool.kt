@@ -74,21 +74,29 @@ class CalendarTool(private val context: Context) : Tool {
             ?: call.arguments["limit"]?.toString()?.toIntOrNull()
             ?: 5
         val now = System.currentTimeMillis()
-        val fmt = SimpleDateFormat("dd.MM HH:mm", Locale.getDefault())
+        val day = (call.arguments["day"] as? Number)?.toInt() ?: call.arguments["day"]?.toString()?.toIntOrNull()
+        val zone = java.time.ZoneId.systemDefault()
+        val dayStart = day?.let { java.time.LocalDate.now().plusDays(it.toLong()).atStartOfDay(zone).toInstant().toEpochMilli() }
+        val begin = dayStart ?: now
+        val end = dayStart?.plus(DAY_MS) ?: (now + LIST_WINDOW_DAYS * DAY_MS)
+        // Instances, а не Events: повторяющиеся встречи иначе не попадают в список.
+        val instances = CalendarContract.Instances.CONTENT_URI.buildUpon()
+            .appendPath(begin.toString()).appendPath(end.toString()).build()
+        val fmt = SimpleDateFormat(if (day != null) "HH:mm" else "dd.MM HH:mm", Locale.getDefault())
         return try {
             val rows = ArrayList<String>()
             context.contentResolver.query(
-                CalendarContract.Events.CONTENT_URI,
+                instances,
                 arrayOf(
-                    CalendarContract.Events.TITLE,
-                    CalendarContract.Events.DTSTART,
+                    CalendarContract.Instances.TITLE,
+                    CalendarContract.Instances.BEGIN,
                 ),
-                "${CalendarContract.Events.DTSTART} >= ?",
-                arrayOf(now.toString()),
-                "${CalendarContract.Events.DTSTART} ASC",
+                null,
+                null,
+                "${CalendarContract.Instances.BEGIN} ASC",
             )?.use { c ->
-                val iTitle = c.getColumnIndex(CalendarContract.Events.TITLE)
-                val iStart = c.getColumnIndex(CalendarContract.Events.DTSTART)
+                val iTitle = c.getColumnIndex(CalendarContract.Instances.TITLE)
+                val iStart = c.getColumnIndex(CalendarContract.Instances.BEGIN)
                 var n = 0
                 while (c.moveToNext() && n < limit.coerceIn(1, 20)) {
                     val title = c.getString(iTitle)?.takeIf { it.isNotBlank() } ?: "без названия"
@@ -98,11 +106,11 @@ class CalendarTool(private val context: Context) : Tool {
                 }
             }
             if (rows.isEmpty()) {
-                ToolResult(call.requestId, definition.id, ToolResultStatus.SUCCESS, "Ближайших событий нет.")
+                ToolResult(call.requestId, definition.id, ToolResultStatus.SUCCESS, if (day != null) "В этот день событий нет, сэр." else "Ближайших событий нет, сэр.")
             } else {
                 ToolResult(
                     call.requestId, definition.id, ToolResultStatus.SUCCESS,
-                    "Ближайшие события: ${rows.joinToString("; ")}.",
+                    if (day != null) "События: ${rows.joinToString("; ")}." else "Ближайшие события: ${rows.joinToString("; ")}.",
                 )
             }
         } catch (t: Throwable) {
@@ -135,12 +143,17 @@ class CalendarTool(private val context: Context) : Tool {
                 )
             }
 
-            val now = System.currentTimeMillis()
+            // В названии может быть время: «встреча завтра в три».
+            val moment = java.time.LocalDateTime.now()
+            val parsed = com.jarvis.core.reminder.ReminderParser.parse(title, moment)
+            val eventTitle = parsed.text.ifBlank { title }
+            val startAt = parsed.at ?: moment.plusDays(1)
+            val start = startAt.atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
             val values = ContentValues().apply {
                 put(CalendarContract.Events.CALENDAR_ID, firstCalendarId() ?: -1L)
-                put(CalendarContract.Events.TITLE, title)
-                put(CalendarContract.Events.DTSTART, now + 24 * 60 * 60 * 1000L)
-                put(CalendarContract.Events.DTEND, now + 24 * 60 * 60 * 1000L + 60 * 60 * 1000L)
+                put(CalendarContract.Events.TITLE, eventTitle)
+                put(CalendarContract.Events.DTSTART, start)
+                put(CalendarContract.Events.DTEND, start + HOUR_MS)
                 put(CalendarContract.Events.EVENT_TIMEZONE, java.util.TimeZone.getDefault().id)
             }
 
@@ -159,8 +172,9 @@ class CalendarTool(private val context: Context) : Tool {
                 requestId = call.requestId,
                 toolId = definition.id,
                 status = ToolResultStatus.SUCCESS,
-                message = "Событие «$title» добавлено в календарь на завтра.",
-                data = mapOf("eventId" to uri.lastPathSegment.orEmpty(), "title" to title),
+                message = "Записал, сэр: $eventTitle, " +
+                    com.jarvis.core.reminder.ReminderSpeech.whenPhrase(startAt, moment) + ".",
+                data = mapOf("eventId" to uri.lastPathSegment.orEmpty(), "title" to eventTitle),
             )
         } catch (t: Throwable) {
             return ToolResult(
@@ -180,4 +194,10 @@ class CalendarTool(private val context: Context) : Tool {
             if (c.moveToFirst()) c.getLong(0) else null
         }
     }.getOrNull()
+
+    private companion object {
+        const val HOUR_MS = 60 * 60 * 1000L
+        const val DAY_MS = 24 * HOUR_MS
+        const val LIST_WINDOW_DAYS = 30
+    }
 }

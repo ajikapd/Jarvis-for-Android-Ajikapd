@@ -36,6 +36,8 @@ object ReminderSpeech {
         return "$day $time"
     }
 
+    fun weekdayPhrase(date: java.time.LocalDate): String = WEEKDAY_FORMS.getValue(date.dayOfWeek.value)
+
     fun firing(text: String): String =
         if (text.isBlank()) "Сэр, вы просили напомнить в это время." else "Напоминаю, сэр: $text."
 }

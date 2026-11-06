@@ -78,7 +78,7 @@ object ToolCallFactory {
             IntentType.CREATE_EVENT -> {
                 val action = intent.slots["action"]?.value as? String
                 if (action == "list") {
-                    ToolCall(requestId = requestId, toolId = "calendar", arguments = mapOf("action" to "list"))
+                    ToolCall(requestId = requestId, toolId = "calendar", arguments = slotsToArgs(intent))
                 } else {
                     val title = intent.slots["title"]?.value as? String ?: return null
                     ToolCall(
@@ -142,11 +142,11 @@ object ToolCallFactory {
 
             IntentType.CALL -> {
                 val action = intent.slots["action"]?.value as? String ?: "call"
-                if (action == "history") {
+                if (action == "history" || action == "redial") {
                     ToolCall(
                         requestId = requestId,
                         toolId = "phone.call",
-                        arguments = mapOf("action" to "history"),
+                        arguments = mapOf("action" to action),
                     )
                 } else {
                     val contact = intent.slots["contact"]?.value as? String ?: return null
@@ -217,6 +217,16 @@ object ToolCallFactory {
                     },
                 )
             }
+
+            IntentType.NEWS -> ToolCall(requestId = requestId, toolId = "news", arguments = emptyMap())
+            IntentType.RATES -> ToolCall(requestId = requestId, toolId = "rates", arguments = emptyMap())
+            IntentType.LOCATION -> ToolCall(requestId = requestId, toolId = "location", arguments = emptyMap())
+
+            IntentType.PHONE_CONTROL ->
+                ToolCall(requestId = requestId, toolId = "phone.control", arguments = slotsToArgs(intent))
+
+            IntentType.FORGET ->
+                ToolCall(requestId = requestId, toolId = "memory.forget", arguments = slotsToArgs(intent))
 
             IntentType.BRIEFING ->
                 ToolCall(requestId = requestId, toolId = "briefing", arguments = emptyMap())

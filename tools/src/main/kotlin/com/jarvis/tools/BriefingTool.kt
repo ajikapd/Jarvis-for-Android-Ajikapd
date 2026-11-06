@@ -30,7 +30,7 @@ class BriefingTool(
         val report = DailyBriefing.compose(
             t.hour, t.minute,
             weather = section(call, "weather"),
-            events = section(call, "calendar", mapOf("action" to "list", "limit" to EVENTS)),
+            events = section(call, "calendar", mapOf("action" to "list", "limit" to EVENTS, "day" to 0)),
             reminders = section(call, "reminder", mapOf("action" to "list")),
             status = section(call, "system.status"),
         )

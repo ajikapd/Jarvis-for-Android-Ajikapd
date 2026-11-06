@@ -32,7 +32,7 @@ class CallTool(private val context: Context) : Tool {
                 "call или history",
                 ParameterType.ENUM,
                 required = false,
-                allowedValues = listOf("call", "history"),
+                allowedValues = listOf("call", "history", "redial"),
             ),
             ToolParameter("limit", "Сколько записей истории (по умолчанию 5)", ParameterType.INTEGER, false),
         ),
@@ -49,8 +49,23 @@ class CallTool(private val context: Context) : Tool {
             ?: if (call.arguments["contact"] == null && call.arguments["number"] == null) "history" else "call"
         return when (action) {
             "history" -> history(call)
+            "redial" -> redial(call)
             else -> dial(call)
         }
+    }
+
+    /** Перезвонить тому, с кем говорили последним. */
+    private fun redial(call: ToolCall): ToolResult {
+        if (context.checkSelfPermission(Manifest.permission.READ_CALL_LOG) != PackageManager.PERMISSION_GRANTED) {
+            return ToolResult(call.requestId, definition.id, ToolResultStatus.DENIED, "Нет разрешения на историю звонков.")
+        }
+        val number = context.contentResolver.query(
+            CallLog.Calls.CONTENT_URI, arrayOf(CallLog.Calls.NUMBER), null, null, "${CallLog.Calls.DATE} DESC",
+        )?.use { if (it.moveToFirst()) it.getString(0) else null }
+        if (number.isNullOrBlank()) {
+            return ToolResult(call.requestId, definition.id, ToolResultStatus.FAILED, "В истории нет звонков, сэр.")
+        }
+        return dial(call.copy(arguments = mapOf("number" to number)))
     }
 
     private fun history(call: ToolCall): ToolResult {

@@ -265,6 +265,10 @@ object BrainGraph {
             register(com.jarvis.tools.navigationTool(ctx))
             register(com.jarvis.tools.webSearchTool(ctx))
             register(com.jarvis.tools.cameraTool(ctx))
+            register(com.jarvis.tools.newsTool())
+            register(com.jarvis.tools.ratesTool())
+            register(com.jarvis.tools.locationTool(ctx))
+            register(com.jarvis.tools.PhoneControlTool(ctx))
             register(MusicTool(ctx))
             register(KnowledgeTool())
         }
@@ -405,6 +409,7 @@ object BrainGraph {
         val retriever = SkillRetriever(manifestRegistry, k = 5)
 
         val memory = LongTermMemory(ctx)
+        toolRegistry.register(com.jarvis.brain.ForgetFactTool { memory })
         memoryInstance = memory
 
         val brainRouter = buildBrainRouter(ctx)

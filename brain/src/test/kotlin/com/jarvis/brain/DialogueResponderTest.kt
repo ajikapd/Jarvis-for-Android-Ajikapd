@@ -14,6 +14,22 @@ class DialogueResponderTest {
     }
 
     @Test
+    fun hush_and_goodNight_doNotReachTheModel() {
+        val d = DialogueResponder(null, chatLlm = { null })
+        assertTrue(d.respond("замолчи", emptyList()).contains("Умолкаю"))
+        assertTrue(d.respond("спокойной ночи", emptyList()).contains("Спокойной ночи"))
+        assertTrue(d.respond("какое сегодня число", emptyList()).startsWith("Сегодня"))
+        assertTrue(d.respond("сколько сейчас времени", emptyList()).startsWith("Сейчас"))
+    }
+
+    @Test
+    fun repeatsLastReply() {
+        val d = DialogueResponder(null, chatLlm = { null })
+        val r = d.respond("что ты сказал", listOf("user: погода", "assistant: Завтра дождь."))
+        assertTrue(r, r.contains("Завтра дождь"))
+    }
+
+    @Test
     fun time_isDeterministicWithoutLlm() {
         val d = DialogueResponder(null, chatLlm = { null })
         val r = d.respond("который час", emptyList())
