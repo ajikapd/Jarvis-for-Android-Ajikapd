@@ -1,7 +1,9 @@
 package com.jarvis.tools
 
 import android.content.Context
+import android.app.NotificationManager
 import android.content.Intent
+import android.media.AudioManager
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.provider.Settings
@@ -35,7 +37,10 @@ class SystemSettingTool(private val context: Context) : Tool {
                 "wifi, bluetooth или airplane",
                 ParameterType.ENUM,
                 required = true,
-                allowedValues = listOf("wifi", "bluetooth", "airplane"),
+                allowedValues = listOf(
+                    "wifi", "bluetooth", "airplane", "silent", "vibrate", "dnd", "auto_brightness",
+                    "auto_rotate", "dark_mode", "battery_saver", "hotspot", "mobile_data",
+                ),
             ),
             ToolParameter(
                 "value",
@@ -56,6 +61,11 @@ class SystemSettingTool(private val context: Context) : Tool {
             "wifi" -> handleWifi(call.requestId, value)
             "bluetooth" -> handleBluetooth(call.requestId, value)
             "airplane", "flight", "aero" -> handleAirplane(call.requestId, value)
+            "silent", "vibrate" -> ringer(call.requestId, name, value)
+            "dnd" -> doNotDisturb(call.requestId, value)
+            "auto_brightness" -> systemSwitch(call.requestId, Settings.System.SCREEN_BRIGHTNESS_MODE, value, "Автояркость")
+            "auto_rotate" -> systemSwitch(call.requestId, Settings.System.ACCELEROMETER_ROTATION, value, "Автоповорот")
+            in PANELS -> openPanel(call.requestId, PANELS.getValue(name))
             in SECTIONS -> openSection(call.requestId, SECTIONS.getValue(name))
             else -> ToolResult(
                 call.requestId,
@@ -64,6 +74,66 @@ class SystemSettingTool(private val context: Context) : Tool {
                 "Неизвестная настройка «$name». Доступны: wifi, bluetooth, airplane.",
             )
         }
+    }
+
+    private fun ringer(requestId: String, name: String, value: String): ToolResult {
+        val audio = context.getSystemService(AudioManager::class.java)
+        val wanted = when {
+            value == "off" -> AudioManager.RINGER_MODE_NORMAL
+            name == "vibrate" -> AudioManager.RINGER_MODE_VIBRATE
+            else -> AudioManager.RINGER_MODE_SILENT
+        }
+        return try {
+            audio.ringerMode = wanted
+            val reply = when (wanted) {
+                AudioManager.RINGER_MODE_NORMAL -> "Обычный режим, сэр."
+                AudioManager.RINGER_MODE_VIBRATE -> "Только вибрация, сэр."
+                else -> "Беззвучный режим, сэр."
+            }
+            ToolResult(requestId, definition.id, ToolResultStatus.SUCCESS, reply)
+        } catch (e: SecurityException) {
+            needDndAccess(requestId)
+        }
+    }
+
+    private fun doNotDisturb(requestId: String, value: String): ToolResult {
+        val manager = context.getSystemService(NotificationManager::class.java)
+        if (!manager.isNotificationPolicyAccessGranted) return needDndAccess(requestId)
+        manager.setInterruptionFilter(
+            if (value == "off") NotificationManager.INTERRUPTION_FILTER_ALL
+            else NotificationManager.INTERRUPTION_FILTER_PRIORITY,
+        )
+        val reply = if (value == "off") "Режим «Не беспокоить» выключен, сэр." else "Режим «Не беспокоить» включён, сэр."
+        return ToolResult(requestId, definition.id, ToolResultStatus.SUCCESS, reply)
+    }
+
+    private fun needDndAccess(requestId: String): ToolResult {
+        runCatching {
+            context.startActivity(
+                Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+        }
+        return ToolResult(
+            requestId, definition.id, ToolResultStatus.DENIED,
+            "Нужен доступ к режиму «Не беспокоить», сэр. Открыл настройки.",
+        )
+    }
+
+    private fun systemSwitch(requestId: String, key: String, value: String, label: String): ToolResult {
+        if (!Settings.System.canWrite(context)) {
+            return ToolResult(requestId, definition.id, ToolResultStatus.DENIED, "Нет разрешения менять настройки, сэр.")
+        }
+        val on = value != "off"
+        Settings.System.putInt(context.contentResolver, key, if (on) 1 else 0)
+        return ToolResult(requestId, definition.id, ToolResultStatus.SUCCESS, "$label ${if (on) "включён" else "выключен"}, сэр.")
+    }
+
+    /** Эти переключатели Android приложениям не отдаёт: открываем нужную панель. */
+    private fun openPanel(requestId: String, action: String): ToolResult = try {
+        context.startActivity(Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        ToolResult(requestId, definition.id, ToolResultStatus.SUCCESS, "Открыл настройку, сэр. Переключатель за вами.")
+    } catch (t: Throwable) {
+        ToolResult(requestId, definition.id, ToolResultStatus.FAILED, "Не удалось открыть настройку, сэр.")
     }
 
     private fun openSection(requestId: String, action: String): ToolResult = try {
@@ -142,6 +212,12 @@ class SystemSettingTool(private val context: Context) : Tool {
     }
 
     private companion object {
+        private val PANELS = mapOf(
+            "dark_mode" to Settings.ACTION_DISPLAY_SETTINGS,
+            "battery_saver" to Settings.ACTION_BATTERY_SAVER_SETTINGS,
+            "hotspot" to Settings.ACTION_WIRELESS_SETTINGS,
+            "mobile_data" to Settings.Panel.ACTION_INTERNET_CONNECTIVITY,
+        )
         val SECTIONS = mapOf(
             "battery" to Intent.ACTION_POWER_USAGE_SUMMARY,
             "display" to Settings.ACTION_DISPLAY_SETTINGS,

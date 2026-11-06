@@ -8,6 +8,84 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RuleBasedBrainTest {
+    private fun slots(say: String, type: IntentType): Map<String, Any?> {
+        val r = route(say) as? BrainResult.SkillCall ?: throw AssertionError("$say -> ${route(say)}")
+        assertEquals(say, type, r.intent.type)
+        return r.intent.slots.mapValues { it.value.value }
+    }
+
+    @org.junit.Test
+    fun `device switches are never music`() {
+        val cases = mapOf(
+            "включи вайфай" to ("wifi" to "on"), "выключи вай фай" to ("wifi" to "off"),
+            "включи блютуз" to ("bluetooth" to "on"), "выключи блютуз" to ("bluetooth" to "off"),
+            "включи авиарежим" to ("airplane" to "on"), "включи мобильный интернет" to ("mobile_data" to "on"),
+            "включи режим не беспокоить" to ("dnd" to "on"), "выключи режим не беспокоить" to ("dnd" to "off"),
+            "поставь на беззвучный" to ("silent" to "on"), "включи вибрацию" to ("vibrate" to "on"),
+            "включи автояркость" to ("auto_brightness" to "on"), "поверни экран" to ("auto_rotate" to "on"),
+            "включи тёмную тему" to ("dark_mode" to "on"), "включи энергосбережение" to ("battery_saver" to "on"),
+            "включи точку доступа" to ("hotspot" to "on"),
+        )
+        for ((say, want) in cases) {
+            val s = slots(say, IntentType.SYSTEM_SETTING)
+            assertEquals(say, want, s["name"] to s["value"])
+        }
+    }
+
+    @org.junit.Test
+    fun `давай is not wifi and a song named like a setting stays music`() {
+        assertEquals(IntentType.MUSIC, (route("давай включи музыку") as BrainResult.SkillCall).intent.type)
+        assertEquals(IntentType.MUSIC, (route("включи песню самолёт") as BrainResult.SkillCall).intent.type)
+    }
+
+    @org.junit.Test
+    fun `volume and brightness verbs`() {
+        assertEquals("down", slots("убавь звук", IntentType.VOLUME)["direction"])
+        assertEquals(10, slots("поставь громкость на десять", IntentType.VOLUME)["percent"])
+        assertEquals("down", slots("убавь яркость", IntentType.BRIGHTNESS)["direction"])
+        assertEquals(100, slots("яркость на максимум", IntentType.BRIGHTNESS)["percent"])
+        assertEquals(50, slots("яркость на пятьдесят", IntentType.BRIGHTNESS)["percent"])
+    }
+
+    @org.junit.Test
+    fun `timer and alarm wording`() {
+        assertEquals(90, slots("поставь таймер на полтора часа", IntentType.TIMER)["minutes"])
+        assertEquals(90, slots("таймер на полторы минуты", IntentType.TIMER)["seconds"])
+        assertEquals("alarm_cancel", slots("отмени будильник", IntentType.TIMER)["action"])
+        assertEquals(6, slots("разбуди меня в шесть тридцать", IntentType.TIMER)["hour"])
+        assertEquals(30, slots("разбуди меня в шесть тридцать", IntentType.TIMER)["minute"])
+        assertEquals("alarm", slots("разбуди меня через восемь часов", IntentType.TIMER)["action"])
+        assertEquals("start", slots("запусти секундомер", IntentType.TIMER)["mode"])
+        assertEquals("stop", slots("останови секундомер", IntentType.TIMER)["mode"])
+    }
+
+    @org.junit.Test
+    fun `music wording`() {
+        assertEquals("pause", slots("останови музыку", IntentType.MUSIC)["action"])
+        assertEquals("status", slots("что сейчас играет", IntentType.MUSIC)["action"])
+        assertEquals("status", slots("какая это песня", IntentType.MUSIC)["action"])
+        assertEquals("forward", slots("перемотай вперёд", IntentType.MUSIC)["action"])
+        assertEquals("rewind", slots("перемотай назад", IntentType.MUSIC)["action"])
+        assertEquals("спокойное", slots("включи что нибудь спокойное", IntentType.MUSIC)["query"])
+    }
+
+    @org.junit.Test
+    fun `messages find the addressee`() {
+        val sms = slots("отправь смс папе привет", IntentType.SEND_SMS)
+        assertEquals("папе", sms["recipient"])
+        assertEquals("привет", sms["text"])
+        val tg = slots("напиши в телеграм диме привет", IntentType.SEND_TELEGRAM)
+        assertEquals("привет", tg["text"])
+        assertEquals("read", slots("прочитай последнее сообщение", IntentType.SEND_SMS)["action"])
+        assertEquals("read", slots("есть новые сообщения", IntentType.SEND_SMS)["action"])
+    }
+
+    @org.junit.Test
+    fun `misc wording`() {
+        assertEquals("home", slots("вернись на главный экран", IntentType.UI_GLOBAL)["action"])
+        assertEquals("clear", slots("очисти уведомления", IntentType.NOTIFICATIONS)["action"])
+    }
+
     private fun route(say: String) = RuleBasedBrain().route(UserRequest(say), emptyList(), emptyList())
 
     private fun slot(say: String, type: IntentType, name: String): Any? {

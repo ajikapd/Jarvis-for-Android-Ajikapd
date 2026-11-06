@@ -52,7 +52,7 @@ class MusicTool(private val context: Context) : Tool {
                 "play, pause, resume, next, previous или status",
                 ParameterType.ENUM,
                 required = false,
-                allowedValues = listOf("play", "pause", "resume", "next", "previous", "status"),
+                allowedValues = listOf("play", "pause", "resume", "next", "previous", "forward", "rewind", "status"),
             ),
             ToolParameter("query", "Трек, артист или альбом", ParameterType.STRING, false),
             ToolParameter(
@@ -80,6 +80,8 @@ class MusicTool(private val context: Context) : Tool {
                 "resume", "unpause" -> transport(call.requestId, "resume") { it.play() }
                 "next" -> transport(call.requestId, "next") { it.skipToNext() }
                 "previous", "prev" -> transport(call.requestId, "previous") { it.skipToPrevious() }
+                "forward" -> transport(call.requestId, "forward") { it.fastForward() }
+                "rewind" -> transport(call.requestId, "rewind") { it.rewind() }
                 "status" -> status(call.requestId)
                 else -> ToolResult(
                     call.requestId, definition.id, ToolResultStatus.AMBIGUOUS,
@@ -793,6 +795,8 @@ class MusicTool(private val context: Context) : Tool {
             "resume" -> KeyEvent.KEYCODE_MEDIA_PLAY
             "next" -> KeyEvent.KEYCODE_MEDIA_NEXT
             "previous" -> KeyEvent.KEYCODE_MEDIA_PREVIOUS
+            "forward" -> KeyEvent.KEYCODE_MEDIA_FAST_FORWARD
+            "rewind" -> KeyEvent.KEYCODE_MEDIA_REWIND
             else -> KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
         }
         dispatchMediaKey(key)

@@ -54,6 +54,8 @@ class TimerTool(private val context: Context) : Tool {
     /** Время срабатывания активного таймера, 0 — таймера нет. */
     @Volatile private var endsAtMs = 0L
 
+    @Volatile private var stopwatchStartedAt = 0L
+
     private val endRunnable = Runnable {
         endsAtMs = 0L
         vibrate(3000L)
@@ -66,6 +68,8 @@ class TimerTool(private val context: Context) : Tool {
             "cancel" -> return cancel(call)
             "status" -> return status(call)
             "alarm" -> return setAlarm(call)
+            "alarm_cancel" -> return cancelAlarm(call)
+            "stopwatch" -> return stopwatch(call)
         }
         val minutes = (call.arguments["minutes"] as? Number)?.toInt() ?: 0
         val seconds = (call.arguments["seconds"] as? Number)?.toInt() ?: 0
@@ -131,6 +135,33 @@ class TimerTool(private val context: Context) : Tool {
             Log.w(TAG, "alarm failed: ${t.message}", t)
             ToolResult(call.requestId, definition.id, ToolResultStatus.FAILED, "Не удалось поставить будильник.")
         }
+    }
+
+    /** Системные часы сами спросят, какой будильник снять, если их несколько. */
+    private fun cancelAlarm(call: ToolCall): ToolResult = try {
+        context.startActivity(
+            Intent(AlarmClock.ACTION_DISMISS_ALARM)
+                .putExtra(AlarmClock.EXTRA_ALARM_SEARCH_MODE, AlarmClock.ALARM_SEARCH_MODE_NEXT)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+        done(call, "Снимаю будильник, сэр.")
+    } catch (t: Throwable) {
+        Log.w(TAG, "alarm cancel failed: ${t.message}", t)
+        ToolResult(call.requestId, definition.id, ToolResultStatus.FAILED, "Не удалось снять будильник.")
+    }
+
+    private fun stopwatch(call: ToolCall): ToolResult {
+        val mode = call.arguments["mode"]?.toString()
+        if (mode == "start") {
+            stopwatchStartedAt = SystemClock.elapsedRealtime()
+            return done(call, "Секундомер запущен, сэр.")
+        }
+        val started = stopwatchStartedAt
+        if (started == 0L) return done(call, "Секундомер не запущен, сэр.")
+        val seconds = (SystemClock.elapsedRealtime() - started) / 1000
+        if (mode == "stop") stopwatchStartedAt = 0L
+        val time = if (seconds >= 60) "${seconds / 60} мин ${seconds % 60} сек" else "$seconds сек"
+        return done(call, if (mode == "stop") "Прошло $time, сэр." else "Идёт $time, сэр.")
     }
 
     private fun done(call: ToolCall, message: String) =

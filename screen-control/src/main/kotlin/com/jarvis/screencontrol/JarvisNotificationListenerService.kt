@@ -131,6 +131,14 @@ class JarvisNotificationListenerService : NotificationListenerService() {
         false
     }
 
+    fun clearAll(): Boolean = try {
+        cancelAllNotifications()
+        synchronized(cache) { cache.clear() }
+        true
+    } catch (_: Throwable) {
+        false
+    }
+
     fun sendAction(key: String, actionIndex: Int): Boolean {
         val info = synchronized(cache) { cache[key] } ?: return false
         val action = info.actions.getOrNull(actionIndex) ?: return false

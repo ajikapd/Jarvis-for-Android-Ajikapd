@@ -23,7 +23,7 @@ class NotificationTool : Tool {
                 "list, dismiss, reply_action или reply",
                 ParameterType.ENUM,
                 required = false,
-                allowedValues = listOf("list", "dismiss", "reply_action", "reply"),
+                allowedValues = listOf("list", "clear", "dismiss", "reply_action", "reply"),
             ),
             ToolParameter("key", "Ключ уведомления", ParameterType.STRING, false),
             ToolParameter("index", "Индекс действия (reply_action)", ParameterType.INTEGER, false),
@@ -69,6 +69,15 @@ class NotificationTool : Tool {
                         mapOf("count" to items.size, "keys" to items.take(8).joinToString("|") { it.key }),
                     )
                 }
+            }
+            "clear" -> {
+                val ok = JarvisNotificationListenerService.instance?.clearAll() == true
+                ToolResult(
+                    call.requestId,
+                    definition.id,
+                    if (ok) ToolResultStatus.SUCCESS else ToolResultStatus.FAILED,
+                    if (ok) "Уведомления убраны, сэр." else "Не удалось убрать уведомления.",
+                )
             }
             "dismiss" -> {
                 val key = call.arguments["key"]?.toString().orEmpty()
