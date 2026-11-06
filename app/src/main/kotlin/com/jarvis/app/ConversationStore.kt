@@ -1,5 +1,6 @@
 package com.jarvis.app
 
+import com.jarvis.core.nlp.AddressRhythm
 import com.jarvis.core.storage.ConversationJournal
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -49,7 +50,7 @@ object ConversationStore {
 
     fun pushAi(text: String, badge: String? = null, plan: String? = null) {
         if (text.isBlank()) return
-        val clean = text.trim()
+        val clean = AddressRhythm.strip(text.trim())
         items.add(
             Bubble(
                 id = ++seq,
@@ -73,7 +74,7 @@ object ConversationStore {
                 Bubble(
                     id = ++seq,
                     role = role,
-                    text = e.text,
+                    text = if (role == Bubble.Role.AI) AddressRhythm.strip(e.text) else e.text,
                     atMs = e.createdAt,
                     favorite = e.keep,
                     dbId = e.id,

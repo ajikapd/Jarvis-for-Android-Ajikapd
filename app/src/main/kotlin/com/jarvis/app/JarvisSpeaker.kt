@@ -161,7 +161,7 @@ class JarvisSpeaker(context: Context) {
         onFirstAudio: ((Long) -> Unit)? = null,
         onChunkDone: () -> Unit = {},
     ) {
-        val cleaned = text.trim().replace(Regex("\\s+"), " ")
+        val cleaned = address.apply(text.trim().replace(Regex("\\s+"), " "))
         if (cleaned.isEmpty()) {
             onChunkDone()
             return
@@ -192,6 +192,7 @@ class JarvisSpeaker(context: Context) {
         // stopSpeaking already bumped speakGeneration
         streamSpeakGeneration = speakGeneration
         streamFirstAudioSent = false
+        address.nextReply()
         return speakGeneration
     }
 
@@ -216,6 +217,7 @@ class JarvisSpeaker(context: Context) {
     )
 
     private val utteranceQueue = ArrayDeque<QueuedUtterance>()
+    private val address = com.jarvis.core.nlp.AddressRhythm()
     @Volatile private var queuePumpRunning = false
     @Volatile private var streamSpeakGeneration = 0
     @Volatile private var streamFirstAudioSent = false
@@ -359,7 +361,8 @@ class JarvisSpeaker(context: Context) {
         }
         speakJob?.cancel()
         player.stop()
-        val cleaned = text.trim().replace(Regex("\\s+"), " ")
+        address.nextReply()
+        val cleaned = address.apply(text.trim().replace(Regex("\\s+"), " "))
         if (cleaned.isEmpty()) {
             onFirstAudio?.invoke(0L)
             onComplete()
