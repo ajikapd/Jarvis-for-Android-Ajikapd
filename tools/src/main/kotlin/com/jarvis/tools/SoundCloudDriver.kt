@@ -17,12 +17,49 @@ internal object SoundCloudScreen {
 
     /** Длительность есть только у треков: профили и плейлисты выше по списку не подходят. */
     fun firstTrack(rows: List<Row>): Row? =
-        rows.filter { DURATION.containsMatchIn(it.text.trim()) }.minByOrNull { it.top }
+        rows.filter { isTrack(it) }.minByOrNull { it.top }
+
+    /**
+     * Трек, больше всего похожий на запрос. Название лежит отдельной строкой над длительностью,
+     * поэтому у каждого трека читаем строки рядом. Ремикс и кавер берём, только если их просили.
+     * Ничего не совпало: первый трек, как решил поиск SoundCloud.
+     */
+    fun bestTrack(rows: List<Row>, query: String): Row? {
+        val tracks = rows.filter { isTrack(it) }.sortedBy { it.top }
+        val wanted = words(query)
+        if (wanted.isEmpty()) return tracks.firstOrNull()
+        val variantAsked = VARIANTS.any { it in wanted }
+        var previousBottom = Int.MIN_VALUE
+        val scored = tracks.map { track ->
+            val text = rows
+                .filter { it.bottom <= track.bottom && it.top >= previousBottom && it.top >= track.top - TITLE_REACH_PX }
+                .joinToString(" ") { it.text }
+            previousBottom = track.bottom
+            val found = words(text)
+            val matched = wanted.count { it in found }.toDouble() / wanted.size
+            track to if (!variantAsked && VARIANTS.any { it in found }) matched - VARIANT_PENALTY else matched
+        }
+        val best = scored.maxByOrNull { it.second } ?: return null
+        return if (best.second > 0.0) best.first else tracks.first()
+    }
+
+    private fun isTrack(row: Row) = DURATION.containsMatchIn(row.text.trim())
+
+    private fun words(text: String): Set<String> =
+        text.lowercase().replace('ё', 'е').split(NOT_WORD).filter { it.isNotBlank() }.toSet()
+
+    private val NOT_WORD = Regex("[^\\p{L}\\p{N}]+")
+    private val VARIANTS = setOf(
+        "remix", "rmx", "cover", "nightcore", "slowed", "reverb", "sped", "karaoke", "instrumental",
+        "ремикс", "кавер", "караоке", "минус",
+    )
+    private const val TITLE_REACH_PX = 220
+    private const val VARIANT_PENALTY = 0.5
 }
 
 internal enum class PlayerResult { PLAYING, LOCKED, NO_ACCESS, FAILED }
 
-/** Запасной путь: открыть штатный поиск и нажать на первый трек, как человек. */
+/** Запасной путь: открыть штатный поиск и нажать на подходящий трек, как человек. */
 internal class SoundCloudDriver(
     private val context: Context,
     private val started: () -> Boolean,
@@ -40,7 +77,7 @@ internal class SoundCloudDriver(
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             },
         )
-        val row = waitForTrack()
+        val row = waitForTrack(query)
         if (row == null) {
             Log.w(TAG, "SoundCloud: нет трека в результатах")
             return PlayerResult.FAILED
@@ -52,14 +89,14 @@ internal class SoundCloudDriver(
         return PlayerResult.PLAYING
     }
 
-    private fun waitForTrack(): SoundCloudScreen.Row? {
+    private fun waitForTrack(query: String): SoundCloudScreen.Row? {
         val deadline = System.currentTimeMillis() + SCREEN_WAIT_MS
         while (System.currentTimeMillis() < deadline) {
             if (ScreenController.activePackageName() == PACKAGE) {
                 val rows = ScreenController.visibleNodes().map {
                     SoundCloudScreen.Row(it.text, it.bounds.top, it.bounds.bottom)
                 }
-                SoundCloudScreen.firstTrack(rows)?.let { return it }
+                SoundCloudScreen.bestTrack(rows, query)?.let { return it }
             }
             Thread.sleep(POLL_MS)
         }
