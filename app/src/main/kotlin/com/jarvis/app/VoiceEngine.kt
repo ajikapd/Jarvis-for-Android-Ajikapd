@@ -166,14 +166,17 @@ class VoiceEngine(
                 )
                 // V2-08: single hybrid router; reuses resident RU Sherpa (no second model load).
                 val ruRef = ru
-                hybridAsr = HybridAsrBridge(
+                val hybrid = HybridAsrBridge(
                     app = app,
                     localSessionFactory = { ruRef },
                     localReady = { !disposed && asrSession != null },
                 )
-                log("hybrid ASR ${hybridAsr!!.decisionLabel()}")
+                hybridAsr = hybrid
+                log("hybrid ASR ${hybrid.decisionLabel()}")
 
-                audioCapture = AudioCapture(app)
+                // stop() обнуляет поля из другого потока, поэтому запуск держит свою ссылку.
+                val capture = AudioCapture(app)
+                audioCapture = capture
                 if (!liveMode && wakeEnabled) {
                     VoiceIdentity.warm(app)
                     kwsSpotter = OwwWakeSpotter.tryCreate(
@@ -195,7 +198,7 @@ class VoiceEngine(
                             voiceAllowed = ::commandVoiceAllowed,
                         )
                         log(
-                            "wake KWS=${kwsSpotter!!.engine} + sherpa=${keywordSpotter != null} " +
+                            "wake KWS=${kwsSpotter?.engine} + sherpa=${keywordSpotter != null} " +
                                 "(слово=джарвис, idle без ASR)",
                         )
                     } else {
@@ -243,10 +246,10 @@ class VoiceEngine(
                     }
                 }
 
-                audioCapture!!.start(scope)
+                capture.start(scope)
                 scope.launch { watchMic() }
                 scope.launch {
-                    audioCapture!!.chunks.collect { chunk ->
+                    capture.chunks.collect { chunk ->
                         speechGate.onChunk(chunk.samples)
                         if (takeSample(chunk.samples)) return@collect
                         reportBargeWindow()
@@ -277,7 +280,7 @@ class VoiceEngine(
                 }
 
                 if (disposed) {
-                    audioCapture!!.stop()
+                    capture.stop()
                     asrSession?.release()
                     return@launch
                 }
