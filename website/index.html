@@ -76,7 +76,7 @@
   <section id="stats" class="stats reveal">
     <div class="stat"><b data-count="37">0</b><span data-i18n="stats.skills">навыков</span></div>
     <div class="stat"><b data-count="60" data-suffix="k">0</b><span data-i18n="stats.lines">строк кода</span></div>
-    <div class="stat"><b data-count="1314">0</b><span data-i18n="stats.tests">автотестов</span></div>
+    <div class="stat"><b data-count="1320">0</b><span data-i18n="stats.tests">автотестов</span></div>
     <div class="stat"><b data-count="0" data-prefix="" data-suffix=" ₽">0</b><span data-i18n="stats.price">цена</span></div>
   </section>
 
@@ -166,7 +166,7 @@
       </div>
     </div>
     <div class="panel" data-panel="old" hidden>
-      <p class="muted center" data-i18n="old.d">Первый интерфейс Jarvis в стиле инженерной консоли. Его можно включить в любой момент: «Ещё → Помощь и диагностика → Прежний интерфейс».</p>
+      <p class="muted center" data-i18n="old.d">Первый интерфейс Jarvis в стиле инженерной консоли. Его выбирают при первом запуске, а потом переключают в «Ещё → Оформление → Интерфейс». Вернуться обратно можно кнопкой «Современный интерфейс» в его «Профиле».</p>
       <div class="phones row">
           <figure class="phone vid"><div class="screen"><video aria-label="Запись экрана Jarvis" src="media/video-old-core.mp4" poster="media/video-old-core.jpg" autoplay muted loop playsinline preload="metadata"></video></div><figcaption data-i18n="old.core">Ядро</figcaption></figure>
           <figure class="phone"><div class="screen"><img src="media/old-core-think.webp" alt="Классический интерфейс Jarvis: обработка запроса" loading="lazy" width="540" height="1145"></div><figcaption data-i18n="old.think">Обрабатываю</figcaption></figure>
@@ -174,6 +174,7 @@
           <figure class="phone vid"><div class="screen"><video aria-label="Запись экрана Jarvis" src="media/video-old-live.mp4" poster="media/video-old-live.jpg" autoplay muted loop playsinline preload="metadata"></video></div><figcaption data-i18n="old.live">Live</figcaption></figure>
       </div>
       <div class="phones row">
+          <figure class="phone"><div class="screen"><img src="media/choose-interface.webp" alt="Jarvis: выбор интерфейса при первом запуске" loading="lazy" width="540" height="1145"></div><figcaption data-i18n="old.choose">Выбор при запуске</figcaption></figure>
           <figure class="phone"><div class="screen"><img src="media/old-scenarios.webp" alt="Классический интерфейс Jarvis: сценарии" loading="lazy" width="540" height="1145"></div><figcaption data-i18n="old.scen">Сценарии</figcaption></figure>
           <figure class="phone"><div class="screen"><img src="media/old-tools.webp" alt="Классический интерфейс Jarvis: инструменты" loading="lazy" width="540" height="1145"></div><figcaption data-i18n="old.tools">Инструменты</figcaption></figure>
           <figure class="phone"><div class="screen"><img src="media/old-system.webp" alt="Классический интерфейс Jarvis: состояние системы" loading="lazy" width="540" height="1145"></div><figcaption data-i18n="old.sys">Система</figcaption></figure>
@@ -189,9 +190,9 @@
         <p class="muted" data-i18n="dl.d">Тестовая версия 0.1.0. Android 10 и новее, процессор arm64, около 200 МБ: модели речи внутри.</p>
         <ol class="steps">
           <li data-i18n="dl.s1">Скачайте APK и разрешите установку из этого источника.</li>
-          <li data-i18n="dl.s2">Выдайте доступ к микрофону и специальным возможностям.</li>
+          <li data-i18n="dl.s2">Выдайте разрешения и выберите интерфейс: современный или классический.</li>
           <li data-i18n="dl.s3">Добавьте бесплатные ключи Groq и Gemini: как это сделать, описано в инструкции ниже.</li>
-          <li data-i18n="dl.s4">Запишите шесть фраз, чтобы Джарвис узнавал ваш голос.</li>
+          <li data-i18n="dl.s4">Пройдите короткий гид: он покажет, как подключить ИИ и записать голос.</li>
         </ol>
       </div>
       <div class="dl-side">
@@ -209,6 +210,7 @@
 <li>Скачайте APK с этой страницы (около 200 МБ).</li>
 <li>Откройте файл. Android попросит разрешить установку из браузера или файлового менеджера: разрешите и вернитесь назад.</li>
 <li>Нажмите «Установить» и откройте Jarvis.</li>
+<li>После разрешений выберите интерфейс: современный или классический. Затем один раз откроется короткий гид с теми же шагами, что ниже. Позже гид есть в настройках, а интерфейс меняется в «Ещё → Оформление».</li>
 </ol>
 <p class="tip">Нужен Android 10 или новее и процессор arm64: это почти все телефоны последних лет.</p></div></details>
       <details class="g"><summary><span class="gn">02</span>Разрешения</summary><div class="gb"><p>При первом запуске Jarvis покажет список доступов. Пройдите каждый пункт кнопкой «Настроить»:</p>
@@ -244,13 +246,15 @@
 </div>
 </div>
 <p><b>Куда вставить:</b> Jarvis → вкладка <b>«Ещё» → «ИИ и модели» → «Облачные ключи»</b>. Нажмите на строку Groq или Gemini, вставьте ключ и нажмите <b>«Сохранить»</b>. Метка сменится на «Сохранён».</p>
-<p>Там же оставьте маршрут <b>«Гибрид»</b> и включите <b>«Использовать ИИ-модель»</b>: простое Jarvis решит сам, сложное отправит в облако, а без сети перейдёт на локальную модель.</p>
+<p>В классическом интерфейсе ключи лежат в <b>«Профиль» → «Общее» → «Облачный LLM»</b>: вставьте ключ в поле и нажмите «Сохранить».</p>
+<p>В современном оставьте маршрут <b>«Гибрид»</b> и включите <b>«Использовать ИИ-модель»</b>: простое Jarvis решит сам, сложное отправит в облако, а без сети перейдёт на локальную модель.</p>
 <p class="tip">Ключи хранятся на телефоне в зашифрованном виде и уходят только в Groq и Google. Никому их не пересылайте. В некоторых странах сайты Groq и Google AI Studio открываются только через VPN.</p></div></details>
       <details class="g"><summary><span class="gn">04</span>Ваш голос</summary><div class="gb"><ol>
 <li><b>«Ещё» → «Голос и слух»</b>. Включите ассистента, если он выключен.</li>
 <li>Нажмите <b>«Скачать модель узнавания»</b>: нужна один раз, 28 МБ.</li>
 <li>Несколько раз скажите «Джарвис», затем прочитайте вслух предложенные фразы. Говорите обычным голосом, в тихом месте.</li>
 <li>Включите <b>«Только мой голос»</b>: чужие голоса и звук из видео перестанут будить Jarvis.</li>
+<li>В классическом интерфейсе запись голоса открывается кнопкой «Записать голос» в гиде.</li>
 </ol>
 <p>Если слово срабатывает слишком часто или редко, поменяйте <b>«Чувствительность»</b> там же. Если голос стал хуже узнаваться, нажмите «Записать голос заново».</p></div></details>
       <details class="g"><summary><span class="gn">05</span>Как говорить с Jarvis</summary><div class="gb"><p>Скажите «Джарвис», дождитесь сигнала или реактора на экране и говорите команду. Можно и сразу одной фразой: «Джарвис, какая погода».</p>
@@ -297,6 +301,7 @@
 <li>Download the APK from this page (about 200 MB).</li>
 <li>Open the file. Android will ask to allow installs from your browser or file manager: allow it and go back.</li>
 <li>Tap “Install” and open Jarvis.</li>
+<li>After the permissions, pick the interface: modern or classic. A short guide with the same steps as below opens once; later it lives in settings, and the interface can be changed in “Ещё → Оформление” (More → Appearance).</li>
 </ol>
 <p class="tip">Requires Android 10 or newer and an arm64 processor: nearly every phone from recent years.</p></div></details>
       <details class="g"><summary><span class="gn">02</span>Permissions</summary><div class="gb"><p>On first launch Jarvis shows a list of permissions. Go through each item with the “Настроить” (Set up) button:</p>
@@ -332,13 +337,15 @@
 </div>
 </div>
 <p><b>Where to paste:</b> Jarvis → <b>“Ещё” (More) → “ИИ и модели” (AI and models) → “Облачные ключи” (Cloud keys)</b>. Tap the Groq or Gemini row, paste the key and tap <b>“Сохранить” (Save)</b>. The label changes to “Сохранён” (Saved).</p>
-<p>On the same screen keep the route on <b>“Гибрид” (Hybrid)</b> and turn on <b>“Использовать ИИ-модель” (Use AI model)</b>: Jarvis handles simple things itself, sends hard ones to the cloud and falls back to the local model offline.</p>
+<p>In the classic interface the keys are in <b>“Профиль” → “Общее” → “Облачный LLM”</b> (Profile → General → Cloud LLM): paste the key and tap Save.</p>
+<p>In the modern one keep the route on <b>“Гибрид” (Hybrid)</b> and turn on <b>“Использовать ИИ-модель” (Use AI model)</b>: Jarvis handles simple things itself, sends hard ones to the cloud and falls back to the local model offline.</p>
 <p class="tip">Keys are stored encrypted on the phone and go only to Groq and Google. Never share them. In some countries the Groq and Google AI Studio sites open only through a VPN.</p></div></details>
       <details class="g"><summary><span class="gn">04</span>Your voice</summary><div class="gb"><ol>
 <li><b>“Ещё” → “Голос и слух”</b> (More → Voice and hearing). Turn the assistant on if it is off.</li>
 <li>Tap <b>“Скачать модель узнавания”</b> (Download recognition model): needed once, 28 MB.</li>
 <li>Say “Jarvis” a few times, then read the suggested phrases aloud. Use your normal voice in a quiet place.</li>
 <li>Turn on <b>“Только мой голос”</b> (Only my voice): other voices and video sound stop waking Jarvis.</li>
+<li>In the classic interface, voice recording opens from the “Record voice” button in the guide.</li>
 </ol>
 <p>If the word triggers too often or too rarely, change the sensitivity there. If recognition gets worse, tap “Записать голос заново” (Record again).</p></div></details>
       <details class="g"><summary><span class="gn">05</span>Talking to Jarvis</summary><div class="gb"><p>Jarvis understands Russian. Say “Джарвис”, wait for the tone or the reactor on screen and give the command. One phrase works too: “Джарвис, какая погода” (what's the weather).</p>
