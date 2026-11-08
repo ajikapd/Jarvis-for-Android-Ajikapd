@@ -56,7 +56,7 @@ main, .top, .foot { position: relative; z-index: 2; }
   background: linear-gradient(to bottom, rgba(5, 7, 13, .85), rgba(5, 7, 13, 0));
   backdrop-filter: blur(6px);
 }
-.brand { display: flex; align-items: center; gap: 10px; font: 700 18px Orbitron, sans-serif; letter-spacing: .18em; }
+.brand { display: flex; align-items: center; gap: 10px; font: 700 18px Orbitron, "Exo 2", sans-serif; letter-spacing: .18em; }
 .brand-mark {
   width: 22px; height: 22px; border-radius: 50%;
   border: 3px solid var(--cyan);
@@ -72,7 +72,7 @@ main, .top, .foot { position: relative; z-index: 2; }
 }
 .lang button {
   border: 0; background: none; color: var(--muted); cursor: pointer;
-  font: 700 13px Orbitron, sans-serif; letter-spacing: .08em;
+  font: 700 13px Orbitron, "Exo 2", sans-serif; letter-spacing: .08em;
   padding: 7px 12px; border-radius: 999px; transition: .25s;
 }
 .lang button[aria-pressed="true"] { color: #001018; background: var(--cyan); box-shadow: 0 0 16px rgba(70, 230, 255, .6); }
@@ -82,8 +82,8 @@ main, .top, .foot { position: relative; z-index: 2; }
   min-height: 100svh; display: flex; flex-direction: column; justify-content: center;
   align-items: flex-start; padding: 110px var(--pad) 60px; max-width: 1280px; margin: 0 auto;
 }
-.eyebrow { margin: 0 0 10px; font: 600 13px Orbitron, sans-serif; letter-spacing: .3em; text-transform: uppercase; color: var(--cyan); }
-.title { margin: 0; font: 900 clamp(64px, 14vw, 190px)/.9 Orbitron, sans-serif; letter-spacing: .06em; }
+.eyebrow { margin: 0 0 10px; font: 600 13px Orbitron, "Exo 2", sans-serif; letter-spacing: .3em; text-transform: uppercase; color: var(--cyan); }
+.title { margin: 0; font: 900 clamp(64px, 14vw, 190px)/.9 Orbitron, "Exo 2", sans-serif; letter-spacing: .06em; }
 .glitch {
   position: relative; display: inline-block;
   background: linear-gradient(100deg, #fff 10%, var(--cyan) 45%, var(--blue) 70%, var(--violet));
@@ -142,12 +142,12 @@ main, .top, .foot { position: relative; z-index: 2; }
   background: var(--line); border: 1px solid var(--line);
 }
 .stat { padding: 30px 16px; text-align: center; background: rgba(8, 14, 28, .82); backdrop-filter: blur(10px); }
-.stat b { display: block; font: 900 clamp(30px, 5vw, 48px) Orbitron, sans-serif; color: var(--cyan); text-shadow: 0 0 22px rgba(70, 230, 255, .5); }
+.stat b { display: block; font: 900 clamp(30px, 5vw, 48px) Orbitron, "Exo 2", sans-serif; color: var(--cyan); text-shadow: 0 0 22px rgba(70, 230, 255, .5); }
 .stat span { color: var(--muted); font-size: 14px; text-transform: uppercase; letter-spacing: .12em; }
 
 /* Разделы */
 .section { max-width: 1240px; margin: 0 auto; padding: 90px var(--pad); }
-.h2 { display: flex; align-items: baseline; gap: 16px; margin: 0 0 40px; font: 700 clamp(30px, 5vw, 52px) Orbitron, sans-serif; letter-spacing: .04em; }
+.h2 { display: flex; align-items: baseline; gap: 16px; margin: 0 0 40px; font: 700 clamp(30px, 5vw, 52px) Orbitron, "Exo 2", sans-serif; letter-spacing: .04em; }
 .idx { font-size: .38em; color: var(--cyan); letter-spacing: .2em; }
 .muted { color: var(--muted); }
 .tiny { font-size: 13px; color: var(--muted); }
@@ -182,10 +182,10 @@ main, .top, .foot { position: relative; z-index: 2; }
 .flow li { position: relative; text-align: center; padding: 0 8px; }
 .flow .n {
   position: relative; display: inline-grid; place-items: center; width: 62px; height: 62px; border-radius: 50%;
-  font: 900 22px Orbitron, sans-serif; color: var(--cyan); background: var(--bg2);
+  font: 900 22px Orbitron, "Exo 2", sans-serif; color: var(--cyan); background: var(--bg2);
   border: 2px solid var(--cyan); box-shadow: 0 0 26px -2px var(--cyan), inset 0 0 14px rgba(70, 230, 255, .4);
 }
-.flow h3 { margin: 18px 0 6px; font: 700 20px Orbitron, sans-serif; letter-spacing: .05em; }
+.flow h3 { margin: 18px 0 6px; font: 700 20px Orbitron, "Exo 2", sans-serif; letter-spacing: .05em; }
 .flow p { margin: 0; color: var(--muted); font-size: 15px; }
 
 .phones { display: flex; justify-content: center; align-items: center; gap: clamp(14px, 3vw, 40px); perspective: 1400px; }
@@ -201,7 +201,7 @@ main, .top, .foot { position: relative; z-index: 2; }
   box-shadow: 0 40px 80px -30px rgba(0, 0, 0, .9), 0 0 50px -16px rgba(70, 230, 255, .5), inset 0 0 0 6px #02040a;
   background-size: cover; background-position: center;
 }
-.phone figcaption { margin-top: 16px; font: 600 14px Orbitron, sans-serif; letter-spacing: .14em; color: var(--cyan); text-transform: uppercase; }
+.phone figcaption { margin-top: 16px; font: 600 14px Orbitron, "Exo 2", sans-serif; letter-spacing: .14em; color: var(--cyan); text-transform: uppercase; }
 
 .download, .creator {
   display: grid; gap: 40px; padding: clamp(26px, 5vw, 56px); border-radius: 28px;
@@ -222,11 +222,11 @@ main, .top, .foot { position: relative; z-index: 2; }
 }
 .avatar span {
   display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%;
-  background: var(--bg2); font: 900 54px Orbitron, sans-serif; color: var(--cyan);
+  background: var(--bg2); font: 900 54px Orbitron, "Exo 2", sans-serif; color: var(--cyan);
   animation: spin 8s linear infinite reverse;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-.nick { margin: 0 0 8px; font: 900 clamp(36px, 6vw, 64px) Orbitron, sans-serif; letter-spacing: .06em; }
+.nick { margin: 0 0 8px; font: 900 clamp(36px, 6vw, 64px) Orbitron, "Exo 2", sans-serif; letter-spacing: .06em; }
 .creator .btn { margin-top: 18px; }
 
 .foot { text-align: center; padding: 40px var(--pad) 50px; color: var(--muted); border-top: 1px solid var(--line); }
@@ -273,9 +273,9 @@ main, .top, .foot { position: relative; z-index: 2; }
   font-weight: 700; font-size: 18px; list-style: none;
 }
 .g summary::-webkit-details-marker { display: none; }
-.g summary::after { content: "+"; margin-left: auto; font: 700 24px Orbitron, sans-serif; color: var(--cyan); transition: transform .3s; }
+.g summary::after { content: "+"; margin-left: auto; font: 700 24px Orbitron, "Exo 2", sans-serif; color: var(--cyan); transition: transform .3s; }
 .g[open] summary::after { transform: rotate(45deg); }
-.gn { font: 700 13px Orbitron, sans-serif; color: var(--cyan); letter-spacing: .1em; min-width: 26px; }
+.gn { font: 700 13px Orbitron, "Exo 2", sans-serif; color: var(--cyan); letter-spacing: .1em; min-width: 26px; }
 .gb { padding: 0 22px 22px 64px; color: #c6d6ea; font-size: 15.5px; }
 .gb p { margin: 10px 0; }
 .gb ol, .gb ul { margin: 8px 0; padding-left: 22px; }
@@ -290,7 +290,7 @@ main, .top, .foot { position: relative; z-index: 2; }
 .tip { padding: 12px 16px; border-radius: 12px; border-left: 3px solid var(--gold); background: rgba(255, 181, 71, .07); color: #e9dcc4; }
 .keys { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 14px 0; }
 .key { padding: 16px 18px; border-radius: 14px; border: 1px solid var(--line); background: rgba(5, 10, 20, .5); }
-.key h4 { margin: 0 0 6px; font: 700 15px Orbitron, sans-serif; letter-spacing: .03em; color: var(--cyan); }
+.key h4 { margin: 0 0 6px; font: 700 15px Orbitron, "Exo 2", sans-serif; letter-spacing: .03em; color: var(--cyan); }
 .cmds { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
 .cmds span { padding: 7px 13px; border-radius: 999px; font-size: 14px; border: 1px solid var(--line); background: rgba(70, 230, 255, .06); color: #d7f6ff; }
 .faq dt { margin-top: 12px; font-weight: 700; color: var(--ink); }
@@ -300,3 +300,21 @@ main, .top, .foot { position: relative; z-index: 2; }
   .gb { padding: 0 16px 18px; }
   .g summary { padding: 16px; font-size: 16px; }
 }
+
+/* Читаемость поверх реактора */
+.lead, .eyebrow { text-shadow: 0 2px 18px rgba(4, 6, 12, .9), 0 0 2px rgba(4, 6, 12, .9); }
+@media (max-width: 900px) {
+  /* Реактор занимает верх экрана, текст ниже */
+  .hero { justify-content: flex-end; padding-top: 50svh; min-height: 100svh; }
+  .no-webgl .hero { padding-top: 110px; justify-content: center; }
+  .title { font-size: clamp(56px, 17vw, 120px); }
+}
+
+/* Настоящие экраны */
+.screen { padding: 0; overflow: hidden; }
+.screen img, .screen video { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; border-radius: 26px; }
+.phones.second { margin-top: 50px; }
+.phones.second .phone { transform: rotateY(10deg); }
+.phones.second .phone:last-child { transform: rotateY(-10deg); }
+.phones.second .phone:hover { transform: rotateY(0) translateY(-8px); }
+@media (max-width: 720px) { .phones.second { margin-top: 0; } .phones.second .phone, .phones.second .phone:last-child { transform: none; } }

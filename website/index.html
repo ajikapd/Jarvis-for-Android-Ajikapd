@@ -9,7 +9,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='26' fill='none' stroke='%2346e6ff' stroke-width='5'/%3E%3Ccircle cx='32' cy='32' r='11' fill='%2346e6ff'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Exo+2:wght@500;700;800;900&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -120,9 +120,13 @@
   <section id="screens" class="section">
     <h2 class="h2 reveal"><span class="idx">03</span><span data-i18n="screens.title">Экраны</span></h2>
     <div class="phones">
-      <figure class="phone reveal"><div class="screen"><span data-i18n="screens.soon">Скриншот скоро</span></div><figcaption data-i18n="screens.s1">Реактор</figcaption></figure>
-      <figure class="phone reveal mid"><div class="screen"><span data-i18n="screens.soon">Скриншот скоро</span></div><figcaption data-i18n="screens.s2">Разговор</figcaption></figure>
-      <figure class="phone reveal"><div class="screen"><span data-i18n="screens.soon">Скриншот скоро</span></div><figcaption data-i18n="screens.s3">Сценарии</figcaption></figure>
+      <figure class="phone reveal"><div class="screen"><img src="media/live.webp" alt="" loading="lazy" width="540" height="1145"></div><figcaption>Live</figcaption></figure>
+      <figure class="phone reveal mid"><div class="screen"><video src="media/home.mp4" poster="media/home-poster.jpg" autoplay muted loop playsinline preload="metadata"></video></div><figcaption data-i18n="screens.s1">Реактор</figcaption></figure>
+      <figure class="phone reveal"><div class="screen"><img src="media/routines.webp" alt="" loading="lazy" width="540" height="1145"></div><figcaption data-i18n="screens.s3">Сценарии</figcaption></figure>
+    </div>
+    <div class="phones second">
+      <figure class="phone reveal"><div class="screen"><img src="media/skills.webp" alt="" loading="lazy" width="540" height="1145"></div><figcaption data-i18n="screens.s4">Навыки</figcaption></figure>
+      <figure class="phone reveal"><div class="screen"><img src="media/settings.webp" alt="" loading="lazy" width="540" height="1145"></div><figcaption data-i18n="screens.s5">Настройки</figcaption></figure>
     </div>
   </section>
 
@@ -338,8 +342,15 @@
   <p class="tiny" data-i18n="foot.note">Независимый проект. Не связан с Marvel и Disney.</p>
 </footer>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="i18n.js"></script>
 <script src="main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script src="reactor.js"></script>
 </body>
 </html>

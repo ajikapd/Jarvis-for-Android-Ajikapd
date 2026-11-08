@@ -29,7 +29,7 @@ window.I18N = {
     "h3.t": "Understands", "h3.d": "Common commands are parsed instantly by rules. Harder ones go to cloud models with a fallback chain, and a local model stays available offline.",
     "h4.t": "Acts", "h4.d": "37 skills and Android services carry out the action and check that it actually worked.",
     "screens.title": "Screens", "screens.soon": "Screenshot coming soon",
-    "screens.s1": "Reactor", "screens.s2": "Conversation", "screens.s3": "Routines",
+    "screens.s1": "Reactor", "screens.s3": "Routines", "screens.s4": "Skills", "screens.s5": "Settings",
     "dl.title": "Download",
     "dl.d": "Test build 0.1.0. Android 10 or newer, arm64 processor, about 200 MB: speech models included.",
     "dl.s1": "Download the APK and allow installs from this source.",
