@@ -235,7 +235,10 @@ class HomeScreen(host: JarvisActivity) : Screen(host) {
 
 /** Live: отдельный режим разговора без слова активации, запускается только своей кнопкой. */
 class LiveScreen(host: JarvisActivity) : Screen(host) {
-    private val mind = MindView(host, host.skin)
+    /** Сцена Live тёмная в любой теме, поэтому светлой теме нужны светлые надписи. */
+    override val skin: Skin = darkened(host.skin)
+    val stageColor: Int = mix(android.graphics.Color.BLACK, skin.violet, .06f)
+    private val mind = MindView(host, skin)
     private val stat = host.label("", 12f, skin.muted)
     private val time = host.label("", 16f, skin.muted, Fonts.display(host))
     private val you = host.label("", 14f, skin.muted, lines = 3)
@@ -261,7 +264,7 @@ class LiveScreen(host: JarvisActivity) : Screen(host) {
 
     private fun build(): View {
         val root = host.column().apply {
-            setBackgroundColor(mix(android.graphics.Color.BLACK, skin.violet, .06f))
+            setBackgroundColor(stageColor)
             isClickable = true
         }
         val bar = host.rowLayout(8).pad(14, 10)
@@ -389,3 +392,14 @@ class LiveScreen(host: JarvisActivity) : Screen(host) {
         if (host.lastResponse.isNotBlank()) him.text = host.lastResponse
     }
 }
+
+/** Тёмный вариант темы для сцены Live: акцентные цвета свои, текст и стекло как у тёмных тем. */
+internal fun darkened(skin: Skin): Skin = if (!skin.light) skin else skin.copy(
+    bg = android.graphics.Color.parseColor("#05070D"),
+    glass = android.graphics.Color.parseColor("#8F0B1C34"),
+    line = android.graphics.Color.parseColor("#524696FF"),
+    text = android.graphics.Color.parseColor("#ECF4FF"),
+    muted = android.graphics.Color.parseColor("#8FA8C6"),
+    onAccent = android.graphics.Color.parseColor("#FFFFFF"),
+    light = false,
+)

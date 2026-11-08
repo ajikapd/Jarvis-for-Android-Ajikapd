@@ -125,6 +125,11 @@
             android:theme="@style/Theme.Jarvis" />
 
         <activity
+            android:name=".InterfaceChoiceActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Jarvis" />
+
+        <activity
             android:name=".DashboardActivity"
             android:exported="false"
             android:launchMode="singleTop"

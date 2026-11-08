@@ -93,6 +93,19 @@
             android:layout_marginTop="12dp"
             android:layout_marginBottom="8dp" />
 
+        <TextView
+            android:id="@+id/btnSwitchModern"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="> СОВРЕМЕННЫЙ ИНТЕРФЕЙС"
+            android:textColor="@color/jarvis_primary"
+            android:textSize="12sp"
+            android:fontFamily="monospace"
+            android:background="@drawable/bg_hud_panel"
+            android:padding="12dp"
+            android:gravity="center"
+            android:layout_marginBottom="8dp" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

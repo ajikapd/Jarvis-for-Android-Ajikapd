@@ -137,13 +137,9 @@ class DashboardActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (OnboardingActivity.needsOnboarding(this)) {
-            startActivity(Intent(this, OnboardingActivity::class.java))
-            finish()
-            return
-        }
-        if (UsageGuideActivity.needsGuide(this)) {
-            startActivity(Intent(this, UsageGuideActivity::class.java))
+        // Разрешения, выбор интерфейса и гид идут раньше самого интерфейса.
+        UiMode.stepIntent(this, UiMode.route(this))?.let {
+            startActivity(it)
             finish()
             return
         }
@@ -1174,11 +1170,10 @@ class DashboardActivity : AppCompatActivity() {
             openControlSecondary("advanced")
         }
         screen.findViewById<TextView>(R.id.btnOpenUsageGuide)?.setOnClickListener {
-            getSharedPreferences(UsageGuideActivity.PREFS, MODE_PRIVATE)
-                .edit()
-                .putBoolean(UsageGuideActivity.PREF_USAGE_GUIDE_DONE, false)
-                .apply()
             startActivity(Intent(this, UsageGuideActivity::class.java))
+        }
+        screen.findViewById<TextView>(R.id.btnSwitchModern)?.setOnClickListener {
+            UiMode.switchTo(this, com.jarvis.core.startup.UiStyle.MODERN)
         }
 
         val ctx = this
@@ -2518,11 +2513,10 @@ class DashboardActivity : AppCompatActivity() {
         showSettingsTab(initial)
 
         screen.findViewById<TextView>(R.id.btnOpenUsageGuide)?.setOnClickListener {
-            getSharedPreferences(UsageGuideActivity.PREFS, MODE_PRIVATE)
-                .edit()
-                .putBoolean(UsageGuideActivity.PREF_USAGE_GUIDE_DONE, false)
-                .apply()
             startActivity(Intent(this, UsageGuideActivity::class.java))
+        }
+        screen.findViewById<TextView>(R.id.btnSwitchModern)?.setOnClickListener {
+            UiMode.switchTo(this, com.jarvis.core.startup.UiStyle.MODERN)
         }
 
         screen.findViewById<JarvisToggle>(R.id.toggleHudSfx)?.apply {

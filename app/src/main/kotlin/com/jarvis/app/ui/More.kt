@@ -12,13 +12,14 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.jarvis.app.BrainGraph
-import com.jarvis.app.DashboardActivity
 import com.jarvis.app.JarvisSettings
 import com.jarvis.app.ModelCatalog
 import com.jarvis.app.ModelManager
 import com.jarvis.app.SecureKeyStore
 import com.jarvis.app.TestConsoleActivity
 import com.jarvis.app.UsageGuideActivity
+import com.jarvis.app.UiMode
+import com.jarvis.core.startup.UiStyle
 import com.jarvis.app.VoiceController
 import com.jarvis.app.VoiceIdentity
 import com.jarvis.core.llm.CloudKeyValidator
@@ -407,6 +408,11 @@ object Sections {
         },
         MoreSection("Оформление", "Тема, звуки, плавающий орб", Ic.PAINT) { b ->
             val c = app
+            b.addView(head("Интерфейс"))
+            b.addView(options("Вид", listOf("Современный", "Классический"), 0) { picked ->
+                if (picked == 1) UiMode.switchTo(c, UiStyle.CLASSIC)
+            })
+            b.addView(note("Классический: инженерная консоль. Вернуться можно в его «Профиле»."))
             b.addView(head("Тема"))
             b.addView(skins())
             b.addView(head("Звуки и орб"))
@@ -449,7 +455,6 @@ object Sections {
             b.addView(link("Текущая ситуация", "Что он сейчас видит") { c.show(JarvisActivity.SCAN) })
             b.addView(head("Для разработчика"))
             b.addView(link("Консоль", "Проверка команд") { c.startActivity(Intent(c, TestConsoleActivity::class.java)) })
-            b.addView(link("Прежний интерфейс", "Диагностика, журнал и симуляции") { c.startActivity(Intent(c, DashboardActivity::class.java)) })
         },
     )
 }

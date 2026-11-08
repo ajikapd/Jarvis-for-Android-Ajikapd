@@ -142,5 +142,15 @@
             android:textColor="@color/jarvis_primary"
             android:textSize="14sp"
             android:paddingTop="18dp" />
+
+        <TextView
+            android:id="@+id/btnSwitchModern"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Перейти на современный интерфейс"
+            android:textColor="@color/jarvis_cyan"
+            android:textSize="14sp"
+            android:paddingTop="14dp"
+            android:paddingBottom="8dp" />
     </LinearLayout>
 </ScrollView>

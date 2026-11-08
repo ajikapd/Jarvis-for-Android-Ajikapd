@@ -25,7 +25,9 @@ import com.jarvis.app.ConversationStore
 import com.jarvis.app.JarvisSettings
 import com.jarvis.app.OnboardingActivity
 import com.jarvis.app.OverlayOrbService
-import com.jarvis.app.UsageGuideActivity
+import com.jarvis.app.UiMode
+import com.jarvis.app.DashboardActivity
+import com.jarvis.core.startup.StartupRoute
 import com.jarvis.app.VoiceController
 import com.jarvis.core.common.model.ToolResultStatus
 import com.jarvis.core.common.model.UserRequest
@@ -65,6 +67,7 @@ class JarvisActivity : AppCompatActivity() {
     private var current = ""
     private var previous = HOME
     private var live: LiveScreen? = null
+    private var sectionOnly = false
     private var pendingLive = false
     private var confirmJob: Job? = null
     private var askingYesNo = false
@@ -78,15 +81,21 @@ class JarvisActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (OnboardingActivity.needsOnboarding(this)) {
-            startActivity(Intent(this, OnboardingActivity::class.java))
-            finish()
-            return
-        }
-        if (UsageGuideActivity.needsGuide(this)) {
-            startActivity(Intent(this, UsageGuideActivity::class.java))
-            finish()
-            return
+        // Окно одного раздела (например, запись голоса из гида): без шагов первого запуска и без переадресации.
+        sectionOnly = intent.getBooleanExtra(UiMode.EXTRA_FORCE_MODERN, false) && !OnboardingActivity.needsOnboarding(this)
+        if (!sectionOnly) {
+            val route = UiMode.route(this)
+            UiMode.stepIntent(this, route)?.let {
+                startActivity(it)
+                finish()
+                return
+            }
+            if (route == StartupRoute.CLASSIC) {
+                // Классический интерфейс выбран: передаём ему тот же запуск (виджет, ассистент, ярлык).
+                startActivity(Intent(intent).setClass(this, DashboardActivity::class.java))
+                finish()
+                return
+            }
         }
         skin = Skins.current(this)
         window.statusBarColor = skin.bg
@@ -106,6 +115,7 @@ class JarvisActivity : AppCompatActivity() {
                 when {
                     sheetHost.childCount > 0 -> closeConfirm()
                     live != null -> closeLive()
+                    sectionOnly -> finish()
                     current != HOME -> back()
                     else -> moveTaskToBack(true)
                 }
@@ -152,6 +162,9 @@ class JarvisActivity : AppCompatActivity() {
             powerOn()
         } else if (intent.getBooleanExtra("open_live", false)) {
             openLive()
+        }
+        intent.getStringExtra(UiMode.EXTRA_OPEN_SECTION)?.let { title ->
+            Sections.ALL.firstOrNull { it.title == title }?.let(::openSection)
         }
     }
 
@@ -264,7 +277,10 @@ class JarvisActivity : AppCompatActivity() {
         }
     }
 
-    fun back() = show(if (current == SECTION) MORE else previous.takeIf { it != current } ?: HOME)
+    fun back() {
+        // Раздел, открытый из гида отдельным окном, закрывается и возвращает в гид.
+        if (sectionOnly) finish() else show(if (current == SECTION) MORE else previous.takeIf { it != current } ?: HOME)
+    }
 
     fun openSection(section: MoreSection) {
         (screens.getOrPut(SECTION) { SectionScreen(this) } as SectionScreen).bind(section)
@@ -288,8 +304,18 @@ class JarvisActivity : AppCompatActivity() {
         val screen = LiveScreen(this)
         live = screen
         liveHost.addView(screen.view, FrameLayout.LayoutParams(-1, -1))
+        systemBars(screen.stageColor, light = false)
         screen.onShow()
         screen.onState(assistantState)
+    }
+
+    /** Live всегда тёмный: в светлой теме системные полосы на время Live тоже тёмные. */
+    private fun systemBars(color: Int, light: Boolean) {
+        window.statusBarColor = color
+        window.navigationBarColor = color
+        window.decorView.systemUiVisibility = if (light) {
+            View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+        } else 0
     }
 
     fun closeLive() {
@@ -297,6 +323,7 @@ class JarvisActivity : AppCompatActivity() {
         screen.onHide()
         liveHost.removeAllViews()
         live = null
+        systemBars(skin.bg, skin.light)
     }
 
     /** Включить ассистента. Разрешения спрашиваем только когда они нужны. */
@@ -483,7 +510,7 @@ fun mix(a: Int, b: Int, k: Float): Int {
 
 /** Экран внутри окна. */
 abstract class Screen(protected val host: JarvisActivity) {
-    protected val skin: Skin get() = host.skin
+    protected open val skin: Skin get() = host.skin
     abstract val view: View
     open fun onShow() = Unit
     open fun onHide() = Unit

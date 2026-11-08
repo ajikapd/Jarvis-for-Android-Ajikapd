@@ -76,13 +76,8 @@ class OnboardingActivity : AppCompatActivity() {
                 .putBoolean(PREF_AUTOSTART_VISITED, true)
                 .apply()
             VoiceController.start(this)
-            val next = if (UsageGuideActivity.needsGuide(this)) {
-                Intent(this, UsageGuideActivity::class.java)
-            } else {
-                Intent(this, com.jarvis.app.ui.JarvisActivity::class.java)
-            }
-            startActivity(next)
-            finish()
+            // Дальше: выбор интерфейса, гид, сам интерфейс.
+            UiMode.continueFrom(this)
         }
         if (BuildConfig.DEBUG) {
             findViewById<com.google.android.material.card.MaterialCardView>(R.id.stepDebugConsole)
