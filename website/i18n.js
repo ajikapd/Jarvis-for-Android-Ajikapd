@@ -30,7 +30,7 @@ window.I18N = {
     "h4.t": "Acts", "h4.d": "37 skills and Android services carry out the action and check that it actually worked.",
     "screens.title": "Screens", "screens.soon": "Screenshot coming soon",
     "screens.s1": "Reactor", "screens.s3": "Routines", "screens.s4": "Skills", "screens.s5": "Settings",
-    "tab.states": "States", "tab.themes": "Themes", "tab.old": "Classic interface",
+    "tab.states": "Overview", "tab.themes": "Themes", "tab.old": "Classic interface",
     "st.home": "Home screen", "st.listen": "Listening", "st.think": "Thinking", "st.exec": "Doing", "st.speak": "Speaking", "st.video": "Video",
     "st.note": "Live has no separate “doing” state: actions run while “thinking” is lit.",
     "th.reactor": "Reactor", "th.gold": "Gold", "th.mark": "Mark", "th.stealth": "Stealth", "th.light": "Light",
