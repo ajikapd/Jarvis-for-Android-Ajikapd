@@ -12,6 +12,7 @@
       const v = dict[el.dataset.i18n];
       if (v) el.textContent = v;
     });
+    document.querySelectorAll("[data-lang-block]").forEach(el => { el.hidden = el.dataset.langBlock !== lang; });
     document.documentElement.lang = lang;
     document.title = titles[lang];
     document.querySelectorAll(".lang button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.lang === lang)));

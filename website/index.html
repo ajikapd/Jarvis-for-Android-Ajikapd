@@ -27,6 +27,7 @@
     <a href="#features" data-i18n="nav.features">Возможности</a>
     <a href="#how" data-i18n="nav.how">Как работает</a>
     <a href="#screens" data-i18n="nav.screens">Экраны</a>
+    <a href="#guide" data-i18n="nav.guide">Инструкция</a>
     <a href="#download" data-i18n="nav.download">Скачать</a>
     <a href="#creator" data-i18n="nav.creator">Создатель</a>
   </nav>
@@ -133,7 +134,7 @@
         <ol class="steps">
           <li data-i18n="dl.s1">Скачайте APK и разрешите установку из этого источника.</li>
           <li data-i18n="dl.s2">Выдайте доступ к микрофону и специальным возможностям.</li>
-          <li data-i18n="dl.s3">Добавьте свои ключи облачных моделей в настройках. Они бесплатные.</li>
+          <li data-i18n="dl.s3">Добавьте бесплатные ключи Groq и Gemini: как это сделать, описано в инструкции ниже.</li>
           <li data-i18n="dl.s4">Запишите шесть фраз, чтобы Джарвис узнавал ваш голос.</li>
         </ol>
       </div>
@@ -141,6 +142,181 @@
         <a class="btn primary big" id="apk" href="#download"><span data-i18n="dl.btn">Скачать APK</span></a>
         <p class="tiny" data-i18n="dl.note">Ссылка появится после публикации сборки.</p>
       </div>
+    </div>
+  </section>
+
+  <section id="guide" class="section">
+    <h2 class="h2 reveal"><span class="idx">05</span><span data-i18n="guide.title">Инструкция</span></h2>
+    <p class="muted reveal" data-i18n="guide.d">Всё, чтобы настроить Jarvis с нуля и пользоваться им каждый день. Нажмите на пункт, чтобы раскрыть его.</p>
+    <div class="guide" data-lang-block="ru">
+      <details class="g"><summary><span class="gn">01</span>Установка</summary><div class="gb"><ol>
+<li>Скачайте APK с этой страницы (около 200 МБ).</li>
+<li>Откройте файл. Android попросит разрешить установку из браузера или файлового менеджера: разрешите и вернитесь назад.</li>
+<li>Нажмите «Установить» и откройте Jarvis.</li>
+</ol>
+<p class="tip">Нужен Android 10 или новее и процессор arm64: это почти все телефоны последних лет.</p></div></details>
+      <details class="g"><summary><span class="gn">02</span>Разрешения</summary><div class="gb"><p>При первом запуске Jarvis покажет список доступов. Пройдите каждый пункт кнопкой «Настроить»:</p>
+<ul class="check">
+<li><b>Микрофон</b>: слышать слово «Джарвис» и команды.</li>
+<li><b>Уведомления</b>: значок работающего ассистента и подсказки.</li>
+<li><b>Поверх других окон</b>: плавающий орб и ответы поверх приложений.</li>
+<li><b>Батарея без ограничений</b>: иначе система усыпит Jarvis в фоне.</li>
+<li><b>Автозапуск</b> (Xiaomi, HyperOS, MIUI и похожие): запуск после перезагрузки.</li>
+<li><b>Специальные возможности</b>: нажатия, чтение экрана и режим «сделай сам».</li>
+<li><b>Доступ к уведомлениям</b>: читать вслух сообщения и знать, что играет.</li>
+<li><b>Изменение системных настроек</b>: яркость и подобное.</li>
+</ul>
+<p>Звонки, SMS, контакты и календарь Jarvis спросит при первой такой команде.</p>
+<p class="tip">Совет: в «Ещё → Присутствие → Цифровой помощник» выберите Jarvis. Тогда он откроется долгим нажатием кнопки «Домой».</p></div></details>
+      <details class="g" open><summary><span class="gn">03</span>Ключи облачного ИИ: Groq и Gemini</summary><div class="gb"><p>Без ключей работают команды телефона и локальная модель. С ключами Jarvis отвечает умнее и быстрее. Оба ключа бесплатные, нужен только аккаунт.</p>
+<div class="keys">
+<div class="key">
+<h4>Groq: основная быстрая модель</h4>
+<ol>
+<li>Откройте <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a> и войдите через Google или почту.</li>
+<li>Нажмите <b>Create API Key</b>, дайте любое имя, например «jarvis».</li>
+<li>Скопируйте ключ сразу: он начинается с <code>gsk_</code> и больше не покажется.</li>
+</ol>
+</div>
+<div class="key">
+<h4>Gemini: запасная цепочка</h4>
+<ol>
+<li>Откройте <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> и войдите аккаунтом Google.</li>
+<li>Нажмите <b>Create API key</b> и выберите или создайте проект.</li>
+<li>Скопируйте ключ: он начинается с <code>AIza</code>.</li>
+</ol>
+</div>
+</div>
+<p><b>Куда вставить:</b> Jarvis → вкладка <b>«Ещё» → «ИИ и модели» → «Облачные ключи»</b>. Нажмите на строку Groq или Gemini, вставьте ключ и нажмите <b>«Сохранить»</b>. Метка сменится на «Сохранён».</p>
+<p>Там же оставьте маршрут <b>«Гибрид»</b> и включите <b>«Использовать ИИ-модель»</b>: простое Jarvis решит сам, сложное отправит в облако, а без сети перейдёт на локальную модель.</p>
+<p class="tip">Ключи хранятся на телефоне в зашифрованном виде и уходят только в Groq и Google. Никому их не пересылайте. В некоторых странах сайты Groq и Google AI Studio открываются только через VPN.</p></div></details>
+      <details class="g"><summary><span class="gn">04</span>Ваш голос</summary><div class="gb"><ol>
+<li><b>«Ещё» → «Голос и слух»</b>. Включите ассистента, если он выключен.</li>
+<li>Нажмите <b>«Скачать модель узнавания»</b>: нужна один раз, 28 МБ.</li>
+<li>Несколько раз скажите «Джарвис», затем прочитайте вслух предложенные фразы. Говорите обычным голосом, в тихом месте.</li>
+<li>Включите <b>«Только мой голос»</b>: чужие голоса и звук из видео перестанут будить Jarvis.</li>
+</ol>
+<p>Если слово срабатывает слишком часто или редко, поменяйте <b>«Чувствительность»</b> там же. Если голос стал хуже узнаваться, нажмите «Записать голос заново».</p></div></details>
+      <details class="g"><summary><span class="gn">05</span>Как говорить с Jarvis</summary><div class="gb"><p>Скажите «Джарвис», дождитесь сигнала или реактора на экране и говорите команду. Можно и сразу одной фразой: «Джарвис, какая погода».</p>
+<div class="cmds">
+<span>«Позвони маме»</span><span>«Напиши Саше в Телеграм, что опоздаю»</span><span>«Разбуди в семь утра»</span>
+<span>«Поставь таймер на 10 минут»</span><span>«Напомни завтра купить хлеб»</span><span>«Включи фонарик»</span>
+<span>«Громкость на максимум»</span><span>«Включи Bluetooth»</span><span>«Какая погода завтра»</span>
+<span>«Курс доллара»</span><span>«Что нового»</span><span>«Открой YouTube»</span>
+</div>
+<p>Можно несколько дел сразу: «выключи Wi-Fi и поставь будильник на 8». Звонки, отправку сообщений и удаление Jarvis переспросит.</p>
+<p><b>Live:</b> вкладка <b>Live</b> включает живой разговор без слова «Джарвис». Перебивайте его, когда хотите. Чтобы просто продолжать беседу после ответа, включите «Продолжать разговор» в «Голос и слух».</p></div></details>
+      <details class="g"><summary><span class="gn">06</span>«Сделай сам»: агент в приложениях</summary><div class="gb"><p>Начните команду со слов <b>«сделай сам»</b>, и Jarvis выполнит её в приложении шаг за шагом:</p>
+<div class="cmds">
+<span>«Сделай сам: найди на YouTube обзор Pixel»</span><span>«Сделай сам: открой настройки Bluetooth»</span><span>«Сделай сам: найди на карте ближайшую аптеку»</span>
+</div>
+<p>Скажите <b>«стоп»</b>, чтобы прервать. Перед отправкой или оплатой он спросит «да?». Пароли и карты он не вводит никогда. Нужен доступ «Специальные возможности» и разблокированный экран.</p>
+<p class="tip">Это новая и пока ненадёжная функция: лучше всего она справляется с поиском и открытием разделов.</p></div></details>
+      <details class="g"><summary><span class="gn">07</span>Музыка</summary><div class="gb"><ul>
+<li>Установите <b>SoundCloud</b> и войдите в аккаунт. «Включи Queen», «включи мою музыку» (лайки), «включи что-нибудь», «пауза», «дальше».</li>
+<li>Без интернета Jarvis включит скачанное в <b>Яндекс Музыке</b>: скачайте треки заранее.</li>
+<li>Пока Jarvis слушает команду, музыка ненадолго притихнет и потом вернётся.</li>
+</ul></div></details>
+      <details class="g"><summary><span class="gn">08</span>Сценарии и события</summary><div class="gb"><p>Скажите правило вслух, и Jarvis будет выполнять его сам:</p>
+<div class="cmds">
+<span>«Когда подключу наушники, включи музыку»</span><span>«Когда поставлю на зарядку, убавь яркость»</span><span>«Когда открою YouTube, громкость на максимум»</span><span>«Каждый день в 8 утра рассказывай сводку»</span>
+</div>
+<p>Список правил, паузы и удаление: <b>«Ещё» → «Рутины»</b>, блок «По событиям».</p></div></details>
+      <details class="g"><summary><span class="gn">09</span>Память и характер</summary><div class="gb"><ul>
+<li>«Запомни, что я люблю кофе без сахара»: Jarvis учтёт это в ответах. Список фактов: вкладка <b>«Память»</b> или «Ещё → Память и безопасность».</li>
+<li>Стиль ответов: <b>«Ещё» → «Характер и ответы»</b>: Джарвис, Друг, Кратко, Инженер; скорость или качество.</li>
+<li>Объявления звонков и сообщений, тихие часы: <b>«Ещё» → «Присутствие»</b>.</li>
+</ul></div></details>
+      <details class="g"><summary><span class="gn">10</span>Если что-то не работает</summary><div class="gb"><dl class="faq">
+<dt>Не откликается на «Джарвис»</dt><dd>Проверьте, что ассистент включён, батарея без ограничений и автозапуск разрешён. Поднимите чувствительность. Перезапишите голос.</dd>
+<dt>Отвечает «не понял» на вопросы</dt><dd>Проверьте ключи в «ИИ и модели»: метка должна быть «Сохранён». Проверьте интернет и, если нужно, VPN.</dd>
+<dt>«Ключ не подходит»</dt><dd>Скопируйте ключ заново целиком, без пробелов. У Groq ключ начинается с gsk_, у Gemini с AIza.</dd>
+<dt>Не нажимает в приложениях</dt><dd>Включите Jarvis в «Специальных возможностях». После обновления приложения Android иногда выключает его: включите снова.</dd>
+<dt>Музыка не включается</dt><dd>Откройте SoundCloud один раз вручную и убедитесь, что вы вошли в аккаунт.</dd>
+</dl>
+<p>Не помогло: напишите в Telegram <a href="https://t.me/ajikapd993" target="_blank" rel="noopener">@ajikapd993</a>.</p></div></details>
+    </div>
+    <div class="guide" data-lang-block="en" hidden>
+      <details class="g"><summary><span class="gn">01</span>Install</summary><div class="gb"><ol>
+<li>Download the APK from this page (about 200 MB).</li>
+<li>Open the file. Android will ask to allow installs from your browser or file manager: allow it and go back.</li>
+<li>Tap “Install” and open Jarvis.</li>
+</ol>
+<p class="tip">Requires Android 10 or newer and an arm64 processor: nearly every phone from recent years.</p></div></details>
+      <details class="g"><summary><span class="gn">02</span>Permissions</summary><div class="gb"><p>On first launch Jarvis shows a list of permissions. Go through each item with the “Настроить” (Set up) button:</p>
+<ul class="check">
+<li><b>Microphone</b>: to hear “Jarvis” and commands.</li>
+<li><b>Notifications</b>: the running-assistant icon and hints.</li>
+<li><b>Display over other apps</b>: the floating orb and replies over apps.</li>
+<li><b>Unrestricted battery</b>: otherwise the system puts Jarvis to sleep.</li>
+<li><b>Autostart</b> (Xiaomi, HyperOS, MIUI and similar): start after reboot.</li>
+<li><b>Accessibility</b>: taps, reading the screen and “do it yourself”.</li>
+<li><b>Notification access</b>: read messages aloud and know what is playing.</li>
+<li><b>Modify system settings</b>: brightness and the like.</li>
+</ul>
+<p>Calls, SMS, contacts and calendar are requested the first time you use them.</p>
+<p class="tip">Tip: in “Ещё → Присутствие → Цифровой помощник” (More → Presence → Digital assistant) pick Jarvis to open it with a long press on Home.</p></div></details>
+      <details class="g" open><summary><span class="gn">03</span>Cloud AI keys: Groq and Gemini</summary><div class="gb"><p>Without keys, phone commands and the local model still work. With keys Jarvis answers smarter and faster. Both keys are free; you only need an account.</p>
+<div class="keys">
+<div class="key">
+<h4>Groq: main fast model</h4>
+<ol>
+<li>Open <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a> and sign in with Google or email.</li>
+<li>Click <b>Create API Key</b> and give it any name, e.g. “jarvis”.</li>
+<li>Copy the key right away: it starts with <code>gsk_</code> and is shown only once.</li>
+</ol>
+</div>
+<div class="key">
+<h4>Gemini: fallback chain</h4>
+<ol>
+<li>Open <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> and sign in with Google.</li>
+<li>Click <b>Create API key</b> and pick or create a project.</li>
+<li>Copy the key: it starts with <code>AIza</code>.</li>
+</ol>
+</div>
+</div>
+<p><b>Where to paste:</b> Jarvis → <b>“Ещё” (More) → “ИИ и модели” (AI and models) → “Облачные ключи” (Cloud keys)</b>. Tap the Groq or Gemini row, paste the key and tap <b>“Сохранить” (Save)</b>. The label changes to “Сохранён” (Saved).</p>
+<p>On the same screen keep the route on <b>“Гибрид” (Hybrid)</b> and turn on <b>“Использовать ИИ-модель” (Use AI model)</b>: Jarvis handles simple things itself, sends hard ones to the cloud and falls back to the local model offline.</p>
+<p class="tip">Keys are stored encrypted on the phone and go only to Groq and Google. Never share them. In some countries the Groq and Google AI Studio sites open only through a VPN.</p></div></details>
+      <details class="g"><summary><span class="gn">04</span>Your voice</summary><div class="gb"><ol>
+<li><b>“Ещё” → “Голос и слух”</b> (More → Voice and hearing). Turn the assistant on if it is off.</li>
+<li>Tap <b>“Скачать модель узнавания”</b> (Download recognition model): needed once, 28 MB.</li>
+<li>Say “Jarvis” a few times, then read the suggested phrases aloud. Use your normal voice in a quiet place.</li>
+<li>Turn on <b>“Только мой голос”</b> (Only my voice): other voices and video sound stop waking Jarvis.</li>
+</ol>
+<p>If the word triggers too often or too rarely, change the sensitivity there. If recognition gets worse, tap “Записать голос заново” (Record again).</p></div></details>
+      <details class="g"><summary><span class="gn">05</span>Talking to Jarvis</summary><div class="gb"><p>Jarvis understands Russian. Say “Джарвис”, wait for the tone or the reactor on screen and give the command. One phrase works too: “Джарвис, какая погода” (what's the weather).</p>
+<div class="cmds">
+<span>Call mom</span><span>Text Sasha on Telegram that I'm late</span><span>Wake me at seven</span>
+<span>Set a 10-minute timer</span><span>Remind me to buy bread tomorrow</span><span>Turn on the flashlight</span>
+<span>Volume to max</span><span>Turn on Bluetooth</span><span>Weather tomorrow</span>
+<span>Dollar rate</span><span>What's new</span><span>Open YouTube</span>
+</div>
+<p>Several things at once work too: “turn off Wi-Fi and set an alarm for 8”. Calls, sending messages and deleting are confirmed first.</p>
+<p><b>Live:</b> the <b>Live</b> tab starts a live conversation without the wake word. Interrupt any time. To keep talking after a reply, turn on “Продолжать разговор” (Keep the conversation going).</p></div></details>
+      <details class="g"><summary><span class="gn">06</span>“Do it yourself”: the agent in apps</summary><div class="gb"><p>Start a command with <b>“сделай сам”</b> (do it yourself) and Jarvis carries it out in the app step by step: search YouTube, open a settings page, find a place on the map.</p>
+<p>Say <b>“стоп”</b> to stop. Before sending or paying it asks “yes?”. It never types passwords or card numbers. Needs Accessibility and an unlocked screen.</p>
+<p class="tip">This feature is new and not yet reliable: it does best at searching and opening pages.</p></div></details>
+      <details class="g"><summary><span class="gn">07</span>Music</summary><div class="gb"><ul>
+<li>Install <b>SoundCloud</b> and sign in. “Play Queen”, “play my music” (likes), “play something”, “pause”, “next”.</li>
+<li>Offline Jarvis plays your downloads in <b>Yandex Music</b>: download tracks in advance.</li>
+<li>While Jarvis listens, music gets quieter for a moment and then comes back.</li>
+</ul></div></details>
+      <details class="g"><summary><span class="gn">08</span>Routines and events</summary><div class="gb"><p>Say a rule out loud and Jarvis will follow it by itself: “when I plug in headphones, play music”, “when I start charging, lower the brightness”, “when I open YouTube, volume to max”, “every day at 8 am tell me the briefing”.</p>
+<p>Rules, pausing and deleting: <b>“Ещё” → “Рутины”</b> (More → Routines), “По событиям” (On events).</p></div></details>
+      <details class="g"><summary><span class="gn">09</span>Memory and personality</summary><div class="gb"><ul>
+<li>“Remember that I take coffee without sugar”: Jarvis uses it in replies. Facts list: the <b>“Память”</b> (Memory) tab.</li>
+<li>Reply style: <b>“Ещё” → “Характер и ответы”</b> (Personality): Jarvis, Friend, Brief, Engineer; speed or quality.</li>
+<li>Announcing calls and messages, quiet hours: <b>“Ещё” → “Присутствие”</b> (Presence).</li>
+</ul></div></details>
+      <details class="g"><summary><span class="gn">10</span>Troubleshooting</summary><div class="gb"><dl class="faq">
+<dt>Doesn't respond to “Jarvis”</dt><dd>Check that the assistant is on, battery is unrestricted and autostart is allowed. Raise the sensitivity. Record your voice again.</dd>
+<dt>Answers “didn't understand” to questions</dt><dd>Check the keys in “AI and models”: the label should say “Сохранён”. Check the internet and a VPN if needed.</dd>
+<dt>“Ключ не подходит” (key rejected)</dt><dd>Copy the whole key again with no spaces. Groq keys start with gsk_, Gemini keys with AIza.</dd>
+<dt>Doesn't tap in apps</dt><dd>Turn Jarvis on in Accessibility. Android sometimes turns it off after an app update: turn it on again.</dd>
+<dt>Music doesn't start</dt><dd>Open SoundCloud once by hand and make sure you are signed in.</dd>
+</dl>
+<p>Still stuck: message <a href="https://t.me/ajikapd993" target="_blank" rel="noopener">@ajikapd993</a> on Telegram.</p></div></details>
     </div>
   </section>
 

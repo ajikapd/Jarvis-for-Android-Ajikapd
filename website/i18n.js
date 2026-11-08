@@ -1,6 +1,6 @@
 window.I18N = {
   en: {
-    "nav.features": "Features", "nav.how": "How it works", "nav.screens": "Screens", "nav.download": "Download", "nav.creator": "Creator",
+    "nav.features": "Features", "nav.how": "How it works", "nav.screens": "Screens", "nav.guide": "Guide", "nav.download": "Download", "nav.creator": "Creator",
     "hero.eyebrow": "Personal AI assistant for Android",
     "hero.lead": "Say “Jarvis” and your phone does the rest. It knows your voice, acts inside apps on its own and keeps working offline.",
     "hero.download": "Download APK", "hero.more": "What it can do",
@@ -34,10 +34,11 @@ window.I18N = {
     "dl.d": "Test build 0.1.0. Android 10 or newer, arm64 processor, about 200 MB: speech models included.",
     "dl.s1": "Download the APK and allow installs from this source.",
     "dl.s2": "Grant microphone and accessibility access.",
-    "dl.s3": "Add your own cloud model keys in settings. They are free.",
+    "dl.s3": "Add free Groq and Gemini keys: the guide below shows how.",
     "dl.s4": "Record six phrases so Jarvis learns your voice.",
     "dl.btn": "Download APK", "dl.note": "The link appears once the build is published.",
     "cr.eyebrow": "Creator", "cr.d": "Designed and built Jarvis single-handedly, from the voice to the agent.",
+    "guide.title": "Guide", "guide.d": "Everything to set Jarvis up from scratch and use it every day. Tap an item to expand it.",
     "foot.note": "Independent project. Not affiliated with Marvel or Disney."
   }
 };
