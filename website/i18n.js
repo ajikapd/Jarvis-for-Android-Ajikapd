@@ -43,7 +43,7 @@ window.I18N = {
     "dl.s2": "Grant microphone and accessibility access.",
     "dl.s3": "Add free Groq and Gemini keys: the guide below shows how.",
     "dl.s4": "Record six phrases so Jarvis learns your voice.",
-    "dl.btn": "Download APK", "dl.note": "The link appears once the build is published.",
+    "dl.btn": "Download APK", "dl.note": "jarvis-0.1.0.apk · 201 MB",
     "cr.eyebrow": "Creator", "cr.d": "Designed and built Jarvis single-handedly, from the voice to the agent.",
     "guide.title": "Guide", "guide.d": "Everything to set Jarvis up from scratch and use it every day. Tap an item to expand it.",
     "foot.note": "Independent project. Not affiliated with Marvel or Disney."
