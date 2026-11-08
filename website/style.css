@@ -347,3 +347,6 @@ main, .top, .foot { position: relative; z-index: 2; }
   .phones.row .screen { width: 170px; }
   .tabs button { padding: 9px 14px; font-size: 13px; }
 }
+
+/* Подпись внутри H1 */
+.title .eyebrow { display: block; margin: 0 0 12px; line-height: 1.4; }

@@ -5,7 +5,7 @@
   /* ---------- Язык ---------- */
   const ru = {};
   document.querySelectorAll("[data-i18n]").forEach(el => { ru[el.dataset.i18n] = el.textContent; });
-  const titles = { ru: document.title, en: "Jarvis — voice assistant for Android" };
+  const titles = { ru: document.title, en: "Jarvis — voice AI assistant for Android | Ajikapd" };
   function setLang(lang) {
     const dict = lang === "en" ? window.I18N.en : ru;
     document.querySelectorAll("[data-i18n]").forEach(el => {

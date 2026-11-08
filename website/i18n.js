@@ -1,7 +1,7 @@
 window.I18N = {
   en: {
     "nav.features": "Features", "nav.how": "How it works", "nav.screens": "Screens", "nav.guide": "Guide", "nav.download": "Download", "nav.creator": "Creator",
-    "hero.eyebrow": "Personal AI assistant for Android",
+    "hero.eyebrow": "Voice AI assistant for Android",
     "hero.lead": "Say “Jarvis” and your phone does the rest. It knows your voice, acts inside apps on its own and keeps working offline.",
     "hero.download": "Download APK", "hero.more": "What it can do",
     "hero.chip1": "Only your voice", "hero.chip2": "Online and offline", "hero.chip3": "Free",
