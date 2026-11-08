@@ -119,14 +119,61 @@
 
   <section id="screens" class="section">
     <h2 class="h2 reveal"><span class="idx">03</span><span data-i18n="screens.title">Экраны</span></h2>
-    <div class="phones">
-      <figure class="phone reveal"><div class="screen"><img src="media/live.webp" alt="" loading="lazy" width="540" height="1145"></div><figcaption>Live</figcaption></figure>
-      <figure class="phone reveal mid"><div class="screen"><video src="media/home.mp4" poster="media/home-poster.jpg" autoplay muted loop playsinline preload="metadata"></video></div><figcaption data-i18n="screens.s1">Реактор</figcaption></figure>
-      <figure class="phone reveal"><div class="screen"><img src="media/routines.webp" alt="" loading="lazy" width="540" height="1145"></div><figcaption data-i18n="screens.s3">Сценарии</figcaption></figure>
+    <div class="tabs reveal" role="tablist">
+      <button type="button" role="tab" data-tab="states" aria-selected="true" data-i18n="tab.states">Состояния</button>
+      <button type="button" role="tab" data-tab="themes" aria-selected="false" data-i18n="tab.themes">Темы</button>
+      <button type="button" role="tab" data-tab="old" aria-selected="false" data-i18n="tab.old">Классический интерфейс</button>
     </div>
-    <div class="phones second">
-      <figure class="phone reveal"><div class="screen"><img src="media/skills.webp" alt="" loading="lazy" width="540" height="1145"></div><figcaption data-i18n="screens.s4">Навыки</figcaption></figure>
-      <figure class="phone reveal"><div class="screen"><img src="media/settings.webp" alt="" loading="lazy" width="540" height="1145"></div><figcaption data-i18n="screens.s5">Настройки</figcaption></figure>
+    <div class="panel" data-panel="states">
+      <h3 class="sub" data-i18n="st.home">Главный экран</h3>
+      <div class="phones row">
+          <figure class="phone"><div class="screen"><img src="media/state-home-listen.webp" alt="" loading="lazy" width="540" height="1145"></div><figcaption data-i18n="st.listen">Слушаю</figcaption></figure>
+          <figure class="phone"><div class="screen"><img src="media/state-home-think.webp" alt="" loading="lazy" width="540" height="1145"></div><figcaption data-i18n="st.think">Думаю</figcaption></figure>
+          <figure class="phone"><div class="screen"><img src="media/state-home-exec.webp" alt="" loading="lazy" width="540" height="1145"></div><figcaption data-i18n="st.exec">Делаю</figcaption></figure>
+          <figure class="phone"><div class="screen"><img src="media/state-home-speak.webp" alt="" loading="lazy" width="540" height="1145"></div><figcaption data-i18n="st.speak">Говорю</figcaption></figure>
+          <figure class="phone vid"><div class="screen"><video src="media/video-home.mp4" poster="media/video-home.jpg" autoplay muted loop playsinline preload="metadata"></video><span class="rec">● REC</span></div><figcaption data-i18n="st.video">Видео</figcaption></figure>
+      </div>
+      <h3 class="sub">Live</h3>
+      <div class="phones row">
+          <figure class="phone"><div class="screen"><img src="media/state-live-listen.webp" alt="" loading="lazy" width="540" height="1145"></div><figcaption data-i18n="st.listen">Слушаю</figcaption></figure>
+          <figure class="phone"><div class="screen"><img src="media/state-live-think.webp" alt="" loading="lazy" width="540" height="1145"></div><figcaption data-i18n="st.think">Думаю</figcaption></figure>
+          <figure class="phone"><div class="screen"><img src="media/state-live-speak.webp" alt="" loading="lazy" width="540" height="1145"></div><figcaption data-i18n="st.speak">Говорю</figcaption></figure>
+          <figure class="phone vid"><div class="screen"><video src="media/video-live.mp4" poster="media/video-live.jpg" autoplay muted loop playsinline preload="metadata"></video><span class="rec">● REC</span></div><figcaption data-i18n="st.video">Видео</figcaption></figure>
+      </div>
+      <p class="tiny center" data-i18n="st.note">В Live нет отдельного «делаю»: действия выполняются, пока горит «думаю».</p>
+    </div>
+    <div class="panel" data-panel="themes" hidden>
+      <div class="themes" role="group" aria-label="Theme">
+        <button type="button" data-theme="reactor" class="th-reactor" aria-pressed="true"><i></i><span data-i18n="th.reactor">Реактор</span></button>
+        <button type="button" data-theme="gold" class="th-gold" aria-pressed="false"><i></i><span data-i18n="th.gold">Золото</span></button>
+        <button type="button" data-theme="mark" class="th-mark" aria-pressed="false"><i></i><span data-i18n="th.mark">Марк</span></button>
+        <button type="button" data-theme="stealth" class="th-stealth" aria-pressed="false"><i></i><span data-i18n="th.stealth">Стелс</span></button>
+        <button type="button" data-theme="light" class="th-light" aria-pressed="false"><i></i><span data-i18n="th.light">Светлая</span></button>
+      </div>
+      <div class="phones row" id="themePhones">
+          <figure class="phone"><div class="screen"><img src="media/theme-reactor-home.webp" alt="" loading="lazy" width="540" height="1145"></div><figcaption data-i18n="tp.home">Главная</figcaption></figure>
+          <figure class="phone"><div class="screen"><img src="media/theme-reactor-skills.webp" alt="" loading="lazy" width="540" height="1145"></div><figcaption data-i18n="tp.skills">Навыки</figcaption></figure>
+          <figure class="phone"><div class="screen"><img src="media/theme-reactor-live.webp" alt="" loading="lazy" width="540" height="1145"></div><figcaption data-i18n="tp.live">Live</figcaption></figure>
+      </div>
+      <div class="phones row">
+          <figure class="phone"><div class="screen"><img src="media/routines.webp" alt="" loading="lazy" width="540" height="1145"></div><figcaption data-i18n="screens.s3">Сценарии</figcaption></figure>
+          <figure class="phone"><div class="screen"><img src="media/settings.webp" alt="" loading="lazy" width="540" height="1145"></div><figcaption data-i18n="screens.s5">Настройки</figcaption></figure>
+      </div>
+    </div>
+    <div class="panel" data-panel="old" hidden>
+      <p class="muted center" data-i18n="old.d">Первый интерфейс Jarvis в стиле инженерной консоли. Его можно включить в любой момент: «Ещё → Помощь и диагностика → Прежний интерфейс».</p>
+      <div class="phones row">
+          <figure class="phone vid"><div class="screen"><video src="media/video-old-core.mp4" poster="media/video-old-core.jpg" autoplay muted loop playsinline preload="metadata"></video><span class="rec">● REC</span></div><figcaption data-i18n="old.core">Ядро</figcaption></figure>
+          <figure class="phone"><div class="screen"><img src="media/old-core-think.webp" alt="" loading="lazy" width="540" height="1145"></div><figcaption data-i18n="old.think">Обрабатываю</figcaption></figure>
+          <figure class="phone"><div class="screen"><img src="media/old-core-speak.webp" alt="" loading="lazy" width="540" height="1145"></div><figcaption data-i18n="old.speak">Озвучиваю</figcaption></figure>
+          <figure class="phone vid"><div class="screen"><video src="media/video-old-live.mp4" poster="media/video-old-live.jpg" autoplay muted loop playsinline preload="metadata"></video><span class="rec">● REC</span></div><figcaption data-i18n="old.live">Live</figcaption></figure>
+      </div>
+      <div class="phones row">
+          <figure class="phone"><div class="screen"><img src="media/old-scenarios.webp" alt="" loading="lazy" width="540" height="1145"></div><figcaption data-i18n="old.scen">Сценарии</figcaption></figure>
+          <figure class="phone"><div class="screen"><img src="media/old-tools.webp" alt="" loading="lazy" width="540" height="1145"></div><figcaption data-i18n="old.tools">Инструменты</figcaption></figure>
+          <figure class="phone"><div class="screen"><img src="media/old-system.webp" alt="" loading="lazy" width="540" height="1145"></div><figcaption data-i18n="old.sys">Система</figcaption></figure>
+          <figure class="phone"><div class="screen"><img src="media/old-core.webp" alt="" loading="lazy" width="540" height="1145"></div><figcaption data-i18n="old.idle">Ядро в покое</figcaption></figure>
+      </div>
     </div>
   </section>
 

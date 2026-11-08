@@ -64,6 +64,26 @@
     });
   }
 
+  /* ---------- Вкладки экранов и переключатель тем ---------- */
+  document.querySelectorAll(".tabs [data-tab]").forEach(btn => btn.addEventListener("click", () => {
+    document.querySelectorAll(".tabs [data-tab]").forEach(b => b.setAttribute("aria-selected", String(b === btn)));
+    document.querySelectorAll("[data-panel]").forEach(p => { p.hidden = p.dataset.panel !== btn.dataset.tab; });
+  }));
+  const themePhones = document.querySelectorAll("#themePhones img");
+  const parts = ["home", "skills", "live"];
+  document.querySelectorAll(".themes [data-theme]").forEach(btn => btn.addEventListener("click", () => {
+    document.querySelectorAll(".themes [data-theme]").forEach(b => b.setAttribute("aria-pressed", String(b === btn)));
+    themePhones.forEach((img, i) => {
+      img.classList.add("swap");
+      const next = `media/theme-${btn.dataset.theme}-${parts[i]}.webp`;
+      const pre = new Image();
+      pre.onload = () => { img.src = next; img.classList.remove("swap"); };
+      pre.src = next;
+    });
+  }));
+  // Предзагрузка тем, чтобы переключение было мгновенным
+  setTimeout(() => ["gold", "mark", "stealth", "light"].forEach(t => parts.forEach(p => { new Image().src = `media/theme-${t}-${p}.webp`; })), 3000);
+
   /* ---------- Фон тускнеет под текстом ---------- */
   const backdrop = [document.getElementById("scene"), document.querySelector(".css-reactor")];
   const dim = () => {

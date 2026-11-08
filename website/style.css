@@ -318,3 +318,34 @@ main, .top, .foot { position: relative; z-index: 2; }
 .phones.second .phone:last-child { transform: rotateY(-10deg); }
 .phones.second .phone:hover { transform: rotateY(0) translateY(-8px); }
 @media (max-width: 720px) { .phones.second { margin-top: 0; } .phones.second .phone, .phones.second .phone:last-child { transform: none; } }
+
+/* Вкладки экранов */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 5px; margin: 0 auto 34px; width: fit-content; max-width: 100%;
+  border-radius: 999px; border: 1px solid var(--line); background: var(--glass); backdrop-filter: blur(10px); }
+.tabs button { border: 0; cursor: pointer; padding: 10px 20px; border-radius: 999px; background: none; color: var(--muted);
+  font: 700 14px Manrope, sans-serif; transition: .25s; }
+.tabs button[aria-selected="true"] { color: #00121b; background: linear-gradient(110deg, var(--cyan), var(--blue)); box-shadow: 0 0 20px -4px var(--cyan); }
+.panel[hidden] { display: none; }
+.sub { margin: 30px 0 10px; text-align: center; font: 700 18px Orbitron, "Exo 2", sans-serif; letter-spacing: .14em; text-transform: uppercase; color: var(--cyan); }
+.center { text-align: center; }
+.phones.row { flex-wrap: wrap; gap: clamp(12px, 2vw, 26px); margin: 16px 0 26px; perspective: none; }
+.phones.row .phone, .phones.row .phone:last-child { transform: none; }
+.phones.row .phone:hover { transform: translateY(-8px); }
+.phones.row .screen { width: clamp(140px, 15vw, 200px); border-radius: 24px; }
+.phones.row .screen img, .phones.row .screen video { border-radius: 20px; }
+.screen { position: relative; }
+.rec { position: absolute; top: 10px; left: 10px; padding: 3px 8px; border-radius: 8px; font: 700 10px Orbitron, sans-serif; letter-spacing: .1em; color: #ff5a6a; background: rgba(0,0,0,.55); }
+.phone.vid .screen { border-color: rgba(255, 90, 106, .45); }
+.themes { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 10px; }
+.themes button { display: flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--glass); color: var(--ink); font: 600 14px Manrope, sans-serif; transition: .25s; }
+.themes button i { width: 16px; height: 16px; border-radius: 50%; box-shadow: 0 0 10px currentColor; }
+.th-reactor i { background: #3fd0ff; color: #3fd0ff; } .th-gold i { background: #ffb547; color: #ffb547; }
+.th-mark i { background: #ff4b3a; color: #ff4b3a; } .th-stealth i { background: #d9dde3; color: #d9dde3; } .th-light i { background: #e8f2ff; color: #8cc8ff; }
+.themes button[aria-pressed="true"] { border-color: var(--cyan); box-shadow: 0 0 18px -6px var(--cyan); }
+#themePhones img { transition: opacity .25s; } #themePhones img.swap { opacity: .25; }
+@media (max-width: 720px) {
+  .phones.row { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; padding: 10px 4px 16px; scroll-snap-type: x mandatory; }
+  .phones.row .screen { width: 170px; }
+  .tabs button { padding: 9px 14px; font-size: 13px; }
+}
