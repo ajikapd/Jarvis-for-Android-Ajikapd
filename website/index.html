@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jarvis — голосовой ассистент для Android</title>
+<meta name="description" content="Jarvis — личный голосовой ассистент для Android: слышит только своего владельца, сам действует в приложениях и работает без интернета.">
+<meta name="theme-color" content="#05070d">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='26' fill='none' stroke='%2346e6ff' stroke-width='5'/%3E%3Ccircle cx='32' cy='32' r='11' fill='%2346e6ff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="scene" aria-hidden="true"></canvas>
+<div class="grain" aria-hidden="true"></div>
+<div class="css-reactor" aria-hidden="true">
+  <i class="r r1"></i><i class="r r2"></i><i class="r r3"></i><i class="r r4"></i><i class="core"></i>
+</div>
+
+<header class="top">
+  <a class="brand" href="#hero" aria-label="Jarvis">
+    <span class="brand-mark"></span><span>JARVIS</span>
+  </a>
+  <nav class="links">
+    <a href="#features" data-i18n="nav.features">Возможности</a>
+    <a href="#how" data-i18n="nav.how">Как работает</a>
+    <a href="#screens" data-i18n="nav.screens">Экраны</a>
+    <a href="#download" data-i18n="nav.download">Скачать</a>
+    <a href="#creator" data-i18n="nav.creator">Создатель</a>
+  </nav>
+  <div class="lang" role="group" aria-label="Language">
+    <button type="button" data-lang="ru" aria-pressed="true">RU</button>
+    <button type="button" data-lang="en" aria-pressed="false">EN</button>
+  </div>
+</header>
+
+<main>
+  <section id="hero" class="hero">
+    <p class="eyebrow" data-i18n="hero.eyebrow">Личный ИИ-ассистент для Android</p>
+    <h1 class="title"><span class="glitch" data-text="JARVIS">JARVIS</span></h1>
+    <p class="lead" data-i18n="hero.lead">Скажите «Джарвис», и телефон сделает остальное. Он узнаёт ваш голос, сам действует в приложениях и не теряется без интернета.</p>
+    <div class="cta">
+      <a class="btn primary" href="#download"><span data-i18n="hero.download">Скачать APK</span></a>
+      <a class="btn ghost" href="#features"><span data-i18n="hero.more">Что он умеет</span></a>
+    </div>
+    <ul class="chips">
+      <li data-i18n="hero.chip1">Только ваш голос</li>
+      <li data-i18n="hero.chip2">Онлайн и офлайн</li>
+      <li data-i18n="hero.chip3">Бесплатно</li>
+    </ul>
+    <a class="scroll-hint" href="#stats" aria-label="Scroll"><span></span></a>
+  </section>
+
+  <section id="stats" class="stats reveal">
+    <div class="stat"><b data-count="37">0</b><span data-i18n="stats.skills">навыков</span></div>
+    <div class="stat"><b data-count="60" data-suffix="k">0</b><span data-i18n="stats.lines">строк кода</span></div>
+    <div class="stat"><b data-count="1314">0</b><span data-i18n="stats.tests">автотестов</span></div>
+    <div class="stat"><b data-count="0" data-prefix="" data-suffix=" ₽">0</b><span data-i18n="stats.price">цена</span></div>
+  </section>
+
+  <section id="features" class="section">
+    <h2 class="h2 reveal"><span class="idx">01</span><span data-i18n="features.title">Возможности</span></h2>
+    <div class="grid">
+      <article class="card tilt reveal">
+        <div class="ic">◉</div>
+        <h3 data-i18n="f1.t">Узнаёт хозяина</h3>
+        <p data-i18n="f1.d">Слово «Джарвис» ловится прямо на телефоне, а чужой голос отсекается по отпечатку. Помогает даже при громком видео: Джарвис сам убавляет звук, пока слушает.</p>
+      </article>
+      <article class="card tilt reveal">
+        <div class="ic">✦</div>
+        <h3 data-i18n="f2.t">«Сделай сам»</h3>
+        <p data-i18n="f2.d">Агент открывает приложение, читает экран и нажимает за вас: найдёт видео на YouTube, откроет нужный раздел настроек или место на карте. Опасные шаги подтверждает голосом.</p>
+      </article>
+      <article class="card tilt reveal">
+        <div class="ic">≋</div>
+        <h3 data-i18n="f3.t">Живой разговор</h3>
+        <p data-i18n="f3.d">Режим Live: говорите без слова активации и перебивайте на полуслове. Джарвис отвечает своим голосом и обращается «сэр» в меру.</p>
+      </article>
+      <article class="card tilt reveal">
+        <div class="ic">♫</div>
+        <h3 data-i18n="f4.t">Музыка</h3>
+        <p data-i18n="f4.d">«Включи Queen» — и трек играет в SoundCloud, даже на заблокированном экране. Без интернета включает скачанное в Яндекс Музыке.</p>
+      </article>
+      <article class="card tilt reveal">
+        <div class="ic">⚡</div>
+        <h3 data-i18n="f5.t">Сценарии и события</h3>
+        <p data-i18n="f5.d">«Когда подключу наушники, включи музыку». Рутины запускаются от наушников, зарядки, Wi-Fi, открытия приложения и времени.</p>
+      </article>
+      <article class="card tilt reveal">
+        <div class="ic">☎</div>
+        <h3 data-i18n="f6.t">Весь телефон голосом</h3>
+        <p data-i18n="f6.d">Звонки, SMS и Telegram, будильники, таймеры, напоминания, заметки, громкость, яркость, фонарик, Wi-Fi и Bluetooth, камера и скриншоты.</p>
+      </article>
+      <article class="card tilt reveal">
+        <div class="ic">◎</div>
+        <h3 data-i18n="f7.t">Знает, что происходит</h3>
+        <p data-i18n="f7.d">Погода, курсы валют, новости, поиск в интернете и короткие ответы на вопросы. Утренняя сводка одной фразой.</p>
+      </article>
+      <article class="card tilt reveal">
+        <div class="ic">⛨</div>
+        <h3 data-i18n="f8.t">Безопасность</h3>
+        <p data-i18n="f8.d">Отправка, оплата и удаление только после вашего «да». Пароли и карты агент не вводит никогда. Ключи хранятся только на устройстве.</p>
+      </article>
+    </div>
+  </section>
+
+  <section id="how" class="section">
+    <h2 class="h2 reveal"><span class="idx">02</span><span data-i18n="how.title">Как это работает</span></h2>
+    <ol class="flow">
+      <li class="reveal"><span class="n">1</span><h3 data-i18n="h1.t">Слышит</h3><p data-i18n="h1.d">Слово «Джарвис» ловится прямо на телефоне. Речь распознаётся на устройстве, а длинные фразы при необходимости в облаке.</p></li>
+      <li class="reveal"><span class="n">2</span><h3 data-i18n="h2.t">Узнаёт</h3><p data-i18n="h2.d">Нейросеть сравнивает голос с вашим отпечатком и дообучается на ваших фразах.</p></li>
+      <li class="reveal"><span class="n">3</span><h3 data-i18n="h3.t">Понимает</h3><p data-i18n="h3.d">Частые команды разбираются мгновенно правилами. Сложное уходит облачным моделям с запасной цепочкой, а без сети остаётся локальная модель.</p></li>
+      <li class="reveal"><span class="n">4</span><h3 data-i18n="h4.t">Делает</h3><p data-i18n="h4.d">37 навыков и службы Android выполняют действие и проверяют, что оно действительно получилось.</p></li>
+    </ol>
+  </section>
+
+  <section id="screens" class="section">
+    <h2 class="h2 reveal"><span class="idx">03</span><span data-i18n="screens.title">Экраны</span></h2>
+    <div class="phones">
+      <figure class="phone reveal"><div class="screen"><span data-i18n="screens.soon">Скриншот скоро</span></div><figcaption data-i18n="screens.s1">Реактор</figcaption></figure>
+      <figure class="phone reveal mid"><div class="screen"><span data-i18n="screens.soon">Скриншот скоро</span></div><figcaption data-i18n="screens.s2">Разговор</figcaption></figure>
+      <figure class="phone reveal"><div class="screen"><span data-i18n="screens.soon">Скриншот скоро</span></div><figcaption data-i18n="screens.s3">Сценарии</figcaption></figure>
+    </div>
+  </section>
+
+  <section id="download" class="section">
+    <div class="download reveal">
+      <div>
+        <h2 class="h2"><span class="idx">04</span><span data-i18n="dl.title">Скачать</span></h2>
+        <p class="muted" data-i18n="dl.d">Тестовая версия 0.1.0. Android 10 и новее, процессор arm64, около 200 МБ: модели речи внутри.</p>
+        <ol class="steps">
+          <li data-i18n="dl.s1">Скачайте APK и разрешите установку из этого источника.</li>
+          <li data-i18n="dl.s2">Выдайте доступ к микрофону и специальным возможностям.</li>
+          <li data-i18n="dl.s3">Добавьте свои ключи облачных моделей в настройках. Они бесплатные.</li>
+          <li data-i18n="dl.s4">Запишите шесть фраз, чтобы Джарвис узнавал ваш голос.</li>
+        </ol>
+      </div>
+      <div class="dl-side">
+        <a class="btn primary big" id="apk" href="#download"><span data-i18n="dl.btn">Скачать APK</span></a>
+        <p class="tiny" data-i18n="dl.note">Ссылка появится после публикации сборки.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="creator" class="section">
+    <div class="creator reveal">
+      <div class="avatar" aria-hidden="true"><span>A</span></div>
+      <div>
+        <p class="eyebrow" data-i18n="cr.eyebrow">Создатель</p>
+        <h2 class="nick">Ajikapd</h2>
+        <p class="muted" data-i18n="cr.d">Придумал и собрал Jarvis в одиночку: от голоса до агента.</p>
+        <a class="btn ghost" href="https://t.me/ajikapd993" target="_blank" rel="noopener">Telegram · @ajikapd993</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <p>© 2026 Ajikapd · Jarvis</p>
+  <p class="tiny" data-i18n="foot.note">Независимый проект. Не связан с Marvel и Disney.</p>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="i18n.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
