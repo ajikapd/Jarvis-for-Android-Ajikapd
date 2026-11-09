@@ -42,7 +42,7 @@ object ProactiveVoice {
             .setAction(VoiceService.ACTION_SAY)
             .putExtra(VoiceService.EXTRA_TEXT, text)
         return runCatching {
-            context.startService(intent)
+            runCatching { context.startService(intent) }
             Result(requested = true, note = "sent")
         }.getOrElse { e ->
             Result(requested = false, note = "start_failed:${e.message}")

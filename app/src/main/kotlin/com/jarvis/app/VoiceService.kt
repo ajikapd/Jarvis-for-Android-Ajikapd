@@ -299,11 +299,7 @@ class VoiceService : Service() {
             ACTION_TOGGLE_WAKE -> {
                 JarvisSettings.setWakeEnabled(this, !JarvisSettings.wakeEnabled(this))
                 if (engine != null) {
-                    startForeground(
-                        NOTIFICATION_ID,
-                        buildNotification(entry),
-                        ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE,
-                    )
+                    if (!enterForeground(entry)) return START_NOT_STICKY
                 } else {
                     stopSelf()
                 }
@@ -323,7 +319,47 @@ class VoiceService : Service() {
                 startVoice(liveMode = false, entry = entry)
             }
         }
-        return START_STICKY
+        // Микрофон не дали: не просим систему перезапускать службу, иначе она упадёт по кругу.
+        return if (engine != null) START_STICKY else START_NOT_STICKY
+    }
+
+    /**
+     * Служба с микрофоном. Android 14+ запрещает её запуск, когда микрофон приложению недоступен
+     * (запуск из фона: загрузка, виджет, служба уведомлений). Раньше это роняло весь процесс.
+     */
+    private fun enterForeground(entry: String): Boolean = try {
+        startForeground(NOTIFICATION_ID, buildNotification(entry), ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+        true
+    } catch (e: Exception) {
+        Log.w(TAG, "foreground with microphone refused: ${e.message}")
+        CrashReports.record(this, "служба голоса не получила микрофон (вход: $entry)", e)
+        notifyOpenApp()
+        VoiceController.setRunning(false)
+        stopSelf()
+        false
+    }
+
+    /** Подсказка, когда голос не смог включиться сам. */
+    private fun notifyOpenApp() {
+        runCatching {
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            buildNotification()
+            val open = android.app.PendingIntent.getActivity(
+                this, 7,
+                Intent(this, com.jarvis.app.ui.JarvisActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+            manager.notify(
+                NOTIFICATION_ID + 1,
+                NotificationCompat.Builder(this, CHANNEL_ID)
+                    .setSmallIcon(R.drawable.ic_launcher_foreground)
+                    .setContentTitle("Джарвис не включил микрофон")
+                    .setContentText("Откройте Джарвис, чтобы включить голос.")
+                    .setContentIntent(open)
+                    .setAutoCancel(true)
+                    .build(),
+            )
+        }
     }
 
     private fun startVoice(liveMode: Boolean, entry: String = VoiceController.ENTRY_UNKNOWN) {
@@ -332,11 +368,7 @@ class VoiceService : Service() {
             return
         }
         Log.i(TAG, "VoicePipeline owning mic entry=$entry live=$liveMode")
-        startForeground(
-            NOTIFICATION_ID,
-            buildNotification(entry),
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE,
-        )
+        if (!enterForeground(entry)) return
         val voiceEngine = VoiceEngine(
             this,
             onWake = { VoiceController.notifyWake() },

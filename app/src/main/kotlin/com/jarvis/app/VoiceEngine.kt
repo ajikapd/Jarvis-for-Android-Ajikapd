@@ -1106,19 +1106,27 @@ object VoiceController {
         if (liveMode) isLiveSession = true
         val action = if (liveMode) VoiceService.ACTION_LIVE_START else VoiceService.ACTION_START
         Log.i(TAG, "pipeline start entry=$entry live=$liveMode running=$isRunning")
-        context.startForegroundService(
-            Intent(context, VoiceService::class.java).apply {
-                this.action = action
-                putExtra(VoiceService.EXTRA_ENTRY, entry)
-            },
-        )
+        // Из фона Android 12+ не даёт запускать службу с микрофоном: не роняем вызывающий процесс.
+        runCatching {
+            context.startForegroundService(
+                Intent(context, VoiceService::class.java).apply {
+                    this.action = action
+                    putExtra(VoiceService.EXTRA_ENTRY, entry)
+                },
+            )
+        }.onFailure { e ->
+            Log.w(TAG, "voice service start refused: ${e.message}")
+            CrashReports.record(context, "запуск голоса отклонён системой (вход: $entry)", e)
+        }
     }
 
     fun stop(context: Context) {
         JarvisSettings.setVoiceWanted(context, false)
-        context.startService(
-            Intent(context, VoiceService::class.java).apply { action = VoiceService.ACTION_STOP }
-        )
+        runCatching {
+            context.startService(
+                Intent(context, VoiceService::class.java).apply { action = VoiceService.ACTION_STOP }
+            )
+        }
     }
 
     fun speak(

@@ -69,10 +69,17 @@ class OverlayOrbService : Service() {
             return START_NOT_STICKY
         }
         val note = notification()
-        if (Build.VERSION.SDK_INT >= 34) {
-            startForeground(NOTIFICATION_ID, note, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
-        } else {
-            startForeground(NOTIFICATION_ID, note)
+        val started = runCatching {
+            if (Build.VERSION.SDK_INT >= 34) {
+                startForeground(NOTIFICATION_ID, note, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+            } else {
+                startForeground(NOTIFICATION_ID, note)
+            }
+        }
+        if (started.isFailure) {
+            CrashReports.record(this, "орб не смог показаться", started.exceptionOrNull()!!)
+            stopSelf()
+            return START_NOT_STICKY
         }
         show()
         return START_STICKY
@@ -305,15 +312,17 @@ class OverlayOrbService : Service() {
         fun show(context: Context) {
             if (!VoiceController.liveTalk) return
             val intent = Intent(context, OverlayOrbService::class.java).setAction(ACTION_SHOW)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
+            runCatching {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
+                }
             }
         }
 
         fun hide(context: Context) {
-            context.startService(Intent(context, OverlayOrbService::class.java).setAction(ACTION_HIDE))
+            runCatching { context.startService(Intent(context, OverlayOrbService::class.java).setAction(ACTION_HIDE)) }
         }
     }
 }
