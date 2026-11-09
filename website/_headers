@@ -1,0 +1,5 @@
+# APK отдаём без сжатия: сжатый поток Netlify обрывался, и загрузка в браузере зависала на 100%.
+/download/*
+  Cache-Control: public, max-age=0, must-revalidate, no-transform
+  Content-Type: application/octet-stream
+  Content-Disposition: attachment; filename="jarvis-0.1.0.apk"
