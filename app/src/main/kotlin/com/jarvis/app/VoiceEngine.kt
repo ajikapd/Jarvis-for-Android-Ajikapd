@@ -69,6 +69,10 @@ class VoiceEngine(
     /** Когда детекторы последний раз получали звук: если давно, глух не микрофон, а конвейер. */
     @Volatile private var wakeFedAtMs = 0L
     private var speaker: JarvisSpeaker? = null
+
+    fun reloadVoice(onReady: (() -> Unit)? = null) {
+        speaker?.reloadVoice(onReady)
+    }
     @Volatile private var disposed = false
     /** Пока Brain/LLM думает — не гоняем ASR (иначе tok/s падает в 2–3 раза). */
     @Volatile var processingBusy: Boolean = false
@@ -1042,6 +1046,11 @@ object VoiceController {
 
     @Volatile
     private var activeEngine: VoiceEngine? = null
+
+    /** Сменить голос на выбранный в настройках, не перезапуская слух. */
+    fun reloadVoice(onReady: (() -> Unit)? = null) {
+        activeEngine?.reloadVoice(onReady)
+    }
 
     interface Listener {
         fun onWake()

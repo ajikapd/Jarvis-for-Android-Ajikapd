@@ -45,20 +45,8 @@ class JarvisSpeaker(context: Context) {
         /** Сколько готовых фраз может ждать воспроизведения. */
         private const val READ_AHEAD_CHUNKS = 2
 
-        /** Голоса по порядку предпочтения: первым идёт свой, Dmitri остаётся запасным. */
-        fun voiceConfigs(context: Context): List<JarvisTtsConfig> {
-            val root = File(context.getExternalFilesDir(null), "models")
-            val own = File(root, JARVIS_VOICE_DIR)
-            return buildList {
-                if (isVoiceComplete(own, JARVIS_VOICE_ONNX)) {
-                    add(JarvisTtsConfig(own, modelOnnx = JARVIS_VOICE_ONNX, numThreads = 4, speed = JARVIS_VOICE_SPEED))
-                }
-                listOf(TTS_MODEL_DIR, TTS_MODEL_DIR_INT8)
-                    .map { File(root, it) }
-                    .firstOrNull { File(it, DMITRI_ONNX).isFile }
-                    ?.let { add(JarvisTtsConfig(it, numThreads = 4, speed = DMITRI_SPEED)) }
-            }
-        }
+        /** Голоса по порядку: выбранный в настройках, затем фирменный и Дмитрий как запасные. */
+        fun voiceConfigs(context: Context): List<JarvisTtsConfig> = VoiceCatalog.configs(context)
 
         /** Сбой sherpa при неполной папке роняет процесс, поэтому полноту проверяем заранее. */
         private fun isVoiceComplete(dir: File, onnx: String): Boolean =
@@ -126,6 +114,22 @@ class JarvisSpeaker(context: Context) {
             }
         } else {
             Log.w(TAG, "TTS: нет ни одного локального голоса")
+        }
+    }
+
+    /** Сменить голос без перезапуска: новый загружается в потоке синтеза, старый освобождается. */
+    fun reloadVoice(onReady: (() -> Unit)? = null) {
+        scope.launch {
+            val config = voiceConfigs(appCtx).firstNotNullOfOrNull { candidate ->
+                runCatching { JarvisTts(candidate) }
+                    .onFailure { Log.e(TAG, "TTS reload failed: ${candidate.modelDir.name}: ${it.message}") }
+                    .getOrNull()?.let { candidate to it }
+            } ?: return@launch
+            val old = tts
+            tts = config.second
+            runCatching { old?.release() }
+            Log.i(TAG, "voice switched to ${config.first.modelDir.name}")
+            onReady?.invoke()
         }
     }
 

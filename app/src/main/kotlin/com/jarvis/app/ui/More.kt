@@ -183,6 +183,54 @@ class SectionScreen(host: JarvisActivity) : Screen(host) {
         return box
     }
 
+    /** Выбор голоса Джарвиса: фирменный вшит, остальные скачиваются. Выбор сразу звучит пробной фразой. */
+    fun voicePicker(): View {
+        val box = host.column(8)
+        val mgr = ModelManager.get(host)
+        mgr.refreshAll()
+        fun render() {
+            box.removeAllViews()
+            val chosen = com.jarvis.app.VoiceCatalog.selectedId(host)
+            com.jarvis.app.VoiceCatalog.ALL.forEach { v ->
+                val ready = com.jarvis.app.VoiceCatalog.isReady(host, v) || v.downloadId == null
+                val st = v.downloadId?.let { mgr.status(it) }
+                val tag = when {
+                    v.id == chosen -> host.label("Выбран", 12f, skin.good)
+                    st?.state == ModelManager.State.DOWNLOADING -> host.label("${(st.progress * 100).toInt()}%", 12f, skin.accent)
+                    ready -> host.label("Выбрать", 12f, skin.accent)
+                    else -> host.label("Скачать", 12f, skin.onAccent, Fonts.body(host, 700)).apply {
+                        background = host.glassBg(skin, 14, skin.accent, skin.accent)
+                        setPadding(host.dp(12), host.dp(6), host.dp(12), host.dp(6))
+                    }
+                }
+                box.addView(card(v.title, v.about, trailing = tag) {
+                    when {
+                        ready -> {
+                            com.jarvis.app.VoiceCatalog.select(host, v.id)
+                            render()
+                            com.jarvis.app.VoiceController.reloadVoice {
+                                host.runOnUiThread { com.jarvis.app.VoiceController.speak("Добрый день, сэр. Так теперь звучит мой голос.") }
+                            }
+                        }
+                        st?.state != ModelManager.State.DOWNLOADING -> v.downloadId?.let { mgr.download(it) }
+                    }
+                })
+            }
+            if (!com.jarvis.app.VoiceController.isRunning) {
+                box.addView(note("Включите ассистента, чтобы сразу услышать выбранный голос."))
+            }
+        }
+        render()
+        val job = host.lifecycleScope.launch {
+            host.repeatOnLifecycle(Lifecycle.State.STARTED) { mgr.statuses.collect { if (box.isAttachedToWindow) render() } }
+        }
+        box.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) = Unit
+            override fun onViewDetachedFromWindow(v: View) { job.cancel() }
+        })
+        return box
+    }
+
     /** Громкость голоса Джарвиса: проценты внутри выбранного потока. Пробная фраза при отпускании. */
     fun voiceVolume(): View {
         val box = host.column(8).pad(12).apply { background = host.glassBg(skin) }
@@ -396,6 +444,8 @@ object Sections {
             b.addView(toggle("Слово «Джарвис»", "Команда начинается с обращения", JarvisSettings.wakeEnabled(c)) { JarvisSettings.setWakeEnabled(c, it); restartVoice() })
             b.addView(options("Чувствительность", listOf("Низкая", "Средняя", "Высокая"), JarvisSettings.wakeSensitivity(c)) { JarvisSettings.setWakeSensitivity(c, it); restartVoice() })
             b.addView(voiceLock())
+            b.addView(head("Голос Джарвиса"))
+            b.addView(voicePicker())
             b.addView(head("Звук"))
             b.addView(toggle("Сигнал активации", "Короткий «бип», когда Джарвис услышал своё имя", JarvisSettings.wakeChime(c)) { JarvisSettings.setWakeChime(c, it) })
             b.addView(toggle("Громкость как у музыки", "Голос регулируется кнопками громкости, как видео и музыка", JarvisSettings.voiceFollowsMedia(c)) { JarvisSettings.setVoiceOutput(c, followMedia = it) })
