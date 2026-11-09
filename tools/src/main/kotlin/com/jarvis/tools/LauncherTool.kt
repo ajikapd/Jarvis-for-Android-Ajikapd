@@ -70,10 +70,9 @@ class LauncherTool(private val context: Context) : Tool {
         }
         return try {
             val pm = context.packageManager
-            val launchIntent = pm.getLaunchIntentForPackage(query)
-            val intent = launchIntent ?: findByLabel(query)
+            val intent = resolvePackage(query)?.let { pm.getLaunchIntentForPackage(it) }
             if (intent == null) {
-                ToolResult(requestId, definition.id, ToolResultStatus.FAILED, "Приложение «$query» не найдено.")
+                ToolResult(requestId, definition.id, ToolResultStatus.FAILED, notFound(query))
             } else {
                 val pkg = intent.component?.packageName ?: "приложение"
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -146,7 +145,7 @@ class LauncherTool(private val context: Context) : Tool {
         val pkg = resolvePackage(query)
             ?: return ToolResult(
                 requestId, definition.id, ToolResultStatus.FAILED,
-                "Приложение «$query» не найдено.",
+                notFound(query),
             )
         return try {
             val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
@@ -174,12 +173,32 @@ class LauncherTool(private val context: Context) : Tool {
         }
     }
 
+    /**
+     * Пакет по названию: точный пакет, затем синоним человека, затем название приложения
+     * (сначала точное, потом по звучанию: «ватсапп бизнес» → WhatsApp Business).
+     */
     fun resolvePackage(query: String): String? {
         val pm = context.packageManager
-        if (pm.getLaunchIntentForPackage(query) != null) return query
-        val intent = findByLabel(query) ?: return null
-        return intent.component?.packageName
+        if (runCatching { pm.getLaunchIntentForPackage(query) }.getOrNull() != null) return query
+        AppAliases(context).resolve(query)?.let { pkg ->
+            if (pm.getLaunchIntentForPackage(pkg) != null) return pkg
+        }
+        findByLabel(query)?.component?.packageName?.let { return it }
+        return AppMatcher.best(query, launcherApps())
     }
+
+    private fun notFound(query: String) =
+        "Не нашёл приложение «$query». Если оно называется иначе, добавьте синоним: «Ещё → Приложения»."
+
+    /** Все приложения с иконкой: (пакет, название). */
+    fun launcherApps(): List<Pair<String, String>> = runCatching {
+        val pm = context.packageManager
+        val main = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        pm.queryIntentActivities(main, 0)
+            .map { it.activityInfo.packageName to (it.loadLabel(pm)?.toString() ?: "") }
+            .filter { it.second.isNotBlank() }
+            .distinctBy { it.first }
+    }.getOrDefault(emptyList())
 
     private fun findByLabel(query: String): Intent? = runCatching {
         val pm = context.packageManager
@@ -198,7 +217,7 @@ class LauncherTool(private val context: Context) : Tool {
                 val score = matchScore(query, appName, q, label, norm)
                 Triple(pkg, label, score)
             }
-            .filter { it.third > 0 }
+            .filter { it.third >= STRONG_MATCH }
             .maxByOrNull { it.third }
             ?.let { (pkg, _, _) -> pm.getLaunchIntentForPackage(pkg) }
     }.getOrNull()
@@ -227,5 +246,6 @@ class LauncherTool(private val context: Context) : Tool {
 
     private companion object {
         val OPEN_VERBS = setOf("открой", "запусти", "открыть", "запустить", "приложение")
+        const val STRONG_MATCH = 80
     }
 }

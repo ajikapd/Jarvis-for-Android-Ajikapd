@@ -464,6 +464,42 @@ object Sections {
                 }
             })
         },
+        MoreSection("Приложения", "Синонимы для открытия голосом", Ic.GRID) { b ->
+            val c = app
+            val aliases = com.jarvis.tools.AppAliases(c)
+            val launcher = com.jarvis.tools.LauncherTool(c)
+            b.addView(note("Скажите синоним вместо названия: «открой телегу», «зайди в работу». Джарвис и так понимает русское написание («ватсап», «ютуб»), синонимы нужны для своих слов."))
+            val labels = launcher.launcherApps().toMap()
+            val list = aliases.all()
+            if (list.isEmpty()) b.addView(note("Синонимов пока нет."))
+            list.forEach { (alias, pkg) ->
+                b.addView(link(alias, "→ ${labels[pkg] ?: pkg}. Нажмите, чтобы удалить") {
+                    c.showConfirm("Удалить синоним «$alias»?", "Синоним") {
+                        aliases.remove(alias)
+                        onShow()
+                    }
+                })
+            }
+            b.addView(link("Добавить синоним", "Выберите приложение и слово для него") {
+                val apps = launcher.launcherApps().sortedBy { it.second.lowercase() }
+                android.app.AlertDialog.Builder(c)
+                    .setTitle("Какое приложение?")
+                    .setItems(apps.map { it.second }.toTypedArray()) { _, which ->
+                        val (pkg, label) = apps[which]
+                        val input = android.widget.EditText(c).apply { hint = "Например: телега"; setSingleLine() }
+                        android.app.AlertDialog.Builder(c)
+                            .setTitle("Синоним для «$label»")
+                            .setView(input)
+                            .setPositiveButton("Сохранить") { _, _ ->
+                                aliases.add(input.text.toString(), pkg)
+                                onShow()
+                            }
+                            .setNegativeButton("Отмена", null)
+                            .show()
+                    }
+                    .show()
+            })
+        },
         MoreSection("Помощь и диагностика", "Гид, консоль, разработка", Ic.HELP) { b ->
             val c = app
             b.addView(head("Помощь"))
