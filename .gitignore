@@ -83,3 +83,4 @@ __pycache__/
 .aider*
 guide_media/
 site_package/
+releases/
