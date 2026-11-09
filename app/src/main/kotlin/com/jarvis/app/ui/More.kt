@@ -425,6 +425,18 @@ object Sections {
         },
         MoreSection("Присутствие", "Подсказки, объявления, тихие часы", Ic.BELL) { b ->
             val c = app
+            b.addView(head("Погода"))
+            b.addView(note("Город берётся по геолокации. Если она выключена, Джарвис скажет погоду для города ниже."))
+            b.addView(textField("Город, например: Казань", value = prefs.getString(com.jarvis.tools.HOME_CITY_PREF, "").orEmpty()).apply {
+                layoutParams = lp(h = c.dp(42))
+                addTextChangedListener(object : android.text.TextWatcher {
+                    override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
+                    override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
+                    override fun afterTextChanged(s: android.text.Editable?) {
+                        prefs.edit().putString(com.jarvis.tools.HOME_CITY_PREF, s?.toString()?.trim().orEmpty()).apply()
+                    }
+                })
+            })
             b.addView(head("Подсказки"))
             b.addView(pref("Проактивность", "Сам предлагает помощь", "companion_proactive", true))
             b.addView(pref("Фоновые уведомления", "Подсказки в шторке", "companion_bg_notify", true))

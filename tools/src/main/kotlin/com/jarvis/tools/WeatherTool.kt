@@ -1,9 +1,6 @@
 package com.jarvis.tools
 
-import android.Manifest
 import android.content.Context
-import android.content.pm.PackageManager
-import android.location.LocationManager
 import com.jarvis.core.common.Tool
 import com.jarvis.core.common.model.OnlineRequirement
 import com.jarvis.core.common.model.ParameterType
@@ -16,6 +13,9 @@ import com.jarvis.core.common.model.ToolResultStatus
 import com.jarvis.tools.net.SimpleHttp
 import java.net.URLEncoder
 import java.util.Locale
+
+/** Город для погоды, когда геолокация недоступна (настройка «Присутствие → Погода»). */
+const val HOME_CITY_PREF = "weather_home_city"
 
 /**
  * Погода через Open-Meteo (без ключа). Кэш ~12 минут.
@@ -37,13 +37,24 @@ class WeatherTool(private val context: Context) : Tool {
     override fun execute(call: ToolCall): ToolResult {
         return try {
             val cityRaw = call.arguments["city"]?.toString()?.trim().orEmpty()
-            val place = if (cityRaw.isNotBlank()) geocode(cityRaw) else locateDevice()
-                ?: geocode("Москва")
+            // Без города в запросе — где сейчас телефон. Москвы по умолчанию больше нет.
+            val home = context.getSharedPreferences("jarvis_prefs", Context.MODE_PRIVATE)
+                .getString(HOME_CITY_PREF, null)?.trim().orEmpty()
+            val place = when {
+                cityRaw.isNotBlank() -> geocode(cityRaw)
+                else -> locateDevice() ?: home.takeIf { it.isNotBlank() }?.let { geocode(it) }
+            }
             if (place == null) {
-                return ToolResult(
-                    call.requestId, definition.id, ToolResultStatus.FAILED,
-                    "Не удалось определить место. Назовите город, сэр.",
-                )
+                val where = DeviceLocation(context)
+                val why = when {
+                    cityRaw.isNotBlank() -> "Не нашёл город «$cityRaw». Скажите иначе, например: «погода в Казани»."
+                    !where.hasPermission() ->
+                        "Не знаю, где вы. Разрешите Джарвису доступ к местоположению или назовите город: «погода в Казани»."
+                    !where.isEnabled() ->
+                        "Геолокация на телефоне выключена. Включите её или укажите город в настройках «Присутствие → Погода»."
+                    else -> "Не удалось определить место. Назовите город или укажите его в настройках «Присутствие → Погода»."
+                }
+                return ToolResult(call.requestId, definition.id, ToolResultStatus.FAILED, why)
             }
             val url =
                 "https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}" +
@@ -174,16 +185,8 @@ class WeatherTool(private val context: Context) : Tool {
     }
 
     private fun locateDevice(): Place? {
-        if (context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) !=
-            PackageManager.PERMISSION_GRANTED
-        ) return null
-        val lm = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        val providers = listOf(LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER)
-        for (p in providers) {
-            val loc = runCatching { lm.getLastKnownLocation(p) }.getOrNull() ?: continue
-            return Place("В вашем районе", loc.latitude, loc.longitude)
-        }
-        return null
+        val spot = DeviceLocation(context).current() ?: return null
+        return Place(spot.name ?: "Рядом с вами", spot.lat, spot.lon)
     }
 
     private fun weatherCodeRu(code: Int): String = when (code) {
