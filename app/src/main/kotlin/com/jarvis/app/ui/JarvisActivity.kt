@@ -26,6 +26,8 @@ import com.jarvis.app.JarvisSettings
 import com.jarvis.app.OnboardingActivity
 import com.jarvis.app.OverlayOrbService
 import com.jarvis.app.UiMode
+import com.jarvis.app.NativeGuard
+import com.jarvis.app.CrashReports
 import com.jarvis.app.DashboardActivity
 import com.jarvis.core.startup.StartupRoute
 import com.jarvis.app.VoiceController
@@ -109,6 +111,13 @@ class JarvisActivity : AppCompatActivity() {
         if (restored == SECTION && section in Sections.ALL.indices) openSection(Sections.ALL[section])
         else show(if (restored == SECTION) MORE else restored)
         if (savedInstanceState?.getBoolean("live") == true) openLive()
+        if (savedInstanceState == null && CrashReports.takePrompt(this)) {
+            showConfirm(
+                "Джарвис недавно закрылся с ошибкой. Отправить отчёт разработчику? " +
+                    "В нём модель телефона и техническая часть, без ваших команд и переписки.",
+                "Отчёт об ошибке",
+            ) { startActivity(CrashReports.shareIntent(this)) }
+        }
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -171,7 +180,14 @@ class JarvisActivity : AppCompatActivity() {
     override fun onStart() {
         super.onStart()
         // Был включён до закрытия или обновления: поднимаем без лишнего нажатия.
-        if (JarvisSettings.voiceWanted(this) && !VoiceController.isRunning) powerOn()
+        if (JarvisSettings.voiceWanted(this) && !VoiceController.isRunning &&
+            !NativeGuard.isOff(this, NativeGuard.VOICE_AUTOSTART)
+        ) {
+            // Если запуск голоса уронит приложение, в следующий раз автозапуска не будет.
+            NativeGuard.begin(this, NativeGuard.VOICE_AUTOSTART)
+            powerOn()
+            window.decorView.postDelayed({ NativeGuard.end(this, NativeGuard.VOICE_AUTOSTART) }, AUTOSTART_SAFE_MS)
+        }
     }
 
     override fun onResume() {
@@ -264,10 +280,21 @@ class JarvisActivity : AppCompatActivity() {
         if (id != SECTION) previous = if (current == SECTION) MORE else current.ifEmpty { HOME }
         screens[current]?.onHide()
         current = id
-        val screen = screens.getOrPut(id) { createScreen(id) }
         content.removeAllViews()
-        content.addView(screen.view, FrameLayout.LayoutParams(-1, -1))
-        screen.onShow()
+        try {
+            val screen = screens.getOrPut(id) { createScreen(id) }
+            content.addView(screen.view, FrameLayout.LayoutParams(-1, -1))
+            screen.onShow()
+        } catch (e: Exception) {
+            // Экран не собрался на этом устройстве: вместо вылета сообщение и отчёт.
+            screens.remove(id)
+            CrashReports.record(this, "экран «$id»", e)
+            content.removeAllViews()
+            content.addView(column(12).pad(24, 60).apply {
+                addView(label("Этот экран не открылся", 20f, skin.text, Fonts.display(this@JarvisActivity)))
+                addView(label("Отчёт сохранён. Отправить его можно в «Ещё → Помощь и диагностика».", 14f, skin.muted))
+            }, FrameLayout.LayoutParams(-1, -1))
+        }
         val active = if (id == SECTION) MORE else id
         tabs.forEach { (key, pair) ->
             val c = if (key == active) skin.accent else skin.muted
@@ -492,6 +519,7 @@ class JarvisActivity : AppCompatActivity() {
         const val STATUS = "status"
         const val SCAN = "scan"
         const val SECTION = "section"
+        private const val AUTOSTART_SAFE_MS = 20_000L
         private const val STARTUP_POLLS = 40
         private const val WAKE_SETTLE_MS = 400L
         private const val STARTUP_POLL_MS = 500L

@@ -61,10 +61,10 @@ class OnboardingActivity : AppCompatActivity() {
             PermissionsHelper.openAutoStartSettings(this)
         }
         findViewById<Button>(R.id.btnAccessibility).setOnClickListener {
-            PermissionsHelper.openAccessibilitySettings(this)
+            RestrictedSettingsHelp.thenOpen(this) { PermissionsHelper.openAccessibilitySettings(this) }
         }
         findViewById<Button>(R.id.btnNotificationListener).setOnClickListener {
-            PermissionsHelper.openNotificationListenerSettings(this)
+            RestrictedSettingsHelp.thenOpen(this) { PermissionsHelper.openNotificationListenerSettings(this) }
         }
         findViewById<Button>(R.id.btnWriteSettings).setOnClickListener {
             PermissionsHelper.openWriteSettings(this)

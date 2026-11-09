@@ -144,6 +144,17 @@ class DashboardActivity : AppCompatActivity() {
             return
         }
         setContentView(R.layout.activity_dashboard_shell)
+        if (savedInstanceState == null && CrashReports.takePrompt(this)) {
+            android.app.AlertDialog.Builder(this)
+                .setTitle("Отчёт об ошибке")
+                .setMessage(
+                    "Джарвис недавно закрылся с ошибкой. Отправить отчёт разработчику? " +
+                        "В нём модель телефона и техническая часть, без ваших команд и переписки.",
+                )
+                .setPositiveButton("Отправить") { _, _ -> startActivity(CrashReports.shareIntent(this)) }
+                .setNegativeButton("Не сейчас", null)
+                .show()
+        }
         ThemeApplier.applyToActivity(this)
 
         screenContainer = findViewById(R.id.screenContainer)
@@ -1174,6 +1185,9 @@ class DashboardActivity : AppCompatActivity() {
         }
         screen.findViewById<TextView>(R.id.btnSwitchModern)?.setOnClickListener {
             UiMode.switchTo(this, com.jarvis.core.startup.UiStyle.MODERN)
+        }
+        screen.findViewById<TextView>(R.id.btnSendReport)?.setOnClickListener {
+            startActivity(CrashReports.shareIntent(this))
         }
 
         val ctx = this
@@ -2517,6 +2531,9 @@ class DashboardActivity : AppCompatActivity() {
         }
         screen.findViewById<TextView>(R.id.btnSwitchModern)?.setOnClickListener {
             UiMode.switchTo(this, com.jarvis.core.startup.UiStyle.MODERN)
+        }
+        screen.findViewById<TextView>(R.id.btnSendReport)?.setOnClickListener {
+            startActivity(CrashReports.shareIntent(this))
         }
 
         screen.findViewById<JarvisToggle>(R.id.toggleHudSfx)?.apply {

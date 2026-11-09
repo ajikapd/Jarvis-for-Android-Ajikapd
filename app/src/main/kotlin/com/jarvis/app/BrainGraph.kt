@@ -567,6 +567,11 @@ object BrainGraph {
         val app = context.applicationContext
         if (!JarvisSettings.chatPreloadEnabled(app)) return
         if (chatModelFile(app) == null) return
+        // На телефонах с малой памятью модель загрузится при первом вопросе, а не при каждом запуске.
+        if (totalRamMb(app) < PRELOAD_MIN_RAM_MB) {
+            android.util.Log.i("Jarvis.ChatLlm", "eager preload skipped: low RAM")
+            return
+        }
         Thread({
             Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND)
             android.util.Log.i("Jarvis.ChatLlm", "eager preload…")
@@ -682,6 +687,7 @@ object BrainGraph {
             val engine = LlamaChatLlmEngine(
                 modelFile = file,
                 profileProvider = { JarvisSettings.chatProfile(app) },
+                guardContext = app,
             )
             chatLlm = engine
             // Refresh Stage 10 local provider binding when chat model changes
@@ -698,6 +704,8 @@ object BrainGraph {
     }
 
     fun chatModelFile(context: Context): File? {
+        // Локальная модель уронила приложение на этом телефоне: работаем через облако.
+        if (NativeGuard.isOff(context, NativeGuard.LLAMA)) return null
         val root = context.getExternalFilesDir(null) ?: return null
         val preferred = JarvisSettings.prefs(context).getString("active_chat_model", null)
         val order = buildList {
@@ -747,4 +755,11 @@ object BrainGraph {
     }
 
     private const val LLM_MODEL_NAME = "brain.litertlm"
+    private const val PRELOAD_MIN_RAM_MB = 6_000L
+
+    private fun totalRamMb(context: Context): Long {
+        val am = context.getSystemService(android.app.ActivityManager::class.java) ?: return 0
+        val info = android.app.ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }
+        return info.totalMem / 1_048_576
+    }
 }

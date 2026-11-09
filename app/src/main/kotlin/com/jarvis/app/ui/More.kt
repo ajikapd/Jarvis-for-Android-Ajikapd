@@ -69,7 +69,11 @@ class SectionScreen(host: JarvisActivity) : Screen(host) {
         root.removeAllViews()
         root.addView(header(s.title, true))
         val body = host.column(10)
-        s.build(this, body)
+        // Сломанная строка не должна закрывать всё приложение: показываем, что успели, и пишем отчёт.
+        runCatching { s.build(this, body) }.onFailure { e ->
+            com.jarvis.app.CrashReports.record(host, "раздел «${s.title}»", e)
+            body.addView(note("Часть раздела не открылась на этом телефоне. Отчёт сохранён: «Помощь и диагностика → Отправить отчёт об ошибке»."))
+        }
         root.addView(scroll(body), lp(h = 0, weight = 1f))
     }
 
@@ -452,6 +456,9 @@ object Sections {
             val c = app
             b.addView(head("Помощь"))
             b.addView(link("Как пользоваться", "Короткий гид") { c.startActivity(Intent(c, UsageGuideActivity::class.java)) })
+            b.addView(link("Отправить отчёт об ошибке", "Если что-то вылетает или не работает") {
+                c.startActivity(com.jarvis.app.CrashReports.shareIntent(c))
+            })
             b.addView(link("Текущая ситуация", "Что он сейчас видит") { c.show(JarvisActivity.SCAN) })
             b.addView(head("Для разработчика"))
             b.addView(link("Консоль", "Проверка команд") { c.startActivity(Intent(c, TestConsoleActivity::class.java)) })

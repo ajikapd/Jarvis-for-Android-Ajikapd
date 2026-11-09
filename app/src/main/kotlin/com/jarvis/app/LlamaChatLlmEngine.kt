@@ -26,7 +26,12 @@ import kotlin.math.min
 class LlamaChatLlmEngine(
     private val modelFile: File,
     private val profileProvider: () -> String = { "BALANCED" },
+    /** Если задан, каждый нативный вызов помечается: вылет внутри него отключит модель. */
+    private val guardContext: android.content.Context? = null,
 ) : ChatLlmEngine, com.jarvis.brain.aiprovider.ModelNamed {
+
+    private inline fun <T> native(crossinline block: () -> T): T =
+        guardContext?.let { NativeGuard.run(it, NativeGuard.LLAMA) { block() } } ?: block()
 
     override val modelId: String get() = modelFile.name
 
@@ -112,14 +117,14 @@ class LlamaChatLlmEngine(
             val t0 = SystemClock.elapsedRealtime()
             runCatching {
                 Process.setThreadPriority(Process.THREAD_PRIORITY_MORE_FAVORABLE)
-                runBlocking {
+                native { runBlocking {
                     Llama.complete(
                         m,
                         prompt = if (isQwen3) "/no_think Привет кратко." else "Привет кратко.",
                         systemPrompt = "",
                         maxTokens = 4,
                     )
-                }
+                } }
                 Log.i(
                     TAG,
                     "warm-up ${SystemClock.elapsedRealtime() - t0}ms " +
@@ -136,9 +141,9 @@ class LlamaChatLlmEngine(
         if (now - last < KEEP_HOT_MIN_MS) return
         lastKeepHotAt = now
         runCatching {
-            runBlocking {
+            native { runBlocking {
                 Llama.complete(m, prompt = if (isQwen3) "/no_think ." else ".", systemPrompt = "ok", maxTokens = 1)
-            }
+            } }
             Log.d(TAG, "keep-hot ping ok")
         }
     }
@@ -184,9 +189,9 @@ class LlamaChatLlmEngine(
             }
             Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO)
             return try {
-                val result = runBlocking {
+                val result = native { runBlocking {
                     Llama.complete(m, prompt = prompt, systemPrompt = system, maxTokens = p.maxTokens)
-                }
+                } }
                 val text = cleanup(result.text)?.let {
                     com.jarvis.core.llm.LlmOutputPolicy.apply(it, budget)
                 }
@@ -249,7 +254,7 @@ class LlamaChatLlmEngine(
         )
         val loaded = try {
             Process.setThreadPriority(Process.THREAD_PRIORITY_MORE_FAVORABLE)
-            runBlocking {
+            native { runBlocking {
                 Llama.loadModel(
                     modelPath = modelFile.absolutePath,
                     config = LlamaConfig(
@@ -262,7 +267,7 @@ class LlamaChatLlmEngine(
                         seed = 42,
                     ),
                 )
-            }
+            } }
         } catch (t: Throwable) {
             loadFailed = true
             Log.e(TAG, "Chat LLM load failed: ${t.message}", t)

@@ -15,6 +15,9 @@ import com.jarvis.core.storage.RetentionPolicy
 class JarvisApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+        // Первым делом: вылеты дальше по запуску тоже попадут в отчёт.
+        CrashReports.install(this)
+        NativeGuard.checkAfterStart(this)
         SecureKeyMigration.migrate(this)
         SystemStateObserver.ensureStarted(this)
         UsageStatsObserver.ensureStarted(this)
