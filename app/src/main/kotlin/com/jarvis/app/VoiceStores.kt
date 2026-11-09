@@ -82,7 +82,11 @@ class PrefsCustomRoutines(private val context: Context) : CustomRoutines {
     }
 
     @Synchronized
-    override fun steps(name: String): List<String>? = all().optJSONArray(name.lowercase().trim())?.strings()
+    override fun steps(name: String): List<String>? {
+        val all = all()
+        return (all.optJSONArray(com.jarvis.core.routines.CommandBuilder.key(name)) ?: all.optJSONArray(name.lowercase().trim()))
+            ?.strings()
+    }
 
     @Synchronized
     override fun put(name: String, steps: List<String>) = save(all().put(name.lowercase().trim(), JSONArray(steps)))

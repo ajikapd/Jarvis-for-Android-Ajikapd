@@ -1,5 +1,6 @@
 package com.jarvis.app.ui
 
+import com.jarvis.core.routines.CommandBuilder as CB
 import android.content.Intent
 import android.text.InputType
 import android.view.Gravity
@@ -181,6 +182,95 @@ class SectionScreen(host: JarvisActivity) : Screen(host) {
         })
         box.addView(host.label("Ниже: чаще выполняет сам. Выше: чаще переспрашивает.", 12f, skin.muted))
         return box
+    }
+
+    /** Редактор своей команды: фраза, режим (цепочка или агент), шаги. */
+    fun commandEditor(existing: String?) {
+        val store = com.jarvis.app.PrefsCustomRoutines(host)
+        val oldSteps = existing?.let { store.steps(it) }.orEmpty()
+        var mode = if (existing == null) CB.Mode.CHAIN else CB.modeOf(oldSteps)
+        val pad = host.dp(20)
+        val form = android.widget.LinearLayout(host).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(pad, host.dp(8), pad, 0)
+        }
+        val trigger = android.widget.EditText(host).apply { hint = "Фраза, например: поехали"; setSingleLine(); setText(existing.orEmpty()) }
+        val body = android.widget.EditText(host).apply {
+            minLines = 4
+            gravity = android.view.Gravity.TOP
+            setText(if (existing == null) "" else CB.bodyOf(oldSteps))
+        }
+        val modes = android.widget.RadioGroup(host).apply { orientation = android.widget.RadioGroup.HORIZONTAL }
+        val chainBtn = android.widget.RadioButton(host).apply { text = "Цепочка команд"; id = android.view.View.generateViewId() }
+        val agentBtn = android.widget.RadioButton(host).apply { text = "Задание агенту"; id = android.view.View.generateViewId() }
+        modes.addView(chainBtn)
+        modes.addView(agentBtn)
+        val templates = android.widget.Button(host).apply { text = "Добавить готовый шаг" }
+        fun applyMode() {
+            body.hint = if (mode == CB.Mode.CHAIN) "Каждый шаг с новой строки:\nвключи блютуз\nвключи музыку" else "Что сделать словами: открой Яндекс Go и вызови такси домой"
+            templates.visibility = if (mode == CB.Mode.CHAIN) View.VISIBLE else View.GONE
+        }
+        modes.check(if (mode == CB.Mode.CHAIN) chainBtn.id else agentBtn.id)
+        modes.setOnCheckedChangeListener { _, id -> mode = if (id == agentBtn.id) CB.Mode.AGENT else CB.Mode.CHAIN; applyMode() }
+        templates.setOnClickListener {
+            android.app.AlertDialog.Builder(host).setTitle("Готовый шаг")
+                .setItems(CB.TEMPLATES.toTypedArray()) { _, i ->
+                    val cur = body.text.toString().trimEnd()
+                    body.setText(if (cur.isEmpty()) CB.TEMPLATES[i] else cur + "\n" + CB.TEMPLATES[i])
+                    body.setSelection(body.text.length)
+                }.show()
+        }
+        applyMode()
+        form.addView(trigger)
+        form.addView(modes)
+        form.addView(body)
+        form.addView(templates)
+        val hintView = android.widget.TextView(host).apply {
+            text = "Агент работает в приложениях сам: нужен доступ «Специальные возможности». Отправку и оплату он переспросит."
+            textSize = 12f
+            setPadding(0, host.dp(8), 0, 0)
+        }
+        form.addView(hintView)
+        fun save(): String? {
+            val reserved = com.jarvis.core.nlp.Routines.builtInNames.map { CB.key(it) }.toSet() - setOfNotNull(existing?.let { CB.key(it) })
+            return when (val r = CB.build(trigger.text.toString(), mode, body.text.toString(), reserved)) {
+                is CB.Result.Error -> { android.widget.Toast.makeText(host, r.message, android.widget.Toast.LENGTH_LONG).show(); null }
+                is CB.Result.Ok -> {
+                    if (existing != null && CB.key(existing) != r.trigger) store.remove(existing)
+                    store.put(r.trigger, r.steps)
+                    r.trigger
+                }
+            }
+        }
+        val dialog = android.app.AlertDialog.Builder(host)
+            .setTitle(if (existing == null) "Новая команда" else "Команда «$existing»")
+            .setView(android.widget.ScrollView(host).apply { addView(form) })
+            .setPositiveButton("Сохранить", null)
+            .setNeutralButton("Проверить", null)
+            .setNegativeButton(if (existing == null) "Отмена" else "Удалить", null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                if (save() != null) { dialog.dismiss(); onShow() }
+            }
+            dialog.getButton(android.app.AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+                val name = save() ?: return@setOnClickListener
+                if (com.jarvis.app.VoiceController.isRunning) {
+                    com.jarvis.app.VoiceController.notifyRequest(com.jarvis.core.common.model.UserRequest(name))
+                    android.widget.Toast.makeText(host, "Выполняю «$name»", android.widget.Toast.LENGTH_SHORT).show()
+                } else {
+                    android.widget.Toast.makeText(host, "Сохранено. Включите ассистента, чтобы проверить.", android.widget.Toast.LENGTH_LONG).show()
+                }
+                dialog.dismiss()
+                onShow()
+            }
+            dialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).setOnClickListener {
+                if (existing != null) store.remove(existing)
+                dialog.dismiss()
+                onShow()
+            }
+        }
+        dialog.show()
     }
 
     /** Выбор голоса Джарвиса: фирменный вшит, остальные скачиваются. Выбор сразу звучит пробной фразой. */
@@ -546,6 +636,21 @@ object Sections {
                     runCatching { BrainGraph.memory(c).clear() }
                 }
             })
+        },
+        MoreSection("Мои команды", "Своя фраза — цепочка действий или задание агенту", Ic.BOLT) { b ->
+            val c = app
+            val store = com.jarvis.app.PrefsCustomRoutines(c)
+            val eventNames = com.jarvis.app.PrefsEventRoutines(c).rules().map { com.jarvis.core.routines.CommandBuilder.key(it.name) }.toSet()
+            b.addView(note("Скажите свою фразу, и Джарвис выполнит её: несколько команд подряд или задание агенту («сделай сам»)."))
+            val mine = store.names().filter { com.jarvis.core.routines.CommandBuilder.key(it) !in eventNames }.sorted()
+            if (mine.isEmpty()) b.addView(note("Своих команд пока нет. Пример: «поехали» → включи блютуз, включи музыку, громкость на 50."))
+            mine.forEach { name ->
+                val steps = store.steps(name).orEmpty()
+                val agent = com.jarvis.core.routines.CommandBuilder.modeOf(steps) == com.jarvis.core.routines.CommandBuilder.Mode.AGENT
+                val sub = if (agent) "Агент: " + com.jarvis.core.routines.CommandBuilder.bodyOf(steps) else steps.joinToString(" → ")
+                b.addView(link("«$name»", sub) { commandEditor(name) })
+            }
+            b.addView(link("Создать команду", "Фраза и что делать") { commandEditor(null) })
         },
         MoreSection("Приложения", "Синонимы для открытия голосом", Ic.GRID) { b ->
             val c = app

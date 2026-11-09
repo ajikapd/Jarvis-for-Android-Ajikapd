@@ -30,6 +30,9 @@ object Routines {
     )
 
     /** Только фраза целиком: «я ухожу через час» сценарием не считается. */
+    /** Встроенные фразы: свои команды не должны их перекрывать. */
+    val builtInNames: Set<String> get() = PHRASES.keys
+
     fun find(text: String): Routine? {
         val spoken = text.lowercase().trim().trimEnd('.', '!', '?', '…').removePrefix("джарвис").trim(' ', ',')
         return PHRASES[spoken.removeSuffix(", сэр").removeSuffix(" пожалуйста").trim(' ', ',')]
