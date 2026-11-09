@@ -183,6 +183,35 @@ class SectionScreen(host: JarvisActivity) : Screen(host) {
         return box
     }
 
+    /** Громкость голоса Джарвиса: проценты внутри выбранного потока. Пробная фраза при отпускании. */
+    fun voiceVolume(): View {
+        val box = host.column(8).pad(12).apply { background = host.glassBg(skin) }
+        val value = host.label("", 15f, skin.accent, Fonts.display(host))
+        val cur = JarvisSettings.voiceVolume(host)
+        value.text = "$cur%"
+        box.addView(host.rowLayout().apply {
+            addView(host.label("Громкость голоса", 15f, skin.text, Fonts.body(host, 600)), lp(0, -2, 1f))
+            addView(value)
+        })
+        box.addView(SeekBar(host).apply {
+            max = 90
+            progress = cur - 10
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(s: SeekBar?, p: Int, user: Boolean) {
+                    if (!user) return
+                    value.text = "${p + 10}%"
+                    JarvisSettings.setVoiceOutput(host, volume = p + 10)
+                }
+                override fun onStartTrackingTouch(s: SeekBar?) = Unit
+                override fun onStopTrackingTouch(s: SeekBar?) {
+                    if (VoiceController.isRunning) VoiceController.speak("Так меня слышно, сэр.")
+                }
+            })
+        })
+        box.addView(host.label("Общую громкость меняют кнопки телефона.", 12f, skin.muted))
+        return box
+    }
+
     fun models(into: LinearLayout) {
         val mgr = ModelManager.get(host)
         mgr.refreshAll()
@@ -367,6 +396,10 @@ object Sections {
             b.addView(toggle("Слово «Джарвис»", "Команда начинается с обращения", JarvisSettings.wakeEnabled(c)) { JarvisSettings.setWakeEnabled(c, it); restartVoice() })
             b.addView(options("Чувствительность", listOf("Низкая", "Средняя", "Высокая"), JarvisSettings.wakeSensitivity(c)) { JarvisSettings.setWakeSensitivity(c, it); restartVoice() })
             b.addView(voiceLock())
+            b.addView(head("Звук"))
+            b.addView(toggle("Сигнал активации", "Короткий «бип», когда Джарвис услышал своё имя", JarvisSettings.wakeChime(c)) { JarvisSettings.setWakeChime(c, it) })
+            b.addView(toggle("Громкость как у музыки", "Голос регулируется кнопками громкости, как видео и музыка", JarvisSettings.voiceFollowsMedia(c)) { JarvisSettings.setVoiceOutput(c, followMedia = it) })
+            b.addView(voiceVolume())
             b.addView(head("Разговор"))
             b.addView(toggle("Продолжать разговор", "Без повторного обращения", JarvisSettings.conversationMode(c)) { JarvisSettings.setConversationMode(c, it) })
             b.addView(pref("Подстраивать слух", "Адаптивное прослушивание", "adaptive_listening", true))

@@ -132,7 +132,7 @@ class JarvisSpeaker(context: Context) {
     /** @param chime false при перебивании: прервавшаяся речь сама показывает, что он услышал. */
     fun onWakeDetected(chime: Boolean = true) {
         stopSpeaking()
-        if (!chime) return
+        if (!chime || !JarvisSettings.wakeChime(appCtx)) return
         // Чим асинхронно и без mic-gate / setPlayEnd — иначе ~0.4–0.6 с глухоты
         // поверх команды «джарвис, …» (частая жалоба тестеров).
         chimeExecutor.execute { runCatching { chimePlayer.playChime() } }

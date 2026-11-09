@@ -18,6 +18,7 @@ class JarvisApplication : Application() {
         // Первым делом: вылеты дальше по запуску тоже попадут в отчёт.
         CrashReports.install(this)
         NativeGuard.checkAfterStart(this)
+        JarvisSettings.applyVoiceOutput(this)
         SecureKeyMigration.migrate(this)
         SystemStateObserver.ensureStarted(this)
         UsageStatsObserver.ensureStarted(this)

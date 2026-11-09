@@ -114,6 +114,27 @@ object JarvisSettings {
         prefs(context).edit().putBoolean("low_power", enabled).apply()
     }
 
+    /** Сигнал «бип» при активации словом. */
+    fun wakeChime(context: Context): Boolean = prefs(context).getBoolean("wake_chime", true)
+
+    fun setWakeChime(context: Context, on: Boolean) = prefs(context).edit().putBoolean("wake_chime", on).apply()
+
+    /** Голос идёт через «Медиа» (громкость кнопками) или через поток ассистента. */
+    fun voiceFollowsMedia(context: Context): Boolean = prefs(context).getBoolean("voice_follow_media", true)
+
+    /** Громкость голоса в процентах внутри потока. */
+    fun voiceVolume(context: Context): Int = prefs(context).getInt("voice_volume", 100)
+
+    fun setVoiceOutput(context: Context, followMedia: Boolean = voiceFollowsMedia(context), volume: Int = voiceVolume(context)) {
+        prefs(context).edit().putBoolean("voice_follow_media", followMedia).putInt("voice_volume", volume.coerceIn(10, 100)).apply()
+        applyVoiceOutput(context)
+    }
+
+    fun applyVoiceOutput(context: Context) {
+        com.jarvis.tts.TtsPlayer.Output.followMedia = voiceFollowsMedia(context)
+        com.jarvis.tts.TtsPlayer.Output.gain = voiceVolume(context) / 100f
+    }
+
     fun hudSfx(context: Context): Boolean =
         prefs(context).getBoolean("hud_sfx", false)
 

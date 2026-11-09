@@ -14,6 +14,20 @@ import kotlin.math.sin
  */
 class TtsPlayer {
 
+    /** Куда идёт голос и насколько громко. Меняется из настроек «Голос и слух». */
+    object Output {
+        /** true: поток «Медиа», громкость кнопками телефона; false: поток «Ассистент». */
+        @Volatile var followMedia: Boolean = true
+
+        /** Громкость голоса внутри потока, 0..1. */
+        @Volatile var gain: Float = 1f
+
+        fun attributes(): AudioAttributes = AudioAttributes.Builder()
+            .setUsage(if (followMedia) AudioAttributes.USAGE_MEDIA else AudioAttributes.USAGE_ASSISTANT)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+            .build()
+    }
+
     @Volatile
     private var playing: AudioTrack? = null
 
@@ -52,10 +66,7 @@ class TtsPlayer {
         // ~1.5–2 с буфера, чтобы успеть синтезировать следующее предложение
         val bufSize = (minBuf * 8).coerceAtLeast(sampleRate * 4)
 
-        val attr = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_ASSISTANT)
-            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-            .build()
+        val attr = Output.attributes()
         val format = AudioFormat.Builder()
             .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
             .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
@@ -69,6 +80,7 @@ class TtsPlayer {
             AudioTrack.MODE_STREAM,
             AudioManager.AUDIO_SESSION_ID_GENERATE,
         )
+        if (track.state == AudioTrack.STATE_INITIALIZED) track.setVolume(Output.gain.coerceIn(0f, 1f))
         if (track.state != AudioTrack.STATE_INITIALIZED) {
             track.release()
             // Fallback: склеить всё и сыграть статикой
@@ -163,17 +175,17 @@ class TtsPlayer {
             AudioFormat.CHANNEL_OUT_MONO,
             AudioFormat.ENCODING_PCM_FLOAT,
         ).coerceAtLeast(samples.size * 4)
-        val attr = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_ASSISTANT)
-            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-            .build()
+        val attr = Output.attributes()
         val format = AudioFormat.Builder()
             .setEncoding(AudioFormat.ENCODING_PCM_FLOAT)
             .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
             .setSampleRate(sampleRate)
             .build()
         return AudioTrack(attr, format, bufSize, AudioTrack.MODE_STATIC, AudioManager.AUDIO_SESSION_ID_GENERATE)
-            .apply { write(samples, 0, samples.size, AudioTrack.WRITE_BLOCKING) }
+            .apply {
+                write(samples, 0, samples.size, AudioTrack.WRITE_BLOCKING)
+                setVolume(Output.gain.coerceIn(0f, 1f))
+            }
     }
 
     private fun waitUntilDone(track: AudioTrack, totalFrames: Int) {
