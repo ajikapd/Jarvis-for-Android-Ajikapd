@@ -175,3 +175,44 @@ class AppAgentRulesTest {
         assertFalse(guard.repeated(screen, AgentStep.Back))
     }
 }
+
+class AppAgentBlockedHintTest {
+    @org.junit.Test
+    fun `typing into a calculator display suggests tapping buttons`() {
+        val hint = AppAgentRules.blockedHint(AgentStep.Type(3, "12+7"), "это не поле ввода")
+        org.junit.Assert.assertTrue(hint, hint.contains("TAP") && hint.contains("не поле ввода"))
+    }
+}
+
+class AppAgentSeveralStepsTest {
+    @org.junit.Test
+    fun `several commands separated by commas take the first`() {
+        org.junit.Assert.assertEquals(AgentStep.Tap(1), AppAgentRules.parse("TAP 1, TAP 2, TAP 7, TAP 24"))
+        org.junit.Assert.assertEquals(AgentStep.Tap(1), AppAgentRules.parse("TAP 1 TAP 2 TAP 7 TAP 20"))
+        org.junit.Assert.assertEquals(AgentStep.Type(2, "well done"), AppAgentRules.parse("TYPE 2 well done"))
+        org.junit.Assert.assertEquals(AgentStep.Type(3, "привет, мир"), AppAgentRules.parse("TYPE 3 привет, мир"))
+        org.junit.Assert.assertEquals(AgentStep.Type(3, "котики"), AppAgentRules.parse("TYPE 3 котики; ENTER"))
+    }
+}
+
+class AppAgentTapByLabelTest {
+    private val screen = listOf(ScreenItem("Калькулятор", false), ScreenItem("1", false), ScreenItem("+", false))
+
+    @org.junit.Test
+    fun `tap by quoted label finds the item number`() {
+        org.junit.Assert.assertEquals(AgentStep.Tap(1), AppAgentRules.parse("TAP «1»", screen))
+        org.junit.Assert.assertEquals(AgentStep.Tap(2), AppAgentRules.parse("TAP \"+\"", screen))
+        org.junit.Assert.assertNull(AppAgentRules.parse("TAP «7»", screen))
+        org.junit.Assert.assertEquals(AgentStep.Tap(2), AppAgentRules.parse("TAP номер 2", screen))
+        org.junit.Assert.assertEquals(AgentStep.Tap(1), AppAgentRules.parse("TAP пункт «1»", screen))
+    }
+}
+
+class AppAgentDoneSynonymsTest {
+    @org.junit.Test
+    fun `finished and готово end the task`() {
+        org.junit.Assert.assertEquals(AgentStep.Done(""), AppAgentRules.parse("FINISHED"))
+        org.junit.Assert.assertEquals(AgentStep.Done("получилось 19"), AppAgentRules.parse("Готово получилось 19"))
+        org.junit.Assert.assertNull(AppAgentRules.parse("Готовность 50%"))
+    }
+}

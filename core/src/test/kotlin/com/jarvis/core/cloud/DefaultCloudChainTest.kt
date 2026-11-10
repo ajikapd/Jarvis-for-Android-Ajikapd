@@ -22,17 +22,17 @@ class DefaultCloudChainTest {
         assertEquals("qwen/qwen3.8-27b", entries[2].modelId)
         assertEquals("gemini", entries[3].providerId)
         assertEquals("gemini-3.1-flash-lite", entries[3].modelId)
-        // GigaChat последним: без VPN, Pro раньше Lite
+        // GigaChat последним: без VPN, Lite раньше Pro
         assertEquals("gigachat", entries[4].providerId)
-        assertEquals("GigaChat-2-Pro", entries[4].modelId)
+        assertEquals("GigaChat-2", entries[4].modelId)
         assertEquals("https://api.giga.chat/v1", entries[4].baseUrl)
-        assertEquals("GigaChat-2", entries[5].modelId)
+        assertEquals("GigaChat-2-Pro", entries[5].modelId)
     }
 
     @Test
     fun gigachatAloneGivesItsOwnEntries() {
         val only = DefaultCloudChain.availableEntries(DefaultCloudChain.entries(), setOf("gigachat"))
-        assertEquals(listOf("GigaChat-2-Pro", "GigaChat-2"), only.map { it.modelId })
+        assertEquals(listOf("GigaChat-2", "GigaChat-2-Pro"), only.map { it.modelId })
         assertTrue("gigachat" in DefaultCloudChain.PROVIDERS)
     }
 
@@ -91,5 +91,15 @@ class DefaultCloudChainTest {
         val entries = DefaultCloudChain.entries()
         val allKeys = entries.map { it.providerId }.toSet()
         assertEquals(6, DefaultCloudChain.availableEntries(entries, allKeys).size)
+    }
+
+    @Test
+    fun strongFirstPutsGigaChatProBeforeLiteOnly() {
+        val all = DefaultCloudChain.entries()
+        val strong = DefaultCloudChain.strongFirst(all)
+        assertEquals(all.take(4), strong.take(4))
+        assertEquals(listOf("GigaChat-2-Pro", "GigaChat-2"), strong.drop(4).map { it.modelId })
+        val groqOnly = DefaultCloudChain.availableEntries(all, setOf("groq"))
+        assertEquals(groqOnly, DefaultCloudChain.strongFirst(groqOnly))
     }
 }

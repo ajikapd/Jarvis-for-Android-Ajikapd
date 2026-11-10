@@ -110,7 +110,10 @@ class ChainCloudProvider(
         if (keys.isEmpty()) {
             return legacy.complete(request)
         }
-        val entries = DefaultCloudChain.availableEntries(DefaultCloudChain.entries(), keys)
+        val available = DefaultCloudChain.availableEntries(DefaultCloudChain.entries(), keys)
+        val entries = if (request.taskType == com.jarvis.brain.aiprovider.AiTaskType.PLANNING) {
+            DefaultCloudChain.strongFirst(available)
+        } else available
         val sinkText = StringBuilder()
         var ttft: Long? = null
         val sink = object : com.jarvis.core.cloud.TokenSink {

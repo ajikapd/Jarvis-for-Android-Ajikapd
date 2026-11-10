@@ -74,6 +74,20 @@ class ChainRouterTest {
     }
 
     @Test
+    fun singleStreamProviderIsNotHedgedWithItself() = runBlocking {
+        val pro = ChainEntry("gigachat", "pro", "pro", "https://g", listOf(emptyMap()))
+        val lite = ChainEntry("gigachat", "lite", "lite", "https://g", listOf(emptyMap()))
+        val call = FakeCall(mapOf(
+            "pro" to listOf({ l -> runBlocking { delay(300); l.onFirstToken("pro"); l.onComplete(null) } }),
+            "lite" to listOf({ l -> runBlocking { l.onFirstToken("lite"); l.onComplete(null) } })
+        ))
+        val r = ChainRouter(config = fastCfg).run(req, listOf(pro, lite), health(), call, RecordingSink())
+        assertEquals("pro", r.entry.modelId)
+        assertFalse(r.hedged)
+        assertEquals(1, call.maxConcurrent())
+    }
+
+    @Test
     fun loserCancelledAndTokensNotInSink() = runBlocking {
         val e1 = entry("slow")
         val e2 = entry("fast")

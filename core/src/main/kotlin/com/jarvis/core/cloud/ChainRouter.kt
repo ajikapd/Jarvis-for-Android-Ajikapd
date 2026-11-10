@@ -141,6 +141,10 @@ class ChainRouter(
             throw AllFailedException(failures.toList(), hedged, attemptReport(), partial = true)
         }
 
+        /** У провайдера один поток (GigaChat для физлиц): второй параллельный запрос получит 429. */
+        fun busyProvider(next: ChainEntry): Boolean =
+            next.providerId in cfg.singleStreamProviders && synchronized(active) { active.any { it.entry.providerId == next.providerId } }
+
         fun startNext(): Boolean {
             while (nextEntryIdx < entries.size) {
                 val e = entries[nextEntryIdx++]
@@ -169,7 +173,8 @@ class ChainRouter(
                 // исчерпание: активных нет, записей больше нет, победителя нет
                 if (active.isEmpty() && nextEntryIdx >= entries.size) break
             }
-            val canHedge = winner == null && active.size < cfg.maxParallel && nextEntryIdx < entries.size
+            val canHedge = winner == null && active.size < cfg.maxParallel && nextEntryIdx < entries.size &&
+                !busyProvider(entries[nextEntryIdx])
             val timeout = when {
                 winner != null -> lastTokenAt + cfg.streamIdleTimeoutMs - now
                 canHedge -> minOf((hedgeAt - now).coerceAtLeast(0), deadline - now)
@@ -263,7 +268,9 @@ class ChainRouter(
                         health.recordFailure(a.entry, cls, retryAfterSeconds = retryAfter)
                         // падение до первого токена → следующая запись сразу
                         if (winnerRef.get() == null && active.isEmpty()) startNext()
-                        else if (winnerRef.get() == null && active.size < cfg.maxParallel) {
+                        else if (winnerRef.get() == null && active.size < cfg.maxParallel &&
+                            nextEntryIdx < entries.size && !busyProvider(entries[nextEntryIdx])
+                        ) {
                             if (startNext()) hedged = true
                         }
                     }

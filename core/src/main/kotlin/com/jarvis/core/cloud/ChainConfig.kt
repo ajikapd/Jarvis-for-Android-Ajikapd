@@ -14,7 +14,9 @@ data class ChainConfig(
     /** После первого токена дедлайна нет: стрим обрывается только если токены перестали идти. */
     val streamIdleTimeoutMs: Long = 8_000,
     /** Пауза записи после 403: блокировка региона/сети снимается сменой сети, а не ключа. */
-    val blockedCooldownMs: Long = 5 * 60 * 1000L
+    val blockedCooldownMs: Long = 5 * 60 * 1000L,
+    /** Провайдеры, которые принимают только один запрос за раз: их записи не запускаются параллельно. */
+    val singleStreamProviders: Set<String> = setOf("gigachat"),
 ) {
     companion object {
         val Default = ChainConfig()

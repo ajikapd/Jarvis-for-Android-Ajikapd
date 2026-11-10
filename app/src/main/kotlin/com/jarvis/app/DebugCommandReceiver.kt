@@ -628,6 +628,14 @@ class DebugCommandReceiver : BroadcastReceiver() {
             JarvisSettings.setPersona(context, it)
             Log.d(TAG, "settings persona=$it")
         }
+        // Проверка одного облачного провайдера: --es cloudOnly gigachat (пусто — снять ограничение).
+        intent.getStringExtra("cloudOnly")?.let { only ->
+            if (BuildConfig.DEBUG) {
+                JarvisSettings.prefs(context).edit().putString(BrainGraph.DEBUG_CLOUD_ONLY, only.trim()).apply()
+                BrainGraph.invalidate()
+                Log.d(TAG, "settings cloudOnly=${only.trim().ifEmpty { "-" }}")
+            }
+        }
         val preferCloud = intent.getStringExtra("preferCloud")?.trim()?.lowercase()
         if (preferCloud != null) {
             val enabled = preferCloud == "true" || preferCloud == "1" || preferCloud == "on"

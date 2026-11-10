@@ -56,19 +56,19 @@ object DefaultCloudChain {
                 emptyMap()
             )
         ),
-        // GigaChat (Сбер): доступен без VPN, бесплатно для физлиц. Pro умнее, но его квота меньше;
-        // когда она кончится (402), цепочка уйдёт на Lite с большой квотой.
+        // GigaChat (Сбер): доступен без VPN, бесплатно для физлиц. Lite быстрее и с большой квотой;
+        // Pro — запасной, если Lite недоступна. Параллельно их не запускаем: у физлица один поток.
         ChainEntry(
             providerId = "gigachat",
-            modelId = "GigaChat-2-Pro",
-            label = "gigachat 2 pro",
+            modelId = "GigaChat-2",
+            label = "gigachat 2 lite",
             baseUrl = GIGACHAT_URL,
             paramCandidates = listOf(emptyMap())
         ),
         ChainEntry(
             providerId = "gigachat",
-            modelId = "GigaChat-2",
-            label = "gigachat 2 lite",
+            modelId = "GigaChat-2-Pro",
+            label = "gigachat 2 pro",
             baseUrl = GIGACHAT_URL,
             paramCandidates = listOf(emptyMap())
         )
@@ -78,6 +78,15 @@ object DefaultCloudChain {
 
     /** Провайдеры цепочки: ключ любого из них включает облако. */
     val PROVIDERS = setOf("groq", "gemini", "gigachat")
+
+    /** Для трудных задач (агент на экране): у GigaChat сначала Pro — Lite путает кнопки и формат. */
+    fun strongFirst(entries: List<ChainEntry>): List<ChainEntry> {
+        val pro = entries.filter { it.providerId == "gigachat" && it.modelId.contains("Pro") }
+        if (pro.isEmpty()) return entries
+        val firstGiga = entries.indexOfFirst { it.providerId == "gigachat" }
+        val rest = entries - pro.toSet()
+        return rest.take(firstGiga) + pro + rest.drop(firstGiga)
+    }
 
     fun availableEntries(entries: List<ChainEntry>, providersWithKeys: Set<String>): List<ChainEntry> =
         entries.filter { it.providerId in providersWithKeys }

@@ -59,6 +59,9 @@ object BrainGraph {
 
     private val lock = ReentrantLock()
 
+    /** Отладка: облачная цепочка только из одного провайдера. */
+    const val DEBUG_CLOUD_ONLY = "debug_cloud_only"
+
     @Volatile private var cached: AssistantOrchestrator? = null
     @Volatile private var memoryInstance: LongTermMemory? = null
     /** Тот же ConversationContext, что у оркестратора (для очистки с экрана «Память»). */
@@ -384,7 +387,7 @@ object BrainGraph {
                         com.jarvis.brain.aiprovider.AICompletionRequest(
                             requestId = java.util.UUID.randomUUID().toString(),
                             userText = prompt,
-                            taskType = com.jarvis.brain.aiprovider.AiTaskType.GENERAL,
+                            taskType = com.jarvis.brain.aiprovider.AiTaskType.PLANNING,
                         ),
                     )?.text
                 }::start,
@@ -409,7 +412,11 @@ object BrainGraph {
             router = com.jarvis.core.cloud.ChainRouter(clock = { System.currentTimeMillis() }),
             health = com.jarvis.core.cloud.ChainHealth(clock = { System.currentTimeMillis() }),
             keyFor = { keyStore.getKey(it) },
-            providersWithKeys = { keyStore.providersWithKeys() },
+            providersWithKeys = {
+                val all = keyStore.providersWithKeys()
+                val only = if (BuildConfig.DEBUG) JarvisSettings.prefs(ctx).getString(DEBUG_CLOUD_ONLY, null) else null
+                if (only.isNullOrBlank()) all else all.filterTo(mutableSetOf()) { it == only }
+            },
         )
         chainCloudProvider = chainProvider
         aiReg.register(chainProvider)

@@ -98,6 +98,7 @@ class AppAgentRunner(
         val guard = AppAgentRules.LoopGuard()
         var rejected = 0
         var typed = false
+        var blockedSteps = 0
         var lastStep: AgentStep? = null
         val queries = HashSet<String>()
         var lastScreen: List<ScreenItem> = emptyList()
@@ -126,7 +127,7 @@ class AppAgentRunner(
                 return "Облако не ответило, сэр."
             }
             if (cancelled) return "Остановился, сэр."
-            var step = AppAgentRules.parse(answer)
+            var step = AppAgentRules.parse(answer, screen)
             if (step == null) {
                 // Ответ не по формату: один раз напоминаем формат, прежде чем сдаться.
                 Log.w(TAG, "шаг $number: не разобран ответ «${answer.take(RAW_LOG_CHARS)}»")
@@ -134,7 +135,7 @@ class AppAgentRunner(
                 val retry = askTwice(
                     AppAgentRules.prompt(goal, packageName, screen, history + AppAgentRules.formatReminder(answer), typed),
                 )
-                step = retry?.let { AppAgentRules.parse(it) }
+                step = retry?.let { AppAgentRules.parse(it, screen) }
             }
             Log.i(TAG, "шаг $number: ${step?.let { describe(it, screen) }} (на экране ${screen.size})")
             VoiceHealthLog.write(context, "agent step $number ${step?.javaClass?.simpleName}")
@@ -148,7 +149,13 @@ class AppAgentRunner(
                 history += "DONE отклонён: цель не выполнена, воспользуйся поиском или продолжай шагами"
                 continue
             }
-            AppAgentRules.blocked(step, screen)?.let { return "Остановился, сэр: $it." }
+            AppAgentRules.blocked(step, screen)?.let { why ->
+                // Пароли не вводим никогда; на остальное даём модели исправиться (слабые модели путают табло с полем).
+                if (step is AgentStep.Type && screen.getOrNull(step.index)?.password == true) return "Остановился, сэр: $why."
+                if (++blockedSteps > MAX_BLOCKED_STEPS) return "Остановился, сэр: $why."
+                history += AppAgentRules.blockedHint(step, why)
+                continue
+            }
             if (step is AgentStep.Tap && AppAgentRules.unwantedShorts(goal, screen[step.index].label)) {
                 history += "Shorts не подходит, нажми обычное видео"
                 continue
@@ -246,6 +253,8 @@ class AppAgentRunner(
     }
 
     companion object {
+        private const val MAX_BLOCKED_STEPS = 2
+
         private const val RAW_LOG_CHARS = 160
         private const val TAG = "Jarvis.Agent"
         private const val YOUTUBE = "com.google.android.youtube"
