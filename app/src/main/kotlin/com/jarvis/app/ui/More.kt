@@ -583,6 +583,16 @@ object Sections {
             b.addView(keyRow("Свой сервер", "Совместимый с OpenAI", "custom"))
             b.addView(note("Личные данные в облако не отправляются"))
             b.addView(head("Локальные модели"))
+            if (com.jarvis.app.NativeGuard.isOff(c, com.jarvis.app.NativeGuard.LLAMA)) {
+                b.addView(note("Локальная модель отключена: на этом телефоне она однажды уронила приложение. Без неё работают команды и облако."))
+                b.addView(link("Включить локальную модель снова", "Если снова вылетит, она отключится сама") {
+                    com.jarvis.app.NativeGuard.reset(c, com.jarvis.app.NativeGuard.LLAMA)
+                    BrainGraph.invalidateChatLlm()
+                    BrainGraph.invalidate()
+                    Toast.makeText(c, "Локальная модель включена", Toast.LENGTH_SHORT).show()
+                    onShow()
+                })
+            }
             models(b)
         },
         MoreSection("Оформление", "Тема, звуки, плавающий орб", Ic.PAINT) { b ->

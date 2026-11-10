@@ -19,7 +19,10 @@ import com.jarvis.onboarding.PermissionsHelper
  */
 class UsageStatsObserver(private val appContext: Context) {
 
-    private val handler = Handler(Looper.getMainLooper())
+    // Запрос статистики — системный вызов, иногда на секунды: не в главном потоке, иначе окно зависает.
+    private val handler: Handler by lazy {
+        Handler(android.os.HandlerThread("usage-stats").apply { start() }.looper)
+    }
     private val pollIntervalMs = 12_000L
 
     @Volatile

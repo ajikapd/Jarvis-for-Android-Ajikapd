@@ -66,21 +66,21 @@ class LlamaChatLlmEngine(
         val profile = profileProvider().uppercase()
         return when (profile) {
             "FAST" -> ProfileParams(
-                contextSize = if (isFastTier) 160 else 192,
+                contextSize = 384,
                 maxTokens = if (isFastTier) 18 else 14,
                 temperature = 0.10f,
                 topP = 0.70f,
                 topK = 15,
             )
             "QUALITY" -> ProfileParams(
-                contextSize = if (isFastTier) 256 else 320,
+                contextSize = 640,
                 maxTokens = if (isFastTier) 36 else 32,
                 temperature = 0.25f,
                 topP = 0.85f,
                 topK = 35,
             )
             else -> ProfileParams( // BALANCED — ~3.5–5 с, законченные фразы
-                contextSize = if (isFastTier) 176 else 208,
+                contextSize = 512,
                 maxTokens = if (isFastTier) 22 else 18,
                 temperature = 0.12f,
                 topP = 0.72f,
@@ -172,7 +172,7 @@ class LlamaChatLlmEngine(
             val loadMs = SystemClock.elapsedRealtime() - tLoad0
             val p = params()
             val budget = assembled?.outputBudget ?: com.jarvis.core.llm.LlmContextBudget.FAST
-            val system = assembled?.systemPrompt?.take(
+            val systemRaw = assembled?.systemPrompt?.take(
                 when (budget) {
                     com.jarvis.core.llm.LlmContextBudget.FAST -> 720
                     com.jarvis.core.llm.LlmContextBudget.BALANCED -> 1200
@@ -182,11 +182,15 @@ class LlamaChatLlmEngine(
             val hist = assembled?.historyLines ?: history
             val mem = assembled?.legacyMemoriesSnippet?.ifBlank { memories } ?: memories
             val roleHint = compactRole(persona, mem, hist, q)
-            val prompt = buildString {
+            val fullPrompt = buildString {
                 if (isQwen3) append("/no_think ")
                 append(roleHint)
                 append(q)
             }
+            // Промпт длиннее контекста роняет llama целиком (GGML_ASSERT в decode): режем заранее.
+            val fit = com.jarvis.core.llm.PromptFit.fit(systemRaw, fullPrompt, p.contextSize, p.maxTokens)
+            val prompt = fit.prompt
+            val system = fit.system
             Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO)
             return try {
                 val result = native { runBlocking {
