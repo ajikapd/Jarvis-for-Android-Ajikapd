@@ -304,6 +304,15 @@ class DashboardActivity : AppCompatActivity() {
         }
     }
 
+    /** Разделы, общие с современным интерфейсом: отдельным окном, «Назад» вернёт сюда. */
+    private fun openModernSection(title: String) {
+        startActivity(
+            Intent(this, com.jarvis.app.ui.JarvisActivity::class.java)
+                .putExtra(UiMode.EXTRA_FORCE_MODERN, true)
+                .putExtra(UiMode.EXTRA_OPEN_SECTION, title),
+        )
+    }
+
     private fun openControlSecondary(key: String) {
         controlSecondary = key
         showScreen(TAB_MORE)
@@ -1189,6 +1198,9 @@ class DashboardActivity : AppCompatActivity() {
         screen.findViewById<TextView>(R.id.btnSendReport)?.setOnClickListener {
             startActivity(CrashReports.shareIntent(this))
         }
+        screen.findViewById<TextView>(R.id.btnMyCommands)?.setOnClickListener { openModernSection("Мои команды") }
+        screen.findViewById<TextView>(R.id.btnAppSynonyms)?.setOnClickListener { openModernSection("Приложения") }
+        screen.findViewById<TextView>(R.id.btnVoicePick)?.setOnClickListener { openModernSection("Голос и слух") }
 
         val ctx = this
         screen.findViewById<JarvisToggle>(R.id.toggleAdaptive)?.apply {
@@ -2535,6 +2547,9 @@ class DashboardActivity : AppCompatActivity() {
         screen.findViewById<TextView>(R.id.btnSendReport)?.setOnClickListener {
             startActivity(CrashReports.shareIntent(this))
         }
+        screen.findViewById<TextView>(R.id.btnMyCommands)?.setOnClickListener { openModernSection("Мои команды") }
+        screen.findViewById<TextView>(R.id.btnAppSynonyms)?.setOnClickListener { openModernSection("Приложения") }
+        screen.findViewById<TextView>(R.id.btnVoicePick)?.setOnClickListener { openModernSection("Голос и слух") }
 
         screen.findViewById<JarvisToggle>(R.id.toggleHudSfx)?.apply {
             isChecked = JarvisSettings.hudSfx(ctx)

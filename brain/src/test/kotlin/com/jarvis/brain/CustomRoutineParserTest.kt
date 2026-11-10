@@ -54,4 +54,27 @@ class CustomRoutineParserTest {
     @Test fun names() = assertEquals(Request.Names, CustomRoutineParser.parse("какие у меня сценарии"))
     @Test fun noCommand() = assertNull(CustomRoutineParser.parse("когда говорю привет"))
     @Test fun unrelated() = assertNull(CustomRoutineParser.parse("включи музыку"))
+
+    @Test fun createCommandByVoice() {
+        assertEquals(
+            CustomRoutineParser.Request.Define("поехали", listOf("включи блютуз", "включи музыку")),
+            CustomRoutineParser.parse("Создай команду поехали: включи блютуз и музыку"),
+        )
+    }
+
+    @Test fun agentCommandByVoice() {
+        assertEquals(
+            CustomRoutineParser.Request.Define("такси", listOf("сделай сам: вызови такси домой")),
+            CustomRoutineParser.parse("создай команду такси сделай сам вызови такси домой"),
+        )
+    }
+
+    @Test fun deleteCommand() =
+        assertEquals(CustomRoutineParser.Request.Delete("поехали"), CustomRoutineParser.parse("удали команду поехали"))
+
+    @Test fun appSynonymsByVoice() {
+        assertEquals(CustomRoutineParser.Request.Alias("телег", "телеграм"), CustomRoutineParser.parse("называй телеграм телегой"))
+        assertEquals(CustomRoutineParser.Request.Alias("телега", "телеграм"), CustomRoutineParser.parse("добавь синоним телега для телеграм"))
+        assertEquals(CustomRoutineParser.Request.Alias("ютубчик", "youtube"), CustomRoutineParser.parse("синоним ютубчик для youtube"))
+    }
 }

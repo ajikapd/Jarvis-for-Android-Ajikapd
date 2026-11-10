@@ -35,6 +35,6 @@ class AppAliases(context: Context) {
 
     private companion object {
         const val KEY = "app_aliases"
-        const val ALIAS_ACCEPT = 85
+        const val ALIAS_ACCEPT = 80
     }
 }

@@ -16,6 +16,8 @@ import com.jarvis.core.routines.EventRoutines
 class CustomRoutineTool(
     private val routines: CustomRoutines,
     private val events: EventRoutines,
+    /** Добавить синоним приложения; вернёт название найденного приложения или null. */
+    private val addAlias: (alias: String, app: String) -> String? = { _, _ -> null },
 ) : Tool {
     override val definition = ToolDefinition(
         id = "routine.custom", name = "Сценарии", description = "Создать, удалить или перечислить свои сценарии",
@@ -28,7 +30,8 @@ class CustomRoutineTool(
         val reply = when (request) {
             is CustomRoutineParser.Request.Define -> {
                 routines.put(request.name, request.steps)
-                "Запомнил сценарий «${request.name}», сэр. Шагов: ${request.steps.size}."
+                if (request.steps.size == 1 && request.steps.first().startsWith("сделай сам: ")) "Запомнил команду «${request.name}», сэр. Её выполнит агент."
+                else "Запомнил команду «${request.name}», сэр. Шагов: ${request.steps.size}."
             }
             is CustomRoutineParser.Request.DefineEvent -> {
                 routines.put(request.rule.name, request.steps)
@@ -37,6 +40,9 @@ class CustomRoutineTool(
             }
             is CustomRoutineParser.Request.Delete ->
                 if (routines.remove(request.name)) "Сценарий удалён, сэр." else "Такого сценария нет, сэр."
+            is CustomRoutineParser.Request.Alias -> addAlias(request.alias, request.app)
+                ?.let { "Запомнил, сэр: «${request.alias}» — это $it." }
+                ?: "Не нашёл приложение «${request.app}», сэр."
             CustomRoutineParser.Request.Names -> routines.names().let { names ->
                 if (names.isEmpty()) "Своих сценариев пока нет, сэр." else "Ваши сценарии: ${names.joinToString(", ")}."
             }

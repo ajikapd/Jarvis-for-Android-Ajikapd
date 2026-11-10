@@ -126,8 +126,17 @@ class AppAgentRunner(
                 return "Облако не ответило, сэр."
             }
             if (cancelled) return "Остановился, сэр."
-            val step = AppAgentRules.parse(answer)
-            Log.i(TAG, "шаг $number: ${step?.javaClass?.simpleName}")
+            var step = AppAgentRules.parse(answer)
+            if (step == null) {
+                // Ответ не по формату: один раз напоминаем формат, прежде чем сдаться.
+                Log.w(TAG, "шаг $number: не разобран ответ «${answer.take(RAW_LOG_CHARS)}»")
+                VoiceHealthLog.write(context, "agent unparsed step $number: ${answer.take(RAW_LOG_CHARS).replace('\n', ' ')}")
+                val retry = askTwice(
+                    AppAgentRules.prompt(goal, packageName, screen, history + AppAgentRules.formatReminder(answer), typed),
+                )
+                step = retry?.let { AppAgentRules.parse(it) }
+            }
+            Log.i(TAG, "шаг $number: ${step?.let { describe(it, screen) }} (на экране ${screen.size})")
             VoiceHealthLog.write(context, "agent step $number ${step?.javaClass?.simpleName}")
             if (step == null) return "Я не понял, что делать дальше, сэр."
             if (step is AgentStep.Done) {
@@ -237,6 +246,7 @@ class AppAgentRunner(
     }
 
     companion object {
+        private const val RAW_LOG_CHARS = 160
         private const val TAG = "Jarvis.Agent"
         private const val YOUTUBE = "com.google.android.youtube"
         private const val START_PAUSE_MS = 1_500L
