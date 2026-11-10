@@ -191,7 +191,7 @@
         <ol class="steps">
           <li data-i18n="dl.s1">Скачайте APK и разрешите установку из этого источника.</li>
           <li data-i18n="dl.s2">Выдайте разрешения и выберите интерфейс: современный или классический.</li>
-          <li data-i18n="dl.s3">Добавьте бесплатные ключи Groq и Gemini: как это сделать, описано в инструкции ниже.</li>
+          <li data-i18n="dl.s3">Добавьте бесплатные ключи Groq, Gemini или GigaChat (без VPN): как это сделать, описано в инструкции ниже.</li>
           <li data-i18n="dl.s4">Пройдите короткий гид: он покажет, как подключить ИИ и записать голос.</li>
         </ol>
       </div>
@@ -226,7 +226,7 @@
 </ul>
 <p>Звонки, SMS, контакты и календарь Jarvis спросит при первой такой команде.</p>
 <p class="tip">Совет: в «Ещё → Присутствие → Цифровой помощник» выберите Jarvis. Тогда он откроется долгим нажатием кнопки «Домой».</p></div></details>
-      <details class="g" open><summary><span class="gn">03</span>Ключи облачного ИИ: Groq и Gemini</summary><div class="gb"><p>Без ключей работают команды телефона и локальная модель. С ключами Jarvis отвечает умнее и быстрее. Оба ключа бесплатные, нужен только аккаунт.</p>
+      <details class="g" open><summary><span class="gn">03</span>Ключи облачного ИИ: Groq, Gemini, GigaChat</summary><div class="gb"><p>Без ключей работают команды телефона и локальная модель. С ключами Jarvis отвечает умнее и быстрее. Все ключи бесплатные, нужен только аккаунт. Нет VPN — берите GigaChat.</p>
 <div class="keys">
 <div class="key">
 <h4>Groq: основная быстрая модель</h4>
@@ -244,8 +244,17 @@
 <li>Скопируйте ключ: он начинается с <code>AIza</code>.</li>
 </ol>
 </div>
+<div class="key">
+<h4>GigaChat: бесплатно и без VPN</h4>
+<ol>
+<li>Откройте <a href="https://developers.sber.ru/studio" target="_blank" rel="noopener">developers.sber.ru/studio</a> и войдите по Сбер ID.</li>
+<li>Создайте проект <b>GigaChat API</b> и примите соглашение.</li>
+<li>В проекте: <b>«Настройки API» → «Получить ключ»</b>. Скопируйте <b>Authorization key</b>: он покажется один раз.</li>
+<li>Бесплатно 365 млн токенов на 12 месяцев. Агент «сделай сам» и Live пока работают только с Groq и Gemini.</li>
+</ol>
 </div>
-<p><b>Куда вставить:</b> Jarvis → вкладка <b>«Ещё» → «ИИ и модели» → «Облачные ключи»</b>. Нажмите на строку Groq или Gemini, вставьте ключ и нажмите <b>«Сохранить»</b>. Метка сменится на «Сохранён».</p>
+</div>
+<p><b>Куда вставить:</b> Jarvis → вкладка <b>«Ещё» → «ИИ и модели» → «Облачные ключи»</b>. Нажмите на строку Groq, Gemini или GigaChat, вставьте ключ и нажмите <b>«Сохранить»</b>. Метка сменится на «Сохранён».</p>
 <p>В классическом интерфейсе ключи лежат в <b>«Профиль» → «Общее» → «Облачный LLM»</b>: вставьте ключ в поле и нажмите «Сохранить».</p>
 <p>В современном оставьте маршрут <b>«Гибрид»</b> и включите <b>«Использовать ИИ-модель»</b>: простое Jarvis решит сам, сложное отправит в облако, а без сети перейдёт на локальную модель.</p>
 <p class="tip">Ключи хранятся на телефоне в зашифрованном виде и уходят только в Groq и Google. Никому их не пересылайте. В некоторых странах сайты Groq и Google AI Studio открываются только через VPN.</p></div></details>
@@ -290,7 +299,7 @@
       <details class="g"><summary><span class="gn">10</span>Если что-то не работает</summary><div class="gb"><dl class="faq">
 <dt>Не откликается на «Джарвис»</dt><dd>Проверьте, что ассистент включён, батарея без ограничений и автозапуск разрешён. Поднимите чувствительность. Перезапишите голос.</dd>
 <dt>Отвечает «не понял» на вопросы</dt><dd>Проверьте ключи в «ИИ и модели»: метка должна быть «Сохранён». Проверьте интернет и, если нужно, VPN.</dd>
-<dt>«Ключ не подходит»</dt><dd>Скопируйте ключ заново целиком, без пробелов. У Groq ключ начинается с gsk_, у Gemini с AIza.</dd>
+<dt>«Ключ не подходит»</dt><dd>Скопируйте ключ заново целиком, без пробелов. У Groq ключ начинается с gsk_, у Gemini с AIza. У GigaChat нужен именно Authorization key, а не Client ID.</dd>
 <dt>Не нажимает в приложениях</dt><dd>Включите Jarvis в «Специальных возможностях». После обновления приложения Android иногда выключает его: включите снова.</dd>
 <dt>Музыка не включается</dt><dd>Откройте SoundCloud один раз вручную и убедитесь, что вы вошли в аккаунт.</dd>
 </dl>
@@ -317,7 +326,7 @@
 </ul>
 <p>Calls, SMS, contacts and calendar are requested the first time you use them.</p>
 <p class="tip">Tip: in “Ещё → Присутствие → Цифровой помощник” (More → Presence → Digital assistant) pick Jarvis to open it with a long press on Home.</p></div></details>
-      <details class="g" open><summary><span class="gn">03</span>Cloud AI keys: Groq and Gemini</summary><div class="gb"><p>Without keys, phone commands and the local model still work. With keys Jarvis answers smarter and faster. Both keys are free; you only need an account.</p>
+      <details class="g" open><summary><span class="gn">03</span>Cloud AI keys: Groq, Gemini, GigaChat</summary><div class="gb"><p>Without keys, phone commands and the local model still work. With keys Jarvis answers smarter and faster. All keys are free; you only need an account. No VPN? Use GigaChat.</p>
 <div class="keys">
 <div class="key">
 <h4>Groq: main fast model</h4>
@@ -335,8 +344,17 @@
 <li>Copy the key: it starts with <code>AIza</code>.</li>
 </ol>
 </div>
+<div class="key">
+<h4>GigaChat: free, no VPN (Russia)</h4>
+<ol>
+<li>Open <a href="https://developers.sber.ru/studio" target="_blank" rel="noopener">developers.sber.ru/studio</a> and sign in with Sber ID.</li>
+<li>Create a <b>GigaChat API</b> project and accept the agreement.</li>
+<li>In the project: <b>“Настройки API” → “Получить ключ”</b>. Copy the <b>Authorization key</b>; it is shown once.</li>
+<li>Free: 365M tokens for 12 months. The “do it yourself” agent and Live still need Groq or Gemini.</li>
+</ol>
 </div>
-<p><b>Where to paste:</b> Jarvis → <b>“Ещё” (More) → “ИИ и модели” (AI and models) → “Облачные ключи” (Cloud keys)</b>. Tap the Groq or Gemini row, paste the key and tap <b>“Сохранить” (Save)</b>. The label changes to “Сохранён” (Saved).</p>
+</div>
+<p><b>Where to paste:</b> Jarvis → <b>“Ещё” (More) → “ИИ и модели” (AI and models) → “Облачные ключи” (Cloud keys)</b>. Tap the Groq, Gemini or GigaChat row, paste the key and tap <b>“Сохранить” (Save)</b>. The label changes to “Сохранён” (Saved).</p>
 <p>In the classic interface the keys are in <b>“Профиль” → “Общее” → “Облачный LLM”</b> (Profile → General → Cloud LLM): paste the key and tap Save.</p>
 <p>In the modern one keep the route on <b>“Гибрид” (Hybrid)</b> and turn on <b>“Использовать ИИ-модель” (Use AI model)</b>: Jarvis handles simple things itself, sends hard ones to the cloud and falls back to the local model offline.</p>
 <p class="tip">Keys are stored encrypted on the phone and go only to Groq and Google. Never share them. In some countries the Groq and Google AI Studio sites open only through a VPN.</p></div></details>
@@ -375,7 +393,7 @@
       <details class="g"><summary><span class="gn">10</span>Troubleshooting</summary><div class="gb"><dl class="faq">
 <dt>Doesn't respond to “Jarvis”</dt><dd>Check that the assistant is on, battery is unrestricted and autostart is allowed. Raise the sensitivity. Record your voice again.</dd>
 <dt>Answers “didn't understand” to questions</dt><dd>Check the keys in “AI and models”: the label should say “Сохранён”. Check the internet and a VPN if needed.</dd>
-<dt>“Ключ не подходит” (key rejected)</dt><dd>Copy the whole key again with no spaces. Groq keys start with gsk_, Gemini keys with AIza.</dd>
+<dt>“Ключ не подходит” (key rejected)</dt><dd>Copy the whole key again with no spaces. Groq keys start with gsk_, Gemini keys with AIza. For GigaChat paste the Authorization key, not the Client ID.</dd>
 <dt>Doesn't tap in apps</dt><dd>Turn Jarvis on in Accessibility. Android sometimes turns it off after an app update: turn it on again.</dd>
 <dt>Music doesn't start</dt><dd>Open SoundCloud once by hand and make sure you are signed in.</dd>
 </dl>

@@ -64,7 +64,7 @@ class ChainCloudProvider(
         val now = clock()
         val c = cachedKeys
         if (c != null && now - cachedKeysAt < keysCacheTtlMs) return c
-        val fresh = providersWithKeys().filter { it == "groq" || it == "gemini" }.toSet()
+        val fresh = providersWithKeys().filter { it in com.jarvis.core.cloud.DefaultCloudChain.PROVIDERS }.toSet()
         cachedKeys = fresh
         cachedKeysAt = now
         return fresh
@@ -76,6 +76,7 @@ class ChainCloudProvider(
     }
 
     fun onKeyChanged(providerId: String) {
+        if (providerId == GigaChatAuth.PROVIDER) GigaChatAuth.forget()
         health.reset(providerId)
         invalidate()
         SafeLog.i(TAG, "keyChanged provider=$providerId")

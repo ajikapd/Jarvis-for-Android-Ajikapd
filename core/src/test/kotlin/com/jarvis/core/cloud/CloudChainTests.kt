@@ -22,7 +22,7 @@ class CloudChainTests {
 
     @Test fun defaultChain_orderAndAvailability() {
         val entries = DefaultCloudChain.entries()
-        assertEquals(4, entries.size)
+        assertEquals(6, entries.size)
         assertEquals("groq", entries[0].providerId)
         val avail = DefaultCloudChain.availableEntries(entries, setOf("gemini"))
         assertEquals(2, avail.size)

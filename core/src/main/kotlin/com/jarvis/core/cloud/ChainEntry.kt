@@ -55,8 +55,29 @@ object DefaultCloudChain {
                 mapOf("reasoning_effort" to "minimal"),
                 emptyMap()
             )
+        ),
+        // GigaChat (Сбер): доступен без VPN, бесплатно для физлиц. Pro умнее, но его квота меньше;
+        // когда она кончится (402), цепочка уйдёт на Lite с большой квотой.
+        ChainEntry(
+            providerId = "gigachat",
+            modelId = "GigaChat-2-Pro",
+            label = "gigachat 2 pro",
+            baseUrl = GIGACHAT_URL,
+            paramCandidates = listOf(emptyMap())
+        ),
+        ChainEntry(
+            providerId = "gigachat",
+            modelId = "GigaChat-2",
+            label = "gigachat 2 lite",
+            baseUrl = GIGACHAT_URL,
+            paramCandidates = listOf(emptyMap())
         )
     )
+
+    const val GIGACHAT_URL = "https://api.giga.chat/v1"
+
+    /** Провайдеры цепочки: ключ любого из них включает облако. */
+    val PROVIDERS = setOf("groq", "gemini", "gigachat")
 
     fun availableEntries(entries: List<ChainEntry>, providersWithKeys: Set<String>): List<ChainEntry> =
         entries.filter { it.providerId in providersWithKeys }

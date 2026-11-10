@@ -727,6 +727,82 @@
                 </LinearLayout>
             </LinearLayout>
 
+            <LinearLayout
+                android:id="@+id/gigachatKeyBlock"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_hud_panel"
+                android:padding="12dp"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cloud_gigachat_title"
+                    android:textColor="#F4F0E7"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <EditText
+                    android:id="@+id/gigachatKeyInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="@string/cloud_api_key_hint"
+                    android:inputType="textPassword"
+                    android:importantForAutofill="no"
+                    android:contentDescription="@string/cloud_gigachat_key_description"
+                    android:textColor="#F4F0E7"
+                    android:textColorHint="#626B76"
+                    android:textSize="14sp"
+                    android:background="@drawable/bg_hud_panel"
+                    android:padding="10dp"
+                    android:layout_marginTop="6dp" />
+
+                <TextView
+                    android:id="@+id/gigachatKeyStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cloud_key_missing"
+                    android:textColor="#626B76"
+                    android:textSize="14sp"
+                    android:layout_marginTop="4dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cloud_gigachat_free_tier_notice"
+                    android:textColor="#626B76"
+                    android:textSize="14sp"
+                    android:layout_marginTop="4dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="6dp">
+
+                    <Button
+                        android:id="@+id/gigachatKeySave"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/cloud_save_key"
+                        android:contentDescription="@string/cloud_save_key_description"
+                        android:textSize="14sp" />
+
+                    <Button
+                        android:id="@+id/gigachatKeyClear"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/cloud_clear_key"
+                        android:contentDescription="@string/cloud_clear_key_description"
+                        android:textSize="14sp"
+                        android:layout_marginStart="8dp" />
+                </LinearLayout>
+            </LinearLayout>
+
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

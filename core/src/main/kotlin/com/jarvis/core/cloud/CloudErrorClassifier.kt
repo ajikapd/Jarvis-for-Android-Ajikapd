@@ -59,6 +59,10 @@ object CloudErrorClassifier {
         if (httpStatus == 403 && text.contains("1010")) {
             return ErrorClass.BLOCKED_BY_CLOUDFLARE
         }
+        // 402: кончилась квота (GigaChat) — до сброса запись не трогаем.
+        if (httpStatus == 402) {
+            return ErrorClass.RATE_LIMITED_DAILY
+        }
         if (httpStatus == 401) {
             return ErrorClass.AUTH_OR_REGION
         }

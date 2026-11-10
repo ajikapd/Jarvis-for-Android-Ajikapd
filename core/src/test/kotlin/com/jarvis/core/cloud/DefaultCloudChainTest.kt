@@ -8,9 +8,9 @@ import org.junit.Test
 class DefaultCloudChainTest {
 
     @Test
-    fun entriesReturnsFourProvidersInOrder() {
+    fun entriesReturnsAllProvidersInOrder() {
         val entries = DefaultCloudChain.entries()
-        assertEquals(4, entries.size)
+        assertEquals(6, entries.size)
         // порядок по бенчу: groq120b, gemini3.5-lite, groq qwen, gemini3.1-lite
         assertEquals("groq", entries[0].providerId)
         assertEquals("openai/gpt-oss-120b", entries[0].modelId)
@@ -22,6 +22,18 @@ class DefaultCloudChainTest {
         assertEquals("qwen/qwen3.8-27b", entries[2].modelId)
         assertEquals("gemini", entries[3].providerId)
         assertEquals("gemini-3.1-flash-lite", entries[3].modelId)
+        // GigaChat последним: без VPN, Pro раньше Lite
+        assertEquals("gigachat", entries[4].providerId)
+        assertEquals("GigaChat-2-Pro", entries[4].modelId)
+        assertEquals("https://api.giga.chat/v1", entries[4].baseUrl)
+        assertEquals("GigaChat-2", entries[5].modelId)
+    }
+
+    @Test
+    fun gigachatAloneGivesItsOwnEntries() {
+        val only = DefaultCloudChain.availableEntries(DefaultCloudChain.entries(), setOf("gigachat"))
+        assertEquals(listOf("GigaChat-2-Pro", "GigaChat-2"), only.map { it.modelId })
+        assertTrue("gigachat" in DefaultCloudChain.PROVIDERS)
     }
 
     @Test
@@ -78,6 +90,6 @@ class DefaultCloudChainTest {
         val chain = DefaultCloudChain
         val entries = DefaultCloudChain.entries()
         val allKeys = entries.map { it.providerId }.toSet()
-        assertEquals(4, DefaultCloudChain.availableEntries(entries, allKeys).size)
+        assertEquals(6, DefaultCloudChain.availableEntries(entries, allKeys).size)
     }
 }

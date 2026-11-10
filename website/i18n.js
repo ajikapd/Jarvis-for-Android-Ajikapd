@@ -41,7 +41,7 @@ window.I18N = {
     "dl.d": "Test build 0.1.0. Android 10 or newer, arm64 processor, about 200 MB: speech models included.",
     "dl.s1": "Download the APK and allow installs from this source.",
     "dl.s2": "Grant the permissions and pick the interface: modern or classic.",
-    "dl.s3": "Add free Groq and Gemini keys: the guide below shows how.",
+    "dl.s3": "Add free Groq, Gemini or GigaChat (no VPN) keys: the guide below shows how.",
     "dl.s4": "Go through the short guide: it shows how to connect AI and record your voice.",
     "dl.btn": "Download APK", "dl.note": "jarvis-0.1.0.apk · 201 MB",
     "cr.eyebrow": "Creator", "cr.d": "Designed and built Jarvis single-handedly, from the voice to the agent.",

@@ -217,7 +217,7 @@ object JarvisSettings {
     fun cloudConfigured(context: Context): Boolean {
         val keys = secureKeys(context)
         val customConfigured = keys.hasKey("custom") && cloudBaseUrl(context).isNotBlank()
-        return customConfigured || keys.hasKey("groq") || keys.hasKey("gemini")
+        return customConfigured || keys.hasKey("groq") || keys.hasKey("gemini") || keys.hasKey("gigachat")
     }
 
     // ── Cloud / Hybrid ASR (V2-08) ─────────────────────────────────

@@ -384,9 +384,23 @@ class DebugCommandReceiver : BroadcastReceiver() {
         val store = SecureKeyStore(context)
         Log.d(
             TAG,
-            "keys groq=${store.hasKey("groq")} gemini=${store.hasKey("gemini")} " +
+            "keys groq=${store.hasKey("groq")} gemini=${store.hasKey("gemini")} gigachat=${store.hasKey("gigachat")} " +
                 "custom=${store.hasKey("custom")} migrated=${SecureKeyMigration.isMigrated(context)}",
         )
+        // Проверка TLS до Сбера заведомо неверным ключом: ждём 401, а не ошибку сертификата.
+        Thread {
+            val r = com.jarvis.brain.cloud.GigaChatAuth.token("cHJvYmU6cHJvYmU=")
+            com.jarvis.brain.cloud.GigaChatAuth.forget()
+            Log.d(TAG, "gigachat probe code=${r.code} body=${r.error?.take(80)}")
+            val chat = runCatching {
+                val c = java.net.URL(com.jarvis.core.cloud.DefaultCloudChain.GIGACHAT_URL + "/models").openConnection() as java.net.HttpURLConnection
+                c.setRequestProperty("Authorization", "Bearer probe")
+                c.connectTimeout = 8_000
+                c.readTimeout = 8_000
+                c.responseCode.also { c.disconnect() }.toString()
+            }.getOrElse { it.javaClass.simpleName + ": " + it.message?.take(80) }
+            Log.d(TAG, "gigachat chat probe $chat")
+        }.start()
     }
 
     private fun handleKeysSet(context: Context, intent: Intent) {

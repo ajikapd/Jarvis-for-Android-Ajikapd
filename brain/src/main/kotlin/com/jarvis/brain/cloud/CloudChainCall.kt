@@ -42,11 +42,20 @@ class CloudChainCall(
         val params = entry.paramCandidates.getOrNull(paramCandidateIndex) ?: emptyMap()
         executor.execute {
             if (cancelled.get()) return@execute
-            val key = keyFor(entry.providerId)
-            if (key.isNullOrBlank()) {
+            val stored = keyFor(entry.providerId)
+            if (stored.isNullOrBlank()) {
                 safeError(listener, cancelled, null, 401, "api key missing")
                 return@execute
             }
+            // GigaChat: ключ меняется на временный токен; сбой сети остаётся сбоем сети, а не «плохим ключом».
+            val key = if (entry.providerId == GigaChatAuth.PROVIDER) {
+                val auth = GigaChatAuth.token(stored)
+                if (auth.token == null) {
+                    safeError(listener, cancelled, stored, auth.code, auth.error)
+                    return@execute
+                }
+                auth.token
+            } else stored
             var firstTokenSent = false
             val client = OpenAiCompatibleCloudClient(
                 baseUrlProvider = { entry.baseUrl },

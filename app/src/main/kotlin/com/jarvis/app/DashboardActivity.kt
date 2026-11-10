@@ -2813,6 +2813,13 @@ class DashboardActivity : AppCompatActivity() {
             saveId = R.id.geminiKeySave,
             clearId = R.id.geminiKeyClear,
         )
+        bindCloudProviderKey(
+            providerId = "gigachat",
+            inputId = R.id.gigachatKeyInput,
+            statusId = R.id.gigachatKeyStatus,
+            saveId = R.id.gigachatKeySave,
+            clearId = R.id.gigachatKeyClear,
+        )
 
         // ── ASR mode (V2-08) ──
         val asrModes = listOf("AUTO", "CLOUD_PREFERRED", "LOCAL_ONLY")
