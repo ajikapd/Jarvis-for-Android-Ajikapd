@@ -7,10 +7,15 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.BatteryManager
+import android.view.View
 import android.widget.RemoteViews
 import com.jarvis.app.ui.JarvisActivity
 import com.jarvis.app.ui.ReactorArt
+import com.jarvis.app.ui.Skin
 import com.jarvis.app.ui.Skins
+import com.jarvis.app.ui.WidgetArt
+import com.jarvis.app.ui.stateTone
+import com.jarvis.core.startup.UiStyle
 import com.jarvis.core.common.model.UserRequest
 import com.jarvis.core.event.JarvisEvents
 import com.jarvis.core.model.AssistantState
@@ -22,9 +27,17 @@ open class JarvisWidgetProvider : AppWidgetProvider() {
     protected open val layout: Int = R.layout.widget_jarvis
     protected open val coreDp: Int = 88
     protected open val compact: Boolean = false
+    /** Размер по умолчанию, пока система не сообщила настоящий (dp). */
+    protected open val defaultW: Int = 250
+    protected open val defaultH: Int = 110
 
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
-        manager.updateAppWidget(ids, views(context))
+        ids.forEach { manager.updateAppWidget(it, views(context, manager, it)) }
+    }
+
+    /** Виджет растянули или сжали: фон рисуется под новый размер. */
+    override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, id: Int, options: android.os.Bundle) {
+        manager.updateAppWidget(id, views(context, manager, id))
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -48,7 +61,9 @@ open class JarvisWidgetProvider : AppWidgetProvider() {
         }, "jarvis-widget-brief").start()
     }
 
-    internal fun views(context: Context): RemoteViews {
+    /** [styleOverride] — только для отладочной картинки виджета; обычно стиль берётся из настроек. */
+    internal fun views(context: Context, manager: AppWidgetManager, id: Int, styleOverride: UiStyle? = null): RemoteViews {
+        val style = styleOverride ?: UiMode.style(context) ?: UiStyle.MODERN
         val skin = Skins.current(context)
         val state = JarvisEvents.assistantState.value
         val on = VoiceController.isRunning
@@ -78,24 +93,80 @@ open class JarvisWidgetProvider : AppWidgetProvider() {
         }
         val res = context.resources
         fun id(name: String) = res.getIdentifier(name, "drawable", context.packageName)
-        return RemoteViews(context.packageName, layout).apply {
-            setInt(R.id.widgetRoot, "setBackgroundResource", id("bg_widget_${skin.id}"))
-            setInt(R.id.widgetListen, "setBackgroundResource", id("bg_widget_main_${skin.id}"))
-            setInt(R.id.widgetMicIcon, "setColorFilter", skin.text)
-            setImageViewBitmap(R.id.widgetCore, ReactorArt.render(context, skin, coreDp, on, state == AssistantState.SPEAKING))
-            setTextViewText(R.id.widgetStatus, status)
-            setTextColor(R.id.widgetStatus, if (on) skin.good else skin.muted)
-            setTextViewText(R.id.widgetNext, HudText.next(reminders, LocalDateTime.now()))
-            setTextColor(R.id.widgetNext, skin.text)
-            setTextViewText(R.id.widgetSub, JarvisSettings.prefs(context).getString(PREF_WEATHER, "").orEmpty())
-            setTextColor(R.id.widgetSub, skin.muted)
-            setTextColor(R.id.widgetBrand, skin.text)
-            setTextColor(R.id.widgetBrief, skin.text)
-            setTextColor(R.id.widgetListenText, skin.text)
-            setOnClickPendingIntent(R.id.widgetCore, power)
-            setOnClickPendingIntent(R.id.widgetListen, listen)
-            setOnClickPendingIntent(R.id.widgetBrief, brief)
+        val views = RemoteViews(context.packageName, layout)
+        // Клики одинаковые во всех стилях.
+        views.setOnClickPendingIntent(R.id.widgetCore, power)
+        views.setOnClickPendingIntent(R.id.widgetListen, listen)
+        views.setOnClickPendingIntent(R.id.widgetBrief, brief)
+        views.setTextViewText(R.id.widgetStatus, status)
+        views.setTextViewText(R.id.widgetNext, HudText.next(reminders, LocalDateTime.now()))
+        views.setTextViewText(R.id.widgetSub, JarvisSettings.prefs(context).getString(PREF_WEATHER, "").orEmpty())
+        val opts = manager.getAppWidgetOptions(id)
+        val wDp = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH).takeIf { it > 0 } ?: defaultW
+        val hDp = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT).takeIf { it > 0 } ?: defaultH
+        val shownState = if (on) state else AssistantState.OFFLINE
+        when (style) {
+            UiStyle.PREMIUM -> premium(context, views, skin, shownState, on, wDp, hDp)
+            UiStyle.CLASSIC -> classic(context, views, shownState, on, wDp, hDp)
+            UiStyle.MODERN -> modern(context, views, skin, state, on)
         }
+        return views
+    }
+
+    /** Современный: как было — фон и реактор по теме современного интерфейса. */
+    private fun modern(context: Context, v: RemoteViews, skin: Skin, state: AssistantState, on: Boolean) {
+        val res = context.resources
+        fun id(name: String) = res.getIdentifier(name, "drawable", context.packageName)
+        v.setViewVisibility(R.id.widgetBg, View.GONE)
+        v.setInt(R.id.widgetRoot, "setBackgroundResource", id("bg_widget_${skin.id}").takeIf { it != 0 } ?: R.drawable.bg_widget_reactor)
+        v.setInt(R.id.widgetListen, "setBackgroundResource", id("bg_widget_main_${skin.id}").takeIf { it != 0 } ?: R.drawable.bg_widget_main_reactor)
+        v.setInt(R.id.widgetBrief, "setBackgroundResource", R.drawable.bg_widget_btn)
+        v.setInt(R.id.widgetMicIcon, "setColorFilter", skin.text)
+        v.setImageViewBitmap(R.id.widgetCore, ReactorArt.render(context, skin, coreDp, on, state == AssistantState.SPEAKING))
+        v.setTextViewText(R.id.widgetBrand, "J.A.R.V.I.S.")
+        v.setTextColor(R.id.widgetStatus, if (on) skin.good else skin.muted)
+        v.setTextColor(R.id.widgetNext, skin.text)
+        v.setTextColor(R.id.widgetSub, skin.muted)
+        v.setTextColor(R.id.widgetBrand, skin.text)
+        v.setTextColor(R.id.widgetBrief, skin.text)
+        v.setTextColor(R.id.widgetListenText, skin.text)
+    }
+
+    /** Премиум: дым и стекло в цвет схемы, ядро из частиц, серебряная кнопка. */
+    private fun premium(context: Context, v: RemoteViews, skin: Skin, state: AssistantState, on: Boolean, wDp: Int, hDp: Int) {
+        v.setViewVisibility(R.id.widgetBg, View.VISIBLE)
+        v.setImageViewBitmap(R.id.widgetBg, WidgetArt.premiumBackground(context, skin, state, wDp, hDp))
+        v.setInt(R.id.widgetRoot, "setBackgroundResource", 0)
+        v.setInt(R.id.widgetListen, "setBackgroundResource", R.drawable.bg_widget_main_premium)
+        v.setInt(R.id.widgetBrief, "setBackgroundResource", R.drawable.bg_widget_btn_premium)
+        v.setInt(R.id.widgetMicIcon, "setColorFilter", skin.onAccent)
+        v.setImageViewBitmap(R.id.widgetCore, WidgetArt.particleCore(context, skin, coreDp, state))
+        v.setTextViewText(R.id.widgetBrand, "JARVIS")
+        v.setTextColor(R.id.widgetStatus, if (on) stateTone(skin, state) else skin.muted)
+        v.setTextColor(R.id.widgetNext, skin.text)
+        v.setTextColor(R.id.widgetSub, skin.muted)
+        v.setTextColor(R.id.widgetBrand, skin.text)
+        v.setTextColor(R.id.widgetBrief, skin.text)
+        v.setTextColor(R.id.widgetListenText, skin.onAccent)
+    }
+
+    /** Классический: панель консоли и реактор в цветах темы классического интерфейса. */
+    private fun classic(context: Context, v: RemoteViews, state: AssistantState, on: Boolean, wDp: Int, hDp: Int) {
+        val p = ThemeApplier.palette(JarvisSettings.theme(context))
+        v.setViewVisibility(R.id.widgetBg, View.VISIBLE)
+        v.setImageViewBitmap(R.id.widgetBg, WidgetArt.classicBackground(context, p, wDp, hDp))
+        v.setInt(R.id.widgetRoot, "setBackgroundResource", 0)
+        v.setInt(R.id.widgetListen, "setBackgroundResource", R.drawable.bg_widget_btn_classic)
+        v.setInt(R.id.widgetBrief, "setBackgroundResource", R.drawable.bg_widget_btn_classic)
+        v.setInt(R.id.widgetMicIcon, "setColorFilter", p.primary)
+        v.setImageViewBitmap(R.id.widgetCore, WidgetArt.classicCore(context, p, coreDp, state))
+        v.setTextViewText(R.id.widgetBrand, "J.A.R.V.I.S.")
+        v.setTextColor(R.id.widgetStatus, if (on) p.green else p.muted)
+        v.setTextColor(R.id.widgetNext, p.text)
+        v.setTextColor(R.id.widgetSub, p.muted)
+        v.setTextColor(R.id.widgetBrand, p.primary)
+        v.setTextColor(R.id.widgetBrief, p.text)
+        v.setTextColor(R.id.widgetListenText, p.primary)
     }
 
     companion object {
@@ -113,7 +184,7 @@ open class JarvisWidgetProvider : AppWidgetProvider() {
             val manager = AppWidgetManager.getInstance(app) ?: return
             listOf(JarvisWidgetProvider(), JarvisWidgetSquare(), JarvisWidgetStrip()).forEach { provider ->
                 val ids = manager.getAppWidgetIds(ComponentName(app, provider.javaClass))
-                if (ids.isNotEmpty()) manager.updateAppWidget(ids, provider.views(app))
+                ids.forEach { id -> runCatching { manager.updateAppWidget(id, provider.views(app, manager, id)) } }
             }
         }
     }
@@ -124,10 +195,13 @@ class JarvisWidgetSquare : JarvisWidgetProvider() {
     override val layout = R.layout.widget_jarvis_square
     override val coreDp = 84
     override val compact = true
+    override val defaultW = 110
+    override val defaultH = 110
 }
 
 /** Полоска 4×1. */
 class JarvisWidgetStrip : JarvisWidgetProvider() {
     override val layout = R.layout.widget_jarvis_strip
     override val coreDp = 46
+    override val defaultH = 50
 }

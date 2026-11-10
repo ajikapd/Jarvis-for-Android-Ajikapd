@@ -21,6 +21,8 @@ class JarvisApplication : Application() {
         NativeGuard.checkAfterStart(this)
         JarvisSettings.applyVoiceOutput(this)
         SecureKeyMigration.migrate(this)
+        // Значок на рабочем столе — в стиле выбранного интерфейса (после обновления тоже).
+        AppIcon.apply(this, UiMode.style(this))
         SystemStateObserver.ensureStarted(this)
         UsageStatsObserver.ensureStarted(this)
         EventRoutineRunner(this).start()

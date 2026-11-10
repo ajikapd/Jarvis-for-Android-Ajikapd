@@ -12,11 +12,15 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import android.widget.FrameLayout
 import com.jarvis.app.ui.Fonts
+import com.jarvis.app.ui.ParticleCoreView
+import com.jarvis.app.ui.Skins
+import com.jarvis.app.ui.SmokeView
 import com.jarvis.app.ui.dp
 import com.jarvis.core.startup.UiStyle
 
-/** Первый запуск после разрешений: какой интерфейс использовать. Менять можно потом в «Оформлении». */
+/** Первый запуск после разрешений: какой интерфейс использовать (премиум, современный, классический). Менять можно потом в «Оформлении». */
 class InterfaceChoiceActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -30,10 +34,11 @@ class InterfaceChoiceActivity : AppCompatActivity() {
         root.addView(text("ИНТЕРФЕЙС", 12f, ACCENT, Fonts.display(this, 700)).apply { letterSpacing = .3f })
         root.addView(text("Как будет выглядеть Джарвис?", 26f, INK, Fonts.display(this, 700)).apply { setPadding(0, dp(6), 0, dp(6)) })
         root.addView(text("Выберите вид. Поменять его можно в любой момент: в настройках оформления.", 14f, MUTED, Fonts.body(this)))
+        root.addView(premiumCard(), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22) })
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             isBaselineAligned = false
-            setPadding(0, dp(22), 0, 0)
+            setPadding(0, dp(14), 0, 0)
         }
         row.addView(
             card(
@@ -91,6 +96,54 @@ class InterfaceChoiceActivity : AppCompatActivity() {
             background = GradientDrawable().apply {
                 cornerRadius = dp(22).toFloat()
                 setColor(ACCENT)
+            }
+        }, LinearLayout.LayoutParams(-1, -2))
+        return box
+    }
+
+    /** Премиум-стиль: живое ядро из частиц прямо в карточке вместо картинки. */
+    private fun premiumCard(): View {
+        val skin = Skins.PREMIUM[0]
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(10), dp(10), dp(10), dp(12))
+            background = GradientDrawable().apply {
+                cornerRadius = dp(20).toFloat()
+                setColor(CARD)
+                setStroke(dp(1), Color.parseColor("#557FE8FF"))
+            }
+            isClickable = true
+            isFocusable = true
+            contentDescription = "Интерфейс: Премиум"
+            setOnClickListener { choose(UiStyle.PREMIUM) }
+        }
+        val stage = FrameLayout(this).apply {
+            outlineProvider = object : ViewOutlineProvider() {
+                override fun getOutline(view: View, outline: Outline) =
+                    outline.setRoundRect(0, 0, view.width, view.height, dp(14).toFloat())
+            }
+            clipToOutline = true
+            addView(SmokeView(context, skin), FrameLayout.LayoutParams(-1, -1))
+            addView(ParticleCoreView(context, skin, 1400, filaments = false).apply {
+                mode = ParticleCoreView.Mode.LISTEN
+                scale = .4f
+            }, FrameLayout.LayoutParams(-1, -1))
+        }
+        box.addView(stage, LinearLayout.LayoutParams(-1, dp(170)))
+        val head = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(2), dp(12), 0, dp(4))
+        }
+        head.addView(text("Премиум", 17f, INK, Fonts.display(this, 700)), LinearLayout.LayoutParams(0, -2, 1f))
+        head.addView(text("НОВЫЙ", 10f, Color.parseColor("#7FE8FF"), Fonts.mono(this)).apply { letterSpacing = .2f })
+        box.addView(head)
+        box.addView(text("Дымчатый фон, ядро из частиц, матовое стекло и живые данные. Шесть цветов Джарвиса.", 12.5f, MUTED, Fonts.body(this)).apply { setPadding(dp(2), 0, 0, dp(12)) })
+        box.addView(text("Выбрать", 14f, Color.parseColor("#0B0D12"), Fonts.body(this, 700)).apply {
+            gravity = Gravity.CENTER
+            setPadding(0, dp(11), 0, dp(11))
+            background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(Color.WHITE, Color.parseColor("#D5DBE4"))).apply {
+                cornerRadius = dp(22).toFloat()
             }
         }, LinearLayout.LayoutParams(-1, -2))
         return box

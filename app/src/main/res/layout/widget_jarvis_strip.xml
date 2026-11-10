@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/widgetRoot" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/bg_widget_reactor" android:gravity="center_vertical" android:orientation="horizontal" android:paddingStart="8dp" android:paddingEnd="8dp">
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/widgetFrame" android:layout_width="match_parent" android:layout_height="match_parent">
+    <!-- Фон картинкой: премиум (дым и стекло) и классический рисуются по размеру виджета. -->
+    <ImageView android:id="@+id/widgetBg" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" android:importantForAccessibility="no" android:visibility="gone" />
+<LinearLayout android:id="@+id/widgetRoot" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/bg_widget_reactor" android:gravity="center_vertical" android:orientation="horizontal" android:paddingStart="8dp" android:paddingEnd="8dp">
     <ImageView android:id="@+id/widgetCore" android:layout_width="46dp" android:layout_height="46dp" android:layout_marginEnd="8dp" android:contentDescription="Включить или выключить ассистента" android:src="@drawable/ic_launcher_fg_full" />
     <TextView android:id="@+id/widgetNext" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:maxLines="2" android:ellipsize="end" android:text="Напоминаний нет" android:textColor="#ECF4FF" android:textSize="13sp" android:textStyle="bold" />
     <LinearLayout android:id="@+id/widgetListen" android:layout_width="42dp" android:layout_height="42dp" android:layout_marginStart="8dp" android:background="@drawable/bg_widget_main_reactor" android:gravity="center">
         <ImageView android:id="@+id/widgetMicIcon" android:layout_width="20dp" android:layout_height="20dp" android:contentDescription="Говорить" android:src="@drawable/ic_fui_mic" />
     </LinearLayout>
 </LinearLayout>
+</FrameLayout>

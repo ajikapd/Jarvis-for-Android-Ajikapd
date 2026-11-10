@@ -1,5 +1,7 @@
 package com.jarvis.app.ui
 
+import android.graphics.drawable.GradientDrawable
+
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
@@ -38,6 +40,13 @@ fun JarvisActivity.segment(options: List<String>, selected: Int, onPick: (Int) -
     val row = rowLayout(6)
     val items = ArrayList<TextView>()
     fun paint(sel: Int) = items.forEachIndexed { i, t ->
+        if (skin.premium) {
+            // Премиум: выбранное — светлая плашка с тёмным текстом, как в макете.
+            t.setTextColor(if (i == sel) skin.onAccent else skin.muted)
+            t.background = if (i == sel) GradientDrawable().apply { setColor(alpha(skin.text, .92f)); cornerRadius = dp(12).toFloat() }
+            else glassBg(skin, 12, alpha(skin.bg, 0f), alpha(skin.bg, 0f))
+            return@forEachIndexed
+        }
         t.setTextColor(if (i == sel) (if (skin.light) skin.onAccent else skin.text) else skin.muted)
         t.background = glassBg(skin, 18, if (i == sel) alpha(skin.accent, if (skin.light) 1f else .32f) else alpha(skin.bg, 0f), if (i == sel) skin.accent else skin.line)
     }

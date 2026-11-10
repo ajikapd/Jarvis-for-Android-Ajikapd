@@ -115,6 +115,17 @@ class SwitchView(context: Context, private val skin: Skin, on: Boolean) : View(c
     override fun onDraw(c: Canvas) {
         box.set(1f, 1f, width - 1f, height - 1f)
         val r = height / 2f
+        if (skin.premium) {
+            // Премиум: включённый — градиент света Джарвиса и белая ручка.
+            p.style = Paint.Style.FILL
+            p.shader = if (checked) android.graphics.LinearGradient(0f, 0f, width.toFloat(), 0f, skin.accent2, skin.accent, android.graphics.Shader.TileMode.CLAMP) else null
+            p.color = if (checked) Color.WHITE else alpha(skin.text, .1f)
+            c.drawRoundRect(box, r, r, p)
+            p.shader = null
+            p.color = if (checked) Color.WHITE else skin.muted
+            c.drawCircle(if (checked) width - r else r, r, r * .78f, p)
+            return
+        }
         p.style = Paint.Style.FILL
         p.color = if (checked) alpha(skin.accent, .42f) else alpha(skin.text, .08f)
         c.drawRoundRect(box, r, r, p)

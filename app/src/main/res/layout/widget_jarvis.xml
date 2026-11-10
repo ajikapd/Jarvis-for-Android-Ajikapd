@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/widgetRoot" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/bg_widget_reactor" android:gravity="center_vertical" android:orientation="horizontal" android:padding="10dp">
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/widgetFrame" android:layout_width="match_parent" android:layout_height="match_parent">
+    <!-- Фон картинкой: премиум (дым и стекло) и классический рисуются по размеру виджета. -->
+    <ImageView android:id="@+id/widgetBg" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" android:importantForAccessibility="no" android:visibility="gone" />
+<LinearLayout android:id="@+id/widgetRoot" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/bg_widget_reactor" android:gravity="center_vertical" android:orientation="horizontal" android:padding="10dp">
     <ImageView android:id="@+id/widgetCore" android:layout_width="88dp" android:layout_height="88dp" android:layout_marginEnd="10dp" android:contentDescription="Включить или выключить ассистента" android:src="@drawable/ic_launcher_fg_full" />
     <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
         <TextView android:id="@+id/widgetBrand" android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFamily="@font/michroma" android:letterSpacing="0.12" android:text="J.A.R.V.I.S." android:textColor="#ECF4FF" android:textSize="11sp" />
@@ -15,3 +18,4 @@
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>
+</FrameLayout>

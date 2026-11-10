@@ -498,14 +498,20 @@ class SectionScreen(host: JarvisActivity) : Screen(host) {
     fun skins(): View {
         val row = host.rowLayout(6)
         val cur = Skins.current(host).id
-        Skins.ALL.forEach { s ->
+        Skins.list(host).forEach { s ->
             val box = host.column().pad(2, 9).apply {
                 gravity = Gravity.CENTER
                 background = host.glassBg(this@SectionScreen.skin, 14, this@SectionScreen.skin.glass, if (s.id == cur) this@SectionScreen.skin.accent else this@SectionScreen.skin.line)
                 addView(View(host).apply {
                     background = android.graphics.drawable.GradientDrawable().apply {
                         shape = android.graphics.drawable.GradientDrawable.OVAL
-                        setColor(s.accent)
+                        if (s.premium) {
+                            // Премиум: схема — это «свет» Джарвиса, показываем его как маленький орб.
+                            gradientType = android.graphics.drawable.GradientDrawable.RADIAL_GRADIENT
+                            gradientRadius = host.dp(14).toFloat()
+                            setGradientCenter(.35f, .3f)
+                            colors = intArrayOf(android.graphics.Color.WHITE, s.accent, s.accent2)
+                        } else setColor(s.accent)
                         setStroke(1, this@SectionScreen.skin.line)
                     }
                 }, lp(host.dp(24), host.dp(24)))
@@ -598,11 +604,13 @@ object Sections {
         MoreSection("Оформление", "Тема, звуки, плавающий орб", Ic.PAINT) { b ->
             val c = app
             b.addView(head("Интерфейс"))
-            b.addView(options("Вид", listOf("Современный", "Классический"), 0) { picked ->
-                if (picked == 1) UiMode.switchTo(c, UiStyle.CLASSIC)
+            val styles = listOf(UiStyle.PREMIUM, UiStyle.MODERN, UiStyle.CLASSIC)
+            val now = if (UiMode.isPremium(c)) UiStyle.PREMIUM else UiStyle.MODERN
+            b.addView(options("Вид", listOf("Премиум", "Современный", "Классический"), styles.indexOf(now)) { picked ->
+                if (styles[picked] != now) UiMode.switchTo(c, styles[picked])
             })
-            b.addView(note("Классический: инженерная консоль. Вернуться можно в его «Профиле»."))
-            b.addView(head("Тема"))
+            b.addView(note("Премиум: дымчатый фон и ядро из частиц. Классический: инженерная консоль, вернуться можно в его «Профиле»."))
+            b.addView(head(if (UiMode.isPremium(c)) "Цвет Джарвиса" else "Тема"))
             b.addView(skins())
             b.addView(head("Звуки и орб"))
             b.addView(toggle("Звуки интерфейса", "Сигнал активации и эффекты", JarvisSettings.hudSfx(c)) { JarvisSettings.setHudSfx(c, it) })

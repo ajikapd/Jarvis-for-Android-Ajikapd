@@ -27,6 +27,7 @@ object JarvisSettings {
 
     fun setTheme(context: Context, theme: String) {
         prefs(context).edit().putString("theme", theme).apply()
+        JarvisWidgetProvider.refresh(context)
     }
 
     // ── Личность ──────────────────────────────────────────────────

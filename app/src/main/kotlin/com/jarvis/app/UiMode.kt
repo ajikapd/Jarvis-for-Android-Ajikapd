@@ -23,8 +23,14 @@ object UiMode {
 
     fun isClassic(context: Context): Boolean = style(context) == UiStyle.CLASSIC
 
+    fun isPremium(context: Context): Boolean = style(context) == UiStyle.PREMIUM
+
     fun set(context: Context, style: UiStyle) {
         JarvisSettings.prefs(context).edit().putString(KEY, style.id).apply()
+        com.jarvis.app.ui.Fonts.premium = style == UiStyle.PREMIUM
+        // Виджет всегда в стиле выбранного интерфейса.
+        JarvisWidgetProvider.refresh(context)
+        AppIcon.apply(context, style)
     }
 
     fun route(activity: AppCompatActivity): StartupRoute = StartupRoutes.decide(

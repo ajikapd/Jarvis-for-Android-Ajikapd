@@ -64,6 +64,7 @@ class JarvisActivity : AppCompatActivity() {
     private lateinit var liveHost: FrameLayout
     private lateinit var sheetHost: FrameLayout
     private lateinit var mic: FrameLayout
+    private var smoke: SmokeView? = null
     private val tabs = LinkedHashMap<String, Pair<IconView, TextView>>()
     private val screens = HashMap<String, Screen>()
     private var current = ""
@@ -102,6 +103,7 @@ class JarvisActivity : AppCompatActivity() {
             }
         }
         skin = Skins.current(this)
+        Fonts.premium = skin.premium
         window.statusBarColor = skin.bg
         window.navigationBarColor = skin.bg
         window.decorView.systemUiVisibility = if (skin.light) {
@@ -217,10 +219,15 @@ class JarvisActivity : AppCompatActivity() {
     private fun buildShell(): View {
         val root = FrameLayout(this).apply {
             fitsSystemWindows = true
-            background = GradientDrawable(
+            background = if (skin.premium) GradientDrawable().apply { setColor(skin.bg) } else GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
                 intArrayOf(skin.bg, alpha(skin.accent, 1f).let { mix(skin.bg, it, .1f) }, skin.bg),
             )
+        }
+        // Премиум: живой дым под всеми экранами, оттенок следует за состоянием.
+        if (skin.premium) SmokeView(this, skin).also {
+            smoke = it
+            root.addView(it, FrameLayout.LayoutParams(-1, -1))
         }
         val col = column()
         content = FrameLayout(this)
@@ -236,6 +243,7 @@ class JarvisActivity : AppCompatActivity() {
     }
 
     private fun buildNav(): View {
+        if (skin.premium) return buildPremiumNav()
         val host = FrameLayout(this).apply { clipChildren = false }
         val bar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -284,6 +292,61 @@ class JarvisActivity : AppCompatActivity() {
         return host
     }
 
+    /** Премиум: стеклянная панель-капсула с орбом-микрофоном посередине. */
+    private fun buildPremiumNav(): View {
+        val host = FrameLayout(this).apply { clipChildren = false; clipToPadding = false }
+        val bar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            background = glassBg(skin, 30).apply { cornerRadius = dp(30).toFloat() }
+            setPadding(dp(6), 0, dp(6), 0)
+        }
+        fun tab(id: String, icon: String, title: String) {
+            val ic = IconView(this, icon, skin.muted, 20)
+            val t = label(title, 9.5f, skin.muted, gravity = Gravity.CENTER, lines = 1)
+            val box = column().apply {
+                gravity = Gravity.CENTER
+                addView(ic)
+                addView(t, lp(h = -2).apply { topMargin = dp(4) })
+                tap { if (id == LIVE) openLive() else show(id) }
+            }
+            box.contentDescription = title
+            tabs[id] = ic to t
+            bar.addView(box, lp(0, dp(62), 1f))
+        }
+        tab(HOME, Ic.HOME, "Главная")
+        tab(CHAT, Ic.CHAT, "Диалог")
+        tab(MEMORY, Ic.BRAIN, "Память")
+        bar.addView(View(this), lp(dp(70), 1))
+        tab(LIVE, Ic.LIVE, "Live")
+        tab(SKILLS, Ic.GRID, "Навыки")
+        tab(MORE, Ic.DOTS, "Ещё")
+        host.addView(bar, FrameLayout.LayoutParams(-1, dp(66)).apply {
+            gravity = Gravity.BOTTOM
+            setMargins(dp(12), 0, dp(12), dp(10))
+        })
+        mic = FrameLayout(this).apply {
+            contentDescription = "Говорить"
+            background = orbDrawable(skin.accent, skin.accent2)
+            elevation = dp(10f).toFloat()
+            outlineAmbientShadowColor = skin.accent
+            outlineSpotShadowColor = skin.accent
+            addView(IconView(context, Ic.MIC, skin.onAccent, 24), FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
+            tap { onMic() }
+        }
+        host.addView(mic, FrameLayout.LayoutParams(dp(64), dp(64)).apply { gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL; topMargin = dp(6) })
+        return host
+    }
+
+    private fun orbDrawable(acc: Int, acc2: Int) = GradientDrawable().apply {
+        shape = GradientDrawable.OVAL
+        gradientType = GradientDrawable.RADIAL_GRADIENT
+        gradientRadius = dp(40f).toFloat()
+        setGradientCenter(.35f, .3f)
+        colors = intArrayOf(android.graphics.Color.WHITE, mix(acc, android.graphics.Color.WHITE, .6f), acc, acc2, mix(skin.bg, acc2, .3f))
+        setStroke(dp(5), skin.bg)
+    }
+
     fun show(id: String) {
         if (id == current) return
         if (id != SECTION) previous = if (current == SECTION) MORE else current.ifEmpty { HOME }
@@ -306,7 +369,7 @@ class JarvisActivity : AppCompatActivity() {
         }
         val active = if (id == SECTION) MORE else id
         tabs.forEach { (key, pair) ->
-            val c = if (key == active) skin.accent else skin.muted
+            val c = if (key == active) (if (skin.premium) skin.text else skin.accent) else skin.muted
             pair.first.tint = c
             pair.first.invalidate()
             pair.second.setTextColor(c)
@@ -324,15 +387,15 @@ class JarvisActivity : AppCompatActivity() {
     }
 
     private fun createScreen(id: String): Screen = when (id) {
-        CHAT -> ChatScreen(this)
-        MEMORY -> MemoryScreen(this)
-        SKILLS -> SkillsScreen(this)
+        CHAT -> if (skin.premium) PremiumChatScreen(this) else ChatScreen(this)
+        MEMORY -> if (skin.premium) PremiumMemoryScreen(this) else MemoryScreen(this)
+        SKILLS -> if (skin.premium) PremiumSkillsScreen(this) else SkillsScreen(this)
         MORE -> MoreScreen(this)
         ROUTINES -> RoutinesScreen(this)
         STATUS -> StatusScreen(this)
         SCAN -> ScanScreen(this)
         SECTION -> SectionScreen(this)
-        else -> HomeScreen(this)
+        else -> if (skin.premium) PremiumHomeScreen(this) else HomeScreen(this)
     }
 
     fun openLive() {
@@ -391,7 +454,7 @@ class JarvisActivity : AppCompatActivity() {
     private fun onMic() {
         if (current != HOME) show(HOME)
         when {
-            !isOn -> (screens[HOME] as? HomeScreen)?.hint("Сначала нажмите на ядро, сэр")
+            !isOn -> screens[HOME]?.hint("Сначала нажмите на ядро, сэр")
             assistantState == AssistantState.LISTENING ||
                 assistantState == AssistantState.THINKING ||
                 assistantState == AssistantState.EXECUTING -> VoiceController.cancelTurn(this)
@@ -425,7 +488,14 @@ class JarvisActivity : AppCompatActivity() {
         if (state == AssistantState.LISTENING) answerStep = 0
         if (state == AssistantState.SPEAKING) answerStep = 4
         screens[HOME]?.onState(state)
+        screens[CHAT]?.onState(state)
         live?.onState(state)
+        // Выключен: дым остаётся в цвете схемы, только приглушён.
+        smoke?.tint = if (state == AssistantState.OFFLINE || state == AssistantState.ERROR) mix(skin.metal, skin.accent, .45f) else stateTone(skin, state)
+        if (skin.premium) {
+            val tone = stateTone(skin, state)
+            mic.background = orbDrawable(tone, if (tone == skin.accent) skin.accent2 else mix(tone, skin.bg, .4f))
+        }
     }
 
     private fun onEvent(event: AssistantEvent) {
@@ -474,7 +544,10 @@ class JarvisActivity : AppCompatActivity() {
         confirmJob?.cancel()
         askingYesNo = onYes == null
         val box = column(12).pad(16, 18).apply {
-            background = GradientDrawable().apply {
+            background = if (skin.premium) GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(mix(skin.bg, skin.accent, .1f), skin.bg)).apply {
+                cornerRadii = floatArrayOf(dp(28f).toFloat(), dp(28f).toFloat(), dp(28f).toFloat(), dp(28f).toFloat(), 0f, 0f, 0f, 0f)
+                setStroke(1, alpha(skin.warn, .6f))
+            } else GradientDrawable().apply {
                 setColor(mix(skin.bg, skin.accent, .12f))
                 cornerRadii = floatArrayOf(dp(20f).toFloat(), dp(20f).toFloat(), dp(20f).toFloat(), dp(20f).toFloat(), 0f, 0f, 0f, 0f)
                 setStroke(1, skin.warn)
@@ -511,7 +584,11 @@ class JarvisActivity : AppCompatActivity() {
 
     fun button(text: String, primary: Boolean, action: () -> Unit): TextView =
         label(text, 15f, if (primary) skin.onAccent else skin.text, Fonts.body(this, 700), Gravity.CENTER).apply {
-            background = glassBg(skin, 12, if (primary) skin.accent else skin.glass, if (primary) skin.accent else skin.line)
+            background = if (skin.premium && primary) {
+                // Премиум: главная кнопка серебряная, акцент только у Джарвиса.
+                GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(android.graphics.Color.WHITE, android.graphics.Color.parseColor("#D5DBE4"))).apply { cornerRadius = dp(24).toFloat() }
+            } else if (skin.premium) glassBg(skin, 24).apply { cornerRadius = dp(24).toFloat() }
+            else glassBg(skin, 12, if (primary) skin.accent else skin.glass, if (primary) skin.accent else skin.line)
             this.gravity = Gravity.CENTER
             tap(action)
         }
@@ -554,9 +631,12 @@ abstract class Screen(protected val host: JarvisActivity) {
     open fun onState(state: AssistantState) = Unit
     /** Пришли новые реплики или события. */
     open fun onData() = Unit
+    /** Короткая подсказка на главной. */
+    open fun hint(text: String) = Unit
 
     /** Шапка: стрелка назад только у вложенных экранов. */
     protected fun header(title: String, withBack: Boolean): View {
+        if (skin.premium) return premiumHeader(title, withBack)
         val row = host.rowLayout(8).pad(14, 10)
         if (withBack) row.addView(FrameLayout(host).apply {
             addView(IconView(host, Ic.BACK, skin.accent), FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
@@ -572,6 +652,25 @@ abstract class Screen(protected val host: JarvisActivity) {
         row.addView(t, lp(0, -2, 1f))
         return row
     }
+
+    /** Премиум-шапка: моно-строка над крупным заголовком, назад — стеклянный круг справа. */
+    private fun premiumHeader(title: String, withBack: Boolean): View {
+        val row = host.rowLayout(10).apply { setPadding(host.dp(20), host.dp(16), host.dp(16), host.dp(12)) }
+        val text = host.column(5)
+        text.addView(host.monoLabel(meta(), 10f, skin.metal).apply { letterSpacing = .1f })
+        text.addView(host.label(title, 27f, skin.text, Fonts.display(host, 600)).apply { letterSpacing = -.015f })
+        row.addView(text, lp(0, -2, 1f))
+        if (withBack) row.addView(FrameLayout(host).apply {
+            background = host.glassBg(skin, 20).apply { cornerRadius = host.dp(20).toFloat() }
+            addView(IconView(host, Ic.BACK, skin.text, 20), FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
+            contentDescription = "Назад"
+            tap { host.back() }
+        }, lp(host.dp(40), host.dp(40)))
+        return row
+    }
+
+    /** Строка над заголовком премиум-шапки. */
+    protected open fun meta(): String = "JARVIS · " + java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
 
     protected fun scroll(body: LinearLayout): View = android.widget.ScrollView(host).apply {
         isFillViewport = true

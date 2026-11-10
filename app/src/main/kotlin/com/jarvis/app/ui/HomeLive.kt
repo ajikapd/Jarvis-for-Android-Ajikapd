@@ -131,7 +131,7 @@ class HomeScreen(host: JarvisActivity) : Screen(host) {
         return row
     }
 
-    fun hint(text: String) {
+    override fun hint(text: String) {
         hintOverride = text
         render()
     }
@@ -237,8 +237,10 @@ class HomeScreen(host: JarvisActivity) : Screen(host) {
 class LiveScreen(host: JarvisActivity) : Screen(host) {
     /** Сцена Live тёмная в любой теме, поэтому светлой теме нужны светлые надписи. */
     override val skin: Skin = darkened(host.skin)
-    val stageColor: Int = mix(android.graphics.Color.BLACK, skin.violet, .06f)
+    val stageColor: Int = if (skin.premium) skin.bg else mix(android.graphics.Color.BLACK, skin.violet, .06f)
     private val mind = MindView(host, skin)
+    /** Премиум: в Live то же ядро из частиц, только крупнее. */
+    private val core = if (skin.premium) ParticleCoreView(host, skin, 3000).apply { scale = .34f; mode = ParticleCoreView.Mode.OFF } else null
     private val stat = host.label("", 12f, skin.muted)
     private val time = host.label("", 16f, skin.muted, Fonts.display(host))
     private val you = host.label("", 14f, skin.muted, lines = 3)
@@ -260,11 +262,18 @@ class LiveScreen(host: JarvisActivity) : Screen(host) {
         }
     }
 
-    override val view: View = build()
+    override val view: View = build().let { col ->
+        if (!skin.premium) col else FrameLayout(host).apply {
+            setBackgroundColor(stageColor)
+            isClickable = true
+            addView(SmokeView(host, skin), FrameLayout.LayoutParams(-1, -1))
+            addView(col, FrameLayout.LayoutParams(-1, -1))
+        }
+    }
 
     private fun build(): View {
         val root = host.column().apply {
-            setBackgroundColor(stageColor)
+            if (!skin.premium) setBackgroundColor(stageColor)
             isClickable = true
         }
         val bar = host.rowLayout(8).pad(14, 10)
@@ -274,13 +283,16 @@ class LiveScreen(host: JarvisActivity) : Screen(host) {
             tap { host.closeLive() }
         }, lp(host.dp(42), host.dp(42)))
         val title = host.column()
-        title.addView(host.label("LIVE", 15f, skin.text, Fonts.display(host)).apply { letterSpacing = .1f })
+        if (skin.premium) {
+            title.addView(host.monoLabel("LIVE · БЕЗ СЛОВА-АКТИВАТОРА", 10f, skin.metal))
+            title.addView(host.label("Разговор", 27f, skin.text, Fonts.display(host, 600)))
+        } else title.addView(host.label("LIVE", 15f, skin.text, Fonts.display(host)).apply { letterSpacing = .1f })
         title.addView(stat)
         bar.addView(title, lp(0, -2, 1f))
         bar.addView(time)
         root.addView(bar)
         val stage = FrameLayout(host)
-        stage.addView(mind, FrameLayout.LayoutParams(-1, -1))
+        stage.addView(core ?: mind, FrameLayout.LayoutParams(-1, -1))
         chips.forEach { c -> c.setPadding(host.dp(9), host.dp(6), host.dp(9), host.dp(6)); c.background = host.glassBg(skin, 10); chipBox.addView(c, lp(host.dp(84), -2)) }
         stage.addView(chipBox, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.END).apply { setMargins(0, host.dp(8), host.dp(10), 0) })
         root.addView(stage, lp(h = 0, weight = 1f))
@@ -340,7 +352,15 @@ class LiveScreen(host: JarvisActivity) : Screen(host) {
     private fun ui() {
         toggle.text = if (talking) "Завершить" else "Начать разговор"
         toggle.setTextColor(if (talking) skin.danger else (if (skin.light) skin.onAccent else skin.text))
-        toggle.background = host.glassBg(skin, 26, if (talking) android.graphics.Color.TRANSPARENT else alpha(skin.accent, if (skin.light) 1f else .3f), if (talking) skin.danger else skin.accent)
+        if (skin.premium) {
+            // Премиум: «Завершить» — красная кнопка, «Начать» — серебряная.
+            toggle.setTextColor(if (talking) android.graphics.Color.WHITE else skin.onAccent)
+            toggle.background = android.graphics.drawable.GradientDrawable(
+                android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
+                if (talking) intArrayOf(android.graphics.Color.parseColor("#FF6B5E"), android.graphics.Color.parseColor("#B8281F"))
+                else intArrayOf(android.graphics.Color.WHITE, android.graphics.Color.parseColor("#D5DBE4")),
+            ).apply { cornerRadius = host.dp(26).toFloat() }
+        } else toggle.background = host.glassBg(skin, 26, if (talking) android.graphics.Color.TRANSPARENT else alpha(skin.accent, if (skin.light) 1f else .3f), if (talking) skin.danger else skin.accent)
         stat.text = if (talking) "Идёт разговор, слово активации не нужно" else "Разговор выключен"
         stat.setTextColor(if (talking) skin.good else skin.muted)
         muteBtn.visibility = if (talking) View.VISIBLE else View.GONE
@@ -348,6 +368,7 @@ class LiveScreen(host: JarvisActivity) : Screen(host) {
         if (!talking) {
             time.text = ""
             mind.mood = MindView.Mood.SLEEP
+            core?.mode = ParticleCoreView.Mode.OFF
         } else onState(host.assistantState)
     }
 
@@ -380,6 +401,7 @@ class LiveScreen(host: JarvisActivity) : Screen(host) {
             else -> 0
         }
         mind.mood = listOf(MindView.Mood.LISTEN, MindView.Mood.THINK, MindView.Mood.SPEAK)[index]
+        core?.mode = listOf(ParticleCoreView.Mode.LISTEN, ParticleCoreView.Mode.THINK, ParticleCoreView.Mode.SPEAK)[index]
         chips.forEachIndexed { i, c ->
             c.setTextColor(if (i == index) skin.text else skin.muted)
             c.background = host.glassBg(skin, 10, skin.glass, if (i == index) skin.violet else skin.line)

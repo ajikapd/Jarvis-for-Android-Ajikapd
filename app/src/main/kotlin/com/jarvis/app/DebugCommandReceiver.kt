@@ -69,7 +69,7 @@ class DebugCommandReceiver : BroadcastReceiver() {
             ACTION_DEBUG_VOICE -> handleVoice(context, intent)
             ACTION_DEBUG_TTS -> if (BuildConfig.DEBUG) handleTtsSample(context, intent)
             ACTION_DEBUG_TTS_DUMP -> if (BuildConfig.DEBUG) handleTtsDump(context, intent)
-            ACTION_DEBUG_WIDGETS -> if (BuildConfig.DEBUG) handleWidgets(context)
+            ACTION_DEBUG_WIDGETS -> if (BuildConfig.DEBUG) handleWidgets(context, com.jarvis.core.startup.UiStyle.of(intent.getStringExtra("style")))
             ACTION_DEBUG_ECHO_PROBE -> if (BuildConfig.DEBUG) handleEchoProbe()
             ACTION_ASR_TEST -> handleAsrTest(context, intent)
             ACTION_DEBUG_AUTONOMY -> handleAutonomy(context, intent)
@@ -467,7 +467,7 @@ class DebugCommandReceiver : BroadcastReceiver() {
     }
 
     /** Виджеты теми же средствами, что у лаунчера, в картинки cache/widget_*.png: без установки на экран. */
-    private fun handleWidgets(context: Context) {
+    private fun handleWidgets(context: Context, style: com.jarvis.core.startup.UiStyle? = null) {
         val app = context.applicationContext
         android.os.Handler(android.os.Looper.getMainLooper()).post {
             listOf(
@@ -479,7 +479,7 @@ class DebugCommandReceiver : BroadcastReceiver() {
                     val d = app.resources.displayMetrics.density
                     val w = (size.first * d).toInt()
                     val h = (size.second * d).toInt()
-                    val view = provider.views(app).apply(app, android.widget.FrameLayout(app))
+                    val view = provider.views(app, android.appwidget.AppWidgetManager.getInstance(app), 0, style).apply(app, android.widget.FrameLayout(app))
                     view.measure(android.view.View.MeasureSpec.makeMeasureSpec(w, android.view.View.MeasureSpec.EXACTLY), android.view.View.MeasureSpec.makeMeasureSpec(h, android.view.View.MeasureSpec.EXACTLY))
                     view.layout(0, 0, w, h)
                     val bmp = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)

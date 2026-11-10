@@ -3,8 +3,9 @@ package com.jarvis.core.startup
 /** Куда вести человека при открытии приложения. */
 enum class StartupRoute { ONBOARDING, CHOOSE_UI, GUIDE, MODERN, CLASSIC }
 
-/** Какой интерфейс выбран: современный или классический. */
+/** Какой интерфейс выбран: премиум, современный или классический. Премиум и современный живут в одном окне. */
 enum class UiStyle(val id: String) {
+    PREMIUM("premium"),
     MODERN("modern"),
     CLASSIC("classic");
 

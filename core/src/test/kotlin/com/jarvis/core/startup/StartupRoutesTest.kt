@@ -18,6 +18,8 @@ class StartupRoutesTest {
 
     @Test fun chosenInterfaceOpens() {
         assertEquals(StartupRoute.MODERN, route(true, UiStyle.MODERN, true))
+        // Премиум открывается в том же окне, что и современный.
+        assertEquals(StartupRoute.MODERN, route(true, UiStyle.PREMIUM, true))
         assertEquals(StartupRoute.CLASSIC, route(true, UiStyle.CLASSIC, true))
     }
 
@@ -26,6 +28,7 @@ class StartupRoutesTest {
     @Test fun styleIds() {
         assertEquals(UiStyle.CLASSIC, UiStyle.of("classic"))
         assertEquals(UiStyle.MODERN, UiStyle.of("modern"))
+        assertEquals(UiStyle.PREMIUM, UiStyle.of("premium"))
         assertNull(UiStyle.of(null))
         assertNull(UiStyle.of("retro"))
     }
