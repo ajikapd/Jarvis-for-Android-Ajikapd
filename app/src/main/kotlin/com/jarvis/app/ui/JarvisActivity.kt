@@ -94,7 +94,9 @@ class JarvisActivity : AppCompatActivity() {
             }
             if (route == StartupRoute.CLASSIC) {
                 // Классический интерфейс выбран: передаём ему тот же запуск (виджет, ассистент, ярлык).
-                startActivity(Intent(intent).setClass(this, DashboardActivity::class.java))
+                // Без флагов и категории лаунчера: с ними Android лишь поднимает эту же задачу,
+                // классический экран не создаётся, и после finish() приложение «вылетает» на рабочий стол.
+                startActivity(classicIntent(intent))
                 finish()
                 return
             }
@@ -137,6 +139,13 @@ class JarvisActivity : AppCompatActivity() {
             repeatOnLifecycle(Lifecycle.State.STARTED) { JarvisEvents.events.collect(::onEvent) }
         }
         handleIntent(intent)
+    }
+
+    /** Тот же запуск (виджет, ассистент, ярлык) для классического экрана: действие, данные и extras — без флагов. */
+    private fun classicIntent(source: Intent): Intent = Intent(this, DashboardActivity::class.java).apply {
+        source.action?.takeIf { it != Intent.ACTION_MAIN }?.let { action = it }
+        source.data?.let { data = it }
+        source.extras?.let { putExtras(it) }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
