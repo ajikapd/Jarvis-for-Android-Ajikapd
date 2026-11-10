@@ -184,6 +184,8 @@ class LauncherTool(private val context: Context) : Tool {
             if (pm.getLaunchIntentForPackage(pkg) != null) return pkg
         }
         findByLabel(query)?.component?.packageName?.let { return it }
+        com.jarvis.core.common.AppFamilies.packagesFor(query)
+            .firstOrNull { pm.getLaunchIntentForPackage(it) != null }?.let { return it }
         val apps = launcherApps()
         // «Карты» от Яндекса находятся и по «яндекс карты»: бренд берётся из имени пакета.
         val branded = apps.mapNotNull { (pkg, label) -> AppMatcher.brandOf(pkg)?.let { pkg to "$it $label" } }

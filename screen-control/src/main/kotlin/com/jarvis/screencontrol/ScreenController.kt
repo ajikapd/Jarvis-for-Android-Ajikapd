@@ -25,6 +25,8 @@ import kotlin.math.max
  * дерево экрана, жесты, ввод текста, глобальные действия, скриншот.
  */
 object ScreenController {
+    /** Служба не подключена: выключена или Android её остановил, хотя переключатель включён. */
+    const val NOT_CONNECTED = "Служба спец. возможностей Jarvis не отвечает. Включите её в настройках; если она уже включена, выключите и включите снова — Android иногда её останавливает."
 
     @Volatile
     private var service: JarvisAccessibilityService? = null

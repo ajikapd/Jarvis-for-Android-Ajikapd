@@ -16,6 +16,16 @@ class FollowUpResolverTest {
         assertEquals("off", FollowUpResolver.resolve("выключи", torch)?.arguments?.get("action"))
     }
 
+    @Test
+    fun `after the flashlight another command is not a flashlight patch`() {
+        val torch = ToolCall(requestId = "x", toolId = "flashlight", arguments = mapOf("action" to "on"))
+        assertNull(FollowUpResolver.resolve("включи музыку", torch))
+        assertNull(FollowUpResolver.resolve("выключи музыку", torch))
+        assertNull(FollowUpResolver.resolve("включи вай-фай", torch))
+        assertEquals("off", FollowUpResolver.resolve("а теперь выключи его", torch)?.arguments?.get("action"))
+        assertEquals("on", FollowUpResolver.resolve("включи обратно", torch)?.arguments?.get("action"))
+    }
+
     private fun timer(vararg args: Pair<String, Any>) = ToolCall(requestId = "x", toolId = "timer", arguments = mapOf(*args))
 
     @Test

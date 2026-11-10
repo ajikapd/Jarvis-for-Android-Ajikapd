@@ -17,6 +17,7 @@ class JarvisApplication : Application() {
         super.onCreate()
         // Первым делом: вылеты дальше по запуску тоже попадут в отчёт.
         CrashReports.install(this)
+        MainThreadWatchdog.start(this)
         NativeGuard.checkAfterStart(this)
         JarvisSettings.applyVoiceOutput(this)
         SecureKeyMigration.migrate(this)

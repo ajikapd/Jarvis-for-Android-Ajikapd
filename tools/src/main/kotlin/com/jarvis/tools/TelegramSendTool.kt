@@ -57,7 +57,7 @@ class TelegramSendTool(private val context: Context) : Tool {
         if (!ScreenController.isAvailable()) {
             return ToolResult(
                 call.requestId, definition.id, ToolResultStatus.FAILED,
-                "Служба спец. возможностей Jarvis не включена.",
+                ScreenController.NOT_CONNECTED,
             )
         }
 
@@ -182,10 +182,6 @@ class TelegramSendTool(private val context: Context) : Tool {
     }
 
     companion object {
-        private val TELEGRAM_PACKAGES = listOf(
-            "org.telegram.messenger",
-            "org.telegram.messenger.web",
-            "org.thunderdog.challegram",
-        )
+        private val TELEGRAM_PACKAGES = com.jarvis.core.common.AppFamilies.TELEGRAM
     }
 }

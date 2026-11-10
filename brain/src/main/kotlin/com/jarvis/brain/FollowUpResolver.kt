@@ -12,6 +12,11 @@ object FollowUpResolver {
     /** Прямо названный таймер или будильник — новая команда, а не уточнение прошлой. */
     private val ACTION_TOOLS = setOf("flashlight", "volume", "brightness", "music")
     private val TIMER_NOUNS = listOf("таймер", "будильник", "секундомер")
+    private val TORCH_VERBS = listOf("включ", "выключ", "отключ", "погас", "зажг")
+    private val FLASHLIGHT_FOLLOW_WORDS = setOf(
+        "а", "и", "теперь", "его", "её", "ее", "обратно", "снова", "опять", "тоже", "уже", "ещё", "еще",
+        "пожалуйста", "джарвис", "фонарик", "фонарь", "свет", "давай", "можешь", "можно", "назад",
+    )
     private const val HOUR_AND_HALF_MINUTES = 90
     private const val HALF_HOUR_MINUTES = 30
 
@@ -367,6 +372,7 @@ object FollowUpResolver {
 
     private fun volumeFollowUp(t: String, last: ToolCall): ToolCall? {
         if (last.toolId != "volume") return null
+        if (t.contains("ярк") || t.contains("экран")) return null
         val direction = when {
             t.contains("громче") || t.contains("погромче") || t.contains("выше") -> "up"
             t.contains("тише") || t.contains("потише") || t.contains("ниже") -> "down"
@@ -395,6 +401,9 @@ object FollowUpResolver {
 
     private fun flashlightFollowUp(t: String, last: ToolCall): ToolCall? {
         if (last.toolId != "flashlight") return null
+        // «выключи» после фонарика — про фонарик; «включи музыку» — уже новая команда.
+        val words = t.split(Regex("[^\\p{L}-]+")).filter { it.isNotBlank() }
+        if (words.any { it !in FLASHLIGHT_FOLLOW_WORDS && TORCH_VERBS.none { v -> it.startsWith(v) } }) return null
         val action = when {
             t.contains("выключ") || t.contains("погас") || t.contains("отключ") -> "off"
             t.contains("включ") || t.contains("зажг") -> "on"

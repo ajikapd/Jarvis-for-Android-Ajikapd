@@ -30,7 +30,7 @@ class ActionCoordinator(
     ): ActionResult {
         if (!ScreenController.isAvailable()) {
             tryIntentFallback(query)?.let { return it }
-            return ActionResult(false, "Служба спец. возможностей Jarvis не включена.")
+            return ActionResult(false, ScreenController.NOT_CONNECTED)
         }
         ScreenController.dismissShadeIfNeeded()
         // Координаты: «в центре», «30 70», «x=0.5 y=0.2»
@@ -108,7 +108,7 @@ class ActionCoordinator(
         forClick: Boolean = false,
     ): ActionResult {
         if (!ScreenController.isAvailable()) {
-            return ActionResult(false, "Служба спец. возможностей Jarvis не включена.")
+            return ActionResult(false, ScreenController.NOT_CONNECTED)
         }
         val deadline = System.currentTimeMillis() + timeoutMs.coerceAtLeast(200L)
         var backoff = 120L
@@ -168,7 +168,7 @@ class ActionCoordinator(
     /** Краткое «зрение»: кликабельные/редактируемые элементы на экране. */
     fun describeScreen(maxItems: Int = 30): ActionResult {
         if (!ScreenController.isAvailable()) {
-            return ActionResult(false, "Служба спец. возможностей Jarvis не включена.")
+            return ActionResult(false, ScreenController.NOT_CONNECTED)
         }
         val tree = ScreenController.dumpActiveTree()
         val activePkg = ScreenController.activePackageName()
@@ -256,7 +256,7 @@ class ActionCoordinator(
 
     fun scrollUntil(query: String, direction: String = "up", maxAttempts: Int = 8): ActionResult {
         if (!ScreenController.isAvailable()) {
-            return ActionResult(false, "Служба спец. возможностей Jarvis не включена.")
+            return ActionResult(false, ScreenController.NOT_CONNECTED)
         }
         repeat(maxAttempts) { attempt ->
             val node = findBestNode(query)
@@ -271,7 +271,7 @@ class ActionCoordinator(
 
     fun tapFraction(fx: Float, fy: Float, longPress: Boolean = false): ActionResult {
         if (!ScreenController.isAvailable()) {
-            return ActionResult(false, "Служба спец. возможностей Jarvis не включена.")
+            return ActionResult(false, ScreenController.NOT_CONNECTED)
         }
         val dm = context.resources.displayMetrics
         val x = (dm.widthPixels * fx.coerceIn(0.05f, 0.95f))
@@ -308,7 +308,7 @@ class ActionCoordinator(
 
     fun findAndType(query: String?, text: String): ActionResult {
         if (!ScreenController.isAvailable()) {
-            return ActionResult(false, "Служба спец. возможностей Jarvis не включена.")
+            return ActionResult(false, ScreenController.NOT_CONNECTED)
         }
         if (text.isBlank()) return ActionResult(false, "Нечего вводить.")
         if (!query.isNullOrBlank()) {
@@ -339,7 +339,7 @@ class ActionCoordinator(
      */
     fun findAndTypeInBottomField(text: String): ActionResult {
         if (!ScreenController.isAvailable()) {
-            return ActionResult(false, "Служба спец. возможностей Jarvis не включена.")
+            return ActionResult(false, ScreenController.NOT_CONNECTED)
         }
         if (text.isBlank()) return ActionResult(false, "Нечего вводить.")
         val nodes = ScreenController.dumpActiveTree().ifEmpty { ScreenController.dumpTree() }
@@ -357,7 +357,7 @@ class ActionCoordinator(
 
     fun swipe(direction: String): ActionResult {
         if (!ScreenController.isAvailable()) {
-            return ActionResult(false, "Служба спец. возможностей Jarvis не включена.")
+            return ActionResult(false, ScreenController.NOT_CONNECTED)
         }
         val ok = ScreenController.swipeDirection(direction)
         return if (ok) ActionResult(true, "Свайп: $direction")
@@ -377,7 +377,7 @@ class ActionCoordinator(
             }
         }
         if (!ScreenController.isAvailable()) {
-            return ActionResult(false, "Служба спец. возможностей Jarvis не включена.")
+            return ActionResult(false, ScreenController.NOT_CONNECTED)
         }
         val ok = ScreenController.globalAction(action)
         return if (ok) ActionResult(true, "Выполнил действие «$action».")

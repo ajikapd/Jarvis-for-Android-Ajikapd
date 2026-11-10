@@ -50,6 +50,11 @@ object CrashReports {
         runCatching { save(context.applicationContext, "Ошибка: $what", stack(error)) }
     }
 
+    /** Главный поток не отвечал: где он стоял. */
+    fun recordStall(context: Context, ms: Long, mainStack: String) {
+        runCatching { save(context.applicationContext, "Зависание окна", "Главный поток не отвечал ${ms / 1000} с\n$mainStack") }
+    }
+
     fun pending(context: Context): List<File> =
         dir(context).listFiles { f -> f.name.endsWith(".txt") }?.sortedByDescending { it.lastModified() }.orEmpty()
 

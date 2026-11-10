@@ -31,10 +31,10 @@ class MessageAnnouncer(private val minGapMs: Long = DEFAULT_GAP_MS) {
         private val COUNTER = Regex("\\s*\\(\\d+[^)]*\\)\\s*$")
         private val APPS = mapOf(
             "org.telegram.messenger" to "Телеграме", "org.telegram.messenger.web" to "Телеграме",
-            "org.thunderdog.challegram" to "Телеграме", "com.whatsapp" to "Ватсапе",
+            "com.whatsapp" to "Ватсапе",
             "com.vkontakte.android" to "ВКонтакте", "com.viber.voip" to "Вайбере",
             "com.google.android.apps.messaging" to "сообщениях", "com.android.mms" to "сообщениях",
-        )
+        ) + com.jarvis.core.common.AppFamilies.TELEGRAM.associateWith { "Телеграме" }
 
         fun cleanSender(raw: String): String = raw.replace(COUNTER, "").trim()
     }
