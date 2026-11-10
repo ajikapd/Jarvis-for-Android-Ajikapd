@@ -33,6 +33,12 @@ object ModelCatalog {
         val expectedMinBytes: Long = (sizeBytes * 0.85).toLong(),
     )
 
+    /** Адрес и запасные зеркала. */
+    fun mirrorsOf(url: String): List<String> = buildList {
+        add(url)
+        if ("://huggingface.co/" in url) add(url.replace("://huggingface.co/", "://hf-mirror.com/"))
+    }
+
     val ALL: List<Entry> = listOf(
         Entry(
             id = "chat_qwen3_06",
@@ -44,28 +50,6 @@ object ModelCatalog {
             relativePath = "llm/chat/Qwen3-0.6B-Q4_K_M.gguf",
             readyMarker = "llm/chat/Qwen3-0.6B-Q4_K_M.gguf",
             sizeBytes = 396_705_472L,
-        ),
-        Entry(
-            id = "chat_qwen05",
-            title = "Диалог · Qwen 2.5 0.5B (лёгкий)",
-            subtitle = "Запасной быстрый вариант (~398 MB). Чуть слабее Qwen3 0.6B.",
-            kind = Kind.CHAT_LLM,
-            packageKind = PackageKind.SINGLE_FILE,
-            url = "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf",
-            relativePath = "llm/chat/qwen2.5-0.5b-instruct-q4_k_m.gguf",
-            readyMarker = "llm/chat/qwen2.5-0.5b-instruct-q4_k_m.gguf",
-            sizeBytes = 397_808_864L,
-        ),
-        Entry(
-            id = "chat_qwen15",
-            title = "Диалог · Qwen 2.5 1.5B (качество)",
-            subtitle = "Лучшее качество, но медленно на среднем CPU (~1.1 GB, 15–30 с на фразу).",
-            kind = Kind.CHAT_LLM,
-            packageKind = PackageKind.SINGLE_FILE,
-            url = "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf",
-            relativePath = "llm/chat/qwen2.5-1.5b-instruct-q4_k_m.gguf",
-            readyMarker = "llm/chat/qwen2.5-1.5b-instruct-q4_k_m.gguf",
-            sizeBytes = 1_117_320_736L,
         ),
         Entry(
             id = "tool_functiongemma",
@@ -152,8 +136,6 @@ object ModelCatalog {
      */
     val CHAT_MODEL_CANDIDATES: List<String> = listOf(
         "llm/chat/Qwen3-0.6B-Q4_K_M.gguf",
-        "llm/chat/qwen2.5-0.5b-instruct-q4_k_m.gguf",
-        "llm/chat/qwen2.5-1.5b-instruct-q4_k_m.gguf",
     )
 
     @Deprecated("Use CHAT_MODEL_CANDIDATES", ReplaceWith("CHAT_MODEL_CANDIDATES.first()"))

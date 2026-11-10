@@ -240,7 +240,33 @@ class ModelManager(context: Context) {
         }
     }
 
+    /**
+     * Скачивание с запасным зеркалом: HuggingFace без VPN открывается не везде,
+     * тогда тот же файл берётся с hf-mirror.com.
+     */
     private fun httpDownload(
+        urlStr: String,
+        dest: File,
+        entry: ModelCatalog.Entry,
+        onProgress: (downloaded: Long, total: Long) -> Unit,
+    ) {
+        val mirrors = ModelCatalog.mirrorsOf(urlStr)
+        var last: Throwable? = null
+        for (candidate in mirrors) {
+            try {
+                httpDownloadOnce(candidate, dest, entry, onProgress)
+                return
+            } catch (t: Throwable) {
+                if (cancelFlags[entry.id] == true) throw t
+                Log.w(TAG, "download failed from ${java.net.URL(candidate).host}: ${t.message}")
+                last = t
+                dest.delete()
+            }
+        }
+        throw last ?: IllegalStateException("download failed")
+    }
+
+    private fun httpDownloadOnce(
         urlStr: String,
         dest: File,
         entry: ModelCatalog.Entry,

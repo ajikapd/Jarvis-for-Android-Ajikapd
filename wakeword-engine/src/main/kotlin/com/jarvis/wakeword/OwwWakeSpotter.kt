@@ -106,13 +106,17 @@ class OwwWakeSpotter(
         lastScore = score
         peakScore = max(peakScore, score)
 
-        if (now - lastScoreLogAtMs >= SCORE_LOG_MS) {
+        // Тишина в журнал не пишется: иначе строка каждые полсекунды вытесняет полезное из отчётов.
+        if (now - lastScoreLogAtMs >= SCORE_LOG_MS && peakScore >= threshold * QUIET_LOG_SHARE) {
             lastScoreLogAtMs = now
             Log.i(
                 TAG,
                 "score=${"%.3f".format(score)} peak=${"%.3f".format(peakScore)} " +
                     "thr=$threshold armed=$armed",
             )
+            peakScore = 0f
+        } else if (now - lastScoreLogAtMs >= SCORE_LOG_MS) {
+            lastScoreLogAtMs = now
             peakScore = 0f
         }
 
@@ -231,6 +235,7 @@ class OwwWakeSpotter(
         private const val WARMUP_FRAMES = 2
         private const val DEDUP_MS = 900L
         private const val SCORE_LOG_MS = 600L
+        private const val QUIET_LOG_SHARE = 0.3f
         const val POST_SESSION_COOLDOWN_MS = 700L
 
         fun thresholdFromLevel(level: Int): Float = when (level) {

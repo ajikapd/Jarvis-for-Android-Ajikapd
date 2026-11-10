@@ -73,7 +73,7 @@ class CustomRoutineParserTest {
         assertEquals(CustomRoutineParser.Request.Delete("поехали"), CustomRoutineParser.parse("удали команду поехали"))
 
     @Test fun appSynonymsByVoice() {
-        assertEquals(CustomRoutineParser.Request.Alias("телег", "телеграм"), CustomRoutineParser.parse("называй телеграм телегой"))
+        assertEquals(CustomRoutineParser.Request.Alias("телег", "телеграм", "телегой"), CustomRoutineParser.parse("называй телеграм телегой"))
         assertEquals(CustomRoutineParser.Request.Alias("телега", "телеграм"), CustomRoutineParser.parse("добавь синоним телега для телеграм"))
         assertEquals(CustomRoutineParser.Request.Alias("ютубчик", "youtube"), CustomRoutineParser.parse("синоним ютубчик для youtube"))
     }

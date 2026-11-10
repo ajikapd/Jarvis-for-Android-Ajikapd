@@ -11,7 +11,7 @@ object CustomRoutineParser {
         data class Delete(val name: String) : Request()
         object Names : Request()
         /** Синоним приложения: «называй телеграм телегой». */
-        data class Alias(val alias: String, val app: String) : Request()
+        data class Alias(val alias: String, val app: String, val spoken: String = alias) : Request()
     }
 
     private val DEFINE = Regex(
@@ -36,7 +36,7 @@ object CustomRoutineParser {
         if (text == "какие у меня сценарии" || text == "мои сценарии") return Request.Names
         DELETE.find(text)?.let { return Request.Delete(it.groupValues[1]) }
         ADD_ALIAS.find(text)?.let { return Request.Alias(it.groupValues[1].trim(), it.groupValues[2].trim()) }
-        CALL_AS.find(text)?.let { return Request.Alias(stem(it.groupValues[2]), it.groupValues[1].trim()) }
+        CALL_AS.find(text)?.let { return Request.Alias(stem(it.groupValues[2]), it.groupValues[1].trim(), it.groupValues[2]) }
         val match = DEFINE.find(text) ?: return event(text)
         val tokens = match.groupValues.drop(1).first { it.isNotEmpty() }.split(' ')
         val verb = tokens.indexOfFirst { it in VERBS }

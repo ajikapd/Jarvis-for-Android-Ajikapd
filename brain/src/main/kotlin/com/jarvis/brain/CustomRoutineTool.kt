@@ -39,9 +39,9 @@ class CustomRoutineTool(
                 "Хорошо, сэр. Сработает, когда: ${request.rule.name}. Шагов: ${request.steps.size}."
             }
             is CustomRoutineParser.Request.Delete ->
-                if (routines.remove(request.name)) "Сценарий удалён, сэр." else "Такого сценария нет, сэр."
+                if (routines.remove(request.name)) "Удалил «${request.name}», сэр." else "Такой команды нет, сэр."
             is CustomRoutineParser.Request.Alias -> addAlias(request.alias, request.app)
-                ?.let { "Запомнил, сэр: «${request.alias}» — это $it." }
+                ?.let { "Запомнил, сэр: «${request.spoken}» — это $it." }
                 ?: "Не нашёл приложение «${request.app}», сэр."
             CustomRoutineParser.Request.Names -> routines.names().let { names ->
                 if (names.isEmpty()) "Своих сценариев пока нет, сэр." else "Ваши сценарии: ${names.joinToString(", ")}."
