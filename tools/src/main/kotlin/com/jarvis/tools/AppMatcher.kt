@@ -33,9 +33,13 @@ internal object AppMatcher {
     fun tokens(text: String): List<String> =
         text.split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotBlank() }.map { key(it) }.filter { it.isNotEmpty() }
 
+    /** «Я.Музыка», «Я.Карты»: так Яндекс подписывает свои приложения. */
+    private val YANDEX_PREFIX = Regex("^\\s*Я\\s*\\.\\s*")
+    private val SPOKEN_YA = Regex("^\\s*я[\\s.]+", RegexOption.IGNORE_CASE)
+
     fun score(query: String, label: String): Int {
-        val q = tokens(query)
-        val l = tokens(label)
+        val q = tokens(SPOKEN_YA.replace(query, "яндекс "))
+        val l = tokens(YANDEX_PREFIX.replace(label, "Яндекс "))
         if (q.isEmpty() || l.isEmpty()) return 0
         val whole = similarity(q.joinToString(""), l.joinToString(""))
         // Каждое сказанное слово ищем среди слов названия.
@@ -60,6 +64,12 @@ internal object AppMatcher {
         }
         return 1.0 - prev[b.length].toDouble() / maxOf(a.length, b.length)
     }
+
+    private val BRANDS = listOf("yandex" to "Яндекс", "google" to "Google", "samsung" to "Samsung", "vkontakte" to "ВК", "mail.ru" to "Mail")
+
+    /** Бренд по имени пакета, если в подписи приложения его нет. */
+    fun brandOf(packageName: String): String? =
+        BRANDS.firstOrNull { (key, _) -> key in packageName.lowercase() }?.second
 
     /** Лучшее совпадение из списка (пакет, название), если оно достаточно похоже. */
     fun <T> best(query: String, items: List<Pair<T, String>>, accept: Int = ACCEPT): T? =

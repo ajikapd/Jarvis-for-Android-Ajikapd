@@ -184,7 +184,10 @@ class LauncherTool(private val context: Context) : Tool {
             if (pm.getLaunchIntentForPackage(pkg) != null) return pkg
         }
         findByLabel(query)?.component?.packageName?.let { return it }
-        return AppMatcher.best(query, launcherApps())
+        val apps = launcherApps()
+        // «Карты» от Яндекса находятся и по «яндекс карты»: бренд берётся из имени пакета.
+        val branded = apps.mapNotNull { (pkg, label) -> AppMatcher.brandOf(pkg)?.let { pkg to "$it $label" } }
+        return AppMatcher.best(query, apps + branded)
     }
 
     private fun notFound(query: String) =
