@@ -1,6 +1,7 @@
 package com.jarvis.app.tts
 
 import android.content.Context
+import android.os.Looper
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.util.Log
@@ -43,21 +44,31 @@ class AndroidSystemTtsBackend(
         else VoiceProviderAvailability.UNAVAILABLE
     }
 
+    /** Идущая инициализация: её ждут фоновые потоки, главный поток не ждёт никогда. */
+    @Volatile private var pending: CountDownLatch? = null
+
+    /**
+     * Системный TTS сообщает о готовности через главный поток. Раньше главный поток сам
+     * ждал этого сигнала до 3 секунд под замком — окно висло и система показывала
+     * «Jarvis не отвечает» (самое частое зависание в отчётах). Теперь на главном потоке
+     * только запускаем инициализацию, а ждут её лишь фоновые потоки, и не под замком.
+     */
     private fun ensureInit() {
         if (ready && engine != null) return
-        synchronized(initLock) {
+        val latch = synchronized(initLock) {
             if (ready && engine != null) return
-            val latch = CountDownLatch(1)
-            val tts = TextToSpeech(appContext) { status ->
-                ready = status == TextToSpeech.SUCCESS
-                latch.countDown()
-            }
-            engine = tts
-            latch.await(3, TimeUnit.SECONDS)
-            if (ready) {
-                tts.language = Locale("ru", "RU")
+            pending ?: CountDownLatch(1).also { latch ->
+                pending = latch
+                engine?.let { old -> runCatching { old.shutdown() } }
+                engine = TextToSpeech(appContext) { status ->
+                    ready = status == TextToSpeech.SUCCESS
+                    if (ready) runCatching { engine?.language = Locale("ru", "RU") }
+                    synchronized(initLock) { if (pending === latch) pending = null }
+                    latch.countDown()
+                }
             }
         }
+        if (Looper.myLooper() != Looper.getMainLooper()) latch.await(3, TimeUnit.SECONDS)
     }
 
     override fun synthesize(

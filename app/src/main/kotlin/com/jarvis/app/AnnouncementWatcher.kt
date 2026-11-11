@@ -9,7 +9,7 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Handler
-import android.os.Looper
+import android.os.HandlerThread
 import android.provider.CalendarContract
 import android.provider.ContactsContract
 import android.telephony.TelephonyManager
@@ -29,7 +29,10 @@ import java.util.Calendar
 /** Всё, что Джарвис говорит сам, пока слушает: звонки, сообщения, встречи, сводка после будильника. */
 class AnnouncementWatcher(context: Context) {
     private val ctx = context.applicationContext
-    private val handler = Handler(Looper.getMainLooper())
+    // Календарь и будильники опрашиваем не на главном потоке: на слабых телефонах запрос
+    // к календарю занимал секунды и вешал окно (ANR на Redmi 8).
+    private val thread = HandlerThread("jarvis-announce").apply { start() }
+    private val handler = Handler(thread.looper)
     private val messages = MessageAnnouncer()
     private val announcedEvents = HashSet<String>()
     private var announcedRing = false
@@ -70,6 +73,7 @@ class AnnouncementWatcher(context: Context) {
         runCatching { ctx.unregisterReceiver(callReceiver) }
         JarvisNotificationListenerService.messageListener = null
         handler.removeCallbacks(tick)
+        thread.quitSafely()
     }
 
     private fun onMessage(key: String, message: IncomingMessage) {

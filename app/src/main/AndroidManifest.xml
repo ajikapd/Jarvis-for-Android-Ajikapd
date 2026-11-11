@@ -208,7 +208,13 @@
         <service
             android:name=".VoiceService"
             android:exported="false"
-            android:foregroundServiceType="microphone" />
+            android:foregroundServiceType="microphone|specialUse">
+            <!-- specialUse: короткое уведомление, когда микрофон системе не дали,
+                 чтобы служба могла закрыться, не роняя приложение. -->
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Brief notice that the voice assistant could not start the microphone" />
+        </service>
 
         <service
             android:name=".OverlayOrbService"

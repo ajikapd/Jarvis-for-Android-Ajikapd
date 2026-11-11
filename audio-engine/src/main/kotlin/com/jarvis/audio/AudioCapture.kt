@@ -71,7 +71,13 @@ class AudioCapture(private val context: Context) {
             while (isActive) {
                 if (echoCancel != sourceHasEchoCancel) {
                     closeRecord()
-                    openRecord(echoCancel)
+                    if (!isActive) break
+                    runCatching { openRecord(echoCancel) }.onFailure {
+                        // Микрофон занят или недоступен: пробуем снова чуть позже, не роняя процесс.
+                        readErrors++
+                        closeRecord()
+                        delay(READ_ERROR_DELAY_MS)
+                    }
                 }
                 val read = audioRecord?.read(buf, 0, buf.size) ?: 0
                 if (read < 0) {
@@ -100,7 +106,10 @@ class AudioCapture(private val context: Context) {
         closeRecord()
     }
 
-    private fun openRecord(cancelEcho: Boolean) {
+    /** Открытие и закрытие микрофона идут из разных потоков (остановка службы и цикл чтения). */
+    private val recordLock = Any()
+
+    private fun openRecord(cancelEcho: Boolean) = synchronized(recordLock) {
         val bufSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT)
         // MIC без жёсткого NS: VOICE_RECOGNITION часто режет дальнюю речь.
         // Wake и ASR получают один и тот же сырой сигнал.
@@ -116,15 +125,31 @@ class AudioCapture(private val context: Context) {
         record.startRecording()
     }
 
-    private fun closeRecord() {
-        silenceCallback?.let { audioRecord?.unregisterAudioRecordingCallback(it) }
+    /**
+     * Закрывает микрофон и не бросает исключений. Раньше stop() у уже остановленной записи
+     * и снятие незарегистрированного колбэка роняли приложение (Android 17, Infinix, Samsung).
+     */
+    private fun closeRecord() = synchronized(recordLock) {
+        val record = audioRecord
+        audioRecord = null
+        val callback = silenceCallback
         silenceCallback = null
         clientSilenced = false
-        echoCanceler?.release()
+        if (record != null && callback != null) {
+            runCatching { record.unregisterAudioRecordingCallback(callback) }
+        }
+        echoCanceler?.let { runCatching { it.release() } }
         echoCanceler = null
-        audioRecord?.stop()
-        audioRecord?.release()
-        audioRecord = null
+        if (record != null) {
+            runCatching {
+                if (record.state == AudioRecord.STATE_INITIALIZED &&
+                    record.recordingState == AudioRecord.RECORDSTATE_RECORDING
+                ) {
+                    record.stop()
+                }
+            }
+            runCatching { record.release() }
+        }
     }
 
     private fun registerSilenceCallback() {

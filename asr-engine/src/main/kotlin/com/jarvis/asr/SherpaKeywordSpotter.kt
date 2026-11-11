@@ -50,8 +50,16 @@ class SherpaKeywordSpotter(
         stream = spotter.createStream("")
     }
 
+    /**
+     * Звук идёт из потока микрофона, а закрытие — из потока остановки службы. Без замка
+     * decode() встречал уже освобождённую модель: «pthread_mutex_lock called on a destroyed mutex».
+     */
+    private val lock = Any()
+    @Volatile private var closed = false
+
     /** @return true, если в этом чанке распознано слово. */
-    fun process(samples: FloatArray): Boolean {
+    fun process(samples: FloatArray): Boolean = synchronized(lock) {
+        if (closed) return false
         val started = System.nanoTime()
         stream.acceptWaveform(amplified(samples), SAMPLE_RATE)
         var hit = false
@@ -66,9 +74,13 @@ class SherpaKeywordSpotter(
         return hit
     }
 
-    fun reset() = spotter.reset(stream)
+    fun reset() = synchronized(lock) {
+        if (!closed) spotter.reset(stream)
+    }
 
-    override fun close() {
+    override fun close() = synchronized(lock) {
+        if (closed) return
+        closed = true
         stream.release()
         spotter.release()
     }

@@ -195,15 +195,27 @@ class LauncherTool(private val context: Context) : Tool {
     private fun notFound(query: String) =
         "Не нашёл приложение «$query». Если оно называется иначе, добавьте синоним: «Ещё → Приложения»."
 
-    /** Все приложения с иконкой: (пакет, название). */
-    fun launcherApps(): List<Pair<String, String>> = runCatching {
-        val pm = context.packageManager
-        val main = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        pm.queryIntentActivities(main, 0)
-            .map { it.activityInfo.packageName to (it.loadLabel(pm)?.toString() ?: "") }
-            .filter { it.second.isNotBlank() }
-            .distinctBy { it.first }
-    }.getOrDefault(emptyList())
+    /**
+     * Все приложения с иконкой: (пакет, название). Названия грузятся долго (сотни обращений
+     * к системе), а звали это и с главного потока — окно висло. Держим список полминуты.
+     */
+    fun launcherApps(): List<Pair<String, String>> {
+        val now = android.os.SystemClock.elapsedRealtime()
+        cachedApps?.let { if (now - cachedAt < APPS_TTL_MS) return it }
+        val fresh = runCatching {
+            val pm = context.packageManager
+            val main = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+            pm.queryIntentActivities(main, 0)
+                .map { it.activityInfo.packageName to (it.loadLabel(pm)?.toString() ?: "") }
+                .filter { it.second.isNotBlank() }
+                .distinctBy { it.first }
+        }.getOrDefault(emptyList())
+        if (fresh.isNotEmpty()) {
+            cachedApps = fresh
+            cachedAt = now
+        }
+        return fresh
+    }
 
     private fun findByLabel(query: String): Intent? = runCatching {
         val pm = context.packageManager
@@ -249,7 +261,16 @@ class LauncherTool(private val context: Context) : Tool {
 
     private fun normalizeName(value: String): String = Transliterator.compareKey(value)
 
-    private companion object {
+    companion object {
+        private const val APPS_TTL_MS = 30_000L
+        @Volatile private var cachedApps: List<Pair<String, String>>? = null
+        @Volatile private var cachedAt = 0L
+
+        /** Заранее, в фоне: чтобы первый «открой …» и экран синонимов не ждали. */
+        fun warmUp(context: Context) {
+            Thread({ runCatching { LauncherTool(context.applicationContext).launcherApps() } }, "jarvis-apps").start()
+        }
+
         val OPEN_VERBS = setOf("открой", "запусти", "открыть", "запустить", "приложение")
         const val STRONG_MATCH = 80
     }

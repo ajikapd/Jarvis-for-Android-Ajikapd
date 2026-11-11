@@ -1121,6 +1121,7 @@ object VoiceController {
                 Intent(context, VoiceService::class.java).apply {
                     this.action = action
                     putExtra(VoiceService.EXTRA_ENTRY, entry)
+                    putExtra(VoiceService.EXTRA_FOREGROUND, true)
                 },
             )
         }.onFailure { e ->

@@ -4,6 +4,8 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Intent
 import android.os.Build
+import android.os.Handler
+import android.os.HandlerThread
 import android.os.SystemClock
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
@@ -14,6 +16,7 @@ import com.jarvis.core.companion.PhoneContextBus
 import com.jarvis.core.privacy.SensitivityClassifier
 import com.jarvis.core.companion.PhoneObservation
 import com.jarvis.core.companion.Sensitivity
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Служба спец. возможностей Jarvis — «зрение» и «руки» на экране.
@@ -65,12 +68,42 @@ class JarvisAccessibilityService : AccessibilityService() {
         }
     }
 
+    /**
+     * Чтение дерева окна (rootInActiveWindow, обход детей) — это обращения к чужому процессу.
+     * На главном потоке они вешали окно Джарвиса («не отвечает» в отчётах с Xiaomi и OPPO),
+     * поэтому выполняем их на отдельном потоке и не копим очередь: пока один разбор идёт,
+     * новые события того же вида пропускаем.
+     */
+    private val worker = HandlerThread("jarvis-a11y").apply { start() }
+    private val workerHandler = Handler(worker.looper)
+    private val windowsJobQueued = AtomicBoolean(false)
+    private val contentJobQueued = AtomicBoolean(false)
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
         when (event.eventType) {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> onWindowStateChanged(event)
-            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> onWindowsChanged(event)
-            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> onWindowContentChanged(event)
+            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> {
+                // Событие переиспользуется системой после возврата — берём из него строку сразу.
+                val fallback = event.packageName?.toString()
+                if (windowsJobQueued.compareAndSet(false, true)) {
+                    workerHandler.post {
+                        windowsJobQueued.set(false)
+                        runCatching { onWindowsChanged(fallback) }
+                    }
+                }
+            }
+            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
+                val pkg = event.packageName?.toString()?.takeIf { it.isNotBlank() } ?: return
+                if (pkg in IGNORED_PACKAGES) return
+                if (SystemClock.elapsedRealtime() - lastContentAtElapsed < LOCAL_CONTENT_DEBOUNCE_MS) return
+                if (contentJobQueued.compareAndSet(false, true)) {
+                    workerHandler.post {
+                        contentJobQueued.set(false)
+                        runCatching { onWindowContentChanged(pkg) }
+                    }
+                }
+            }
         }
     }
 
@@ -92,10 +125,10 @@ class JarvisAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun onWindowsChanged(event: AccessibilityEvent) {
+    private fun onWindowsChanged(eventPackage: String?) {
         // Только смена активного пакета через root — без спама.
         val pkg = rootInActiveWindow?.packageName?.toString()?.takeIf { it.isNotBlank() }
-            ?: event.packageName?.toString()?.takeIf { it.isNotBlank() }
+            ?: eventPackage?.takeIf { it.isNotBlank() }
             ?: return
         if (pkg in IGNORED_PACKAGES) return
         val now = SystemClock.elapsedRealtime()
@@ -105,9 +138,7 @@ class JarvisAccessibilityService : AccessibilityService() {
         publishAppForeground(pkg, "windows_changed")
     }
 
-    private fun onWindowContentChanged(event: AccessibilityEvent) {
-        val pkg = event.packageName?.toString()?.takeIf { it.isNotBlank() } ?: return
-        if (pkg in IGNORED_PACKAGES) return
+    private fun onWindowContentChanged(pkg: String) {
         val now = SystemClock.elapsedRealtime()
         if (now - lastContentAtElapsed < LOCAL_CONTENT_DEBOUNCE_MS) return
         val hint = lightweightContentHint(pkg)
@@ -248,6 +279,7 @@ class JarvisAccessibilityService : AccessibilityService() {
 
     override fun onDestroy() {
         ScreenController.unbind(this)
+        worker.quitSafely()
         super.onDestroy()
     }
 

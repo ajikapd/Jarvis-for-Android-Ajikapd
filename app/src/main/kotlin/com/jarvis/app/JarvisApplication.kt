@@ -34,6 +34,9 @@ class JarvisApplication : Application() {
         ConversationJournal.expire()
         restoreUiHistory()
 
+        // Список приложений с названиями — в фоне, чтобы «открой …» не вешал окно.
+        com.jarvis.tools.LauncherTool.warmUp(this)
+
         // Ранний mmap chat-модели в RAM — к моменту первой фразы веса уже горячие.
         BrainGraph.preloadChatModel(this)
     }

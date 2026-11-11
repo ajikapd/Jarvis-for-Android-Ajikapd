@@ -294,6 +294,23 @@ class VoiceService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val entry = intent?.getStringExtra(EXTRA_ENTRY) ?: VoiceController.lastEntry
+        promiseKept = false
+        val result = runCatching { handleCommand(intent, entry, startId) }.getOrElse { e ->
+            Log.e(TAG, "command ${intent?.action} failed", e)
+            CrashReports.record(this, "команда службы голоса упала (${intent?.action})", e)
+            START_NOT_STICKY
+        }
+        // Запуск через startForegroundService обязывает службу показать уведомление за секунды,
+        // иначе система роняет всё приложение (ForegroundServiceDidNotStartInTimeException —
+        // самый частый вылет в отчётах тестеров). Если ни одна ветка этого не сделала, делаем сами.
+        if (intent?.getBooleanExtra(EXTRA_FOREGROUND, false) == true && !inForeground && !promiseKept) {
+            placeholderForegroundAndQuit()
+            return START_NOT_STICKY
+        }
+        return result
+    }
+
+    private fun handleCommand(intent: Intent?, entry: String, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> stopVoice()
             ACTION_TOGGLE_WAKE -> {
@@ -329,14 +346,35 @@ class VoiceService : Service() {
      */
     private fun enterForeground(entry: String): Boolean = try {
         startForeground(NOTIFICATION_ID, buildNotification(entry), ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+        inForeground = true
         true
     } catch (e: Exception) {
         Log.w(TAG, "foreground with microphone refused: ${e.message}")
         CrashReports.record(this, "служба голоса не получила микрофон (вход: $entry)", e)
-        notifyOpenApp()
         VoiceController.setRunning(false)
-        stopSelf()
+        placeholderForegroundAndQuit()
         false
+    }
+
+    /**
+     * Обещание «покажу уведомление» дано системе, а микрофон не дали: показываем
+     * короткое уведомление без микрофона и сразу закрываемся. Без этого система
+     * через несколько секунд убивает процесс целиком.
+     */
+    private fun placeholderForegroundAndQuit() {
+        runCatching {
+            val notice = buildNotification(VoiceController.ENTRY_UNKNOWN)
+            if (android.os.Build.VERSION.SDK_INT >= 34) {
+                startForeground(NOTIFICATION_ID, notice, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+            } else {
+                startForeground(NOTIFICATION_ID, notice)
+            }
+        }.onFailure { Log.w(TAG, "placeholder foreground refused: ${it.message}") }
+        promiseKept = true
+        runCatching { stopForeground(STOP_FOREGROUND_REMOVE) }
+        inForeground = false
+        notifyOpenApp()
+        stopSelf()
     }
 
     /** Подсказка, когда голос не смог включиться сам. */
@@ -500,9 +538,11 @@ class VoiceService : Service() {
     private fun stopVoice() {
         generationGate.cancelCurrent()
         VoiceController.setRunning(false)
-        engine?.stop()
+        // Микрофон на некоторых телефонах падает при остановке: это не повод ронять приложение.
+        runCatching { engine?.stop() }.onFailure { Log.w(TAG, "engine stop: ${it.message}") }
         engine = null
         stopForeground(STOP_FOREGROUND_DETACH)
+        inForeground = false
         stopSelf()
     }
 
@@ -554,6 +594,9 @@ class VoiceService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     private var widgetJob: kotlinx.coroutines.Job? = null
+    @Volatile private var inForeground = false
+    /** Эта команда уже показала уведомление (пусть и временное) — обещание системе выполнено. */
+    private var promiseKept = false
 
     override fun onDestroy() {
         widgetJob?.cancel()
@@ -561,7 +604,7 @@ class VoiceService : Service() {
         announcements?.stop()
         finishProactiveSay("destroy")
         if (coreRegistered) VoiceController.removeListener(coreListener)
-        engine?.stop()
+        runCatching { engine?.stop() }
         engine = null
         coreScope.cancel()
         brainExecutor.shutdownNow()
@@ -577,6 +620,8 @@ class VoiceService : Service() {
         const val ACTION_TOGGLE_WAKE = "com.jarvis.assistant.VOICE_TOGGLE_WAKE"
         const val ACTION_SAY = "com.jarvis.assistant.VOICE_SAY"
         const val EXTRA_ENTRY = "entry"
+        /** Служба запущена через startForegroundService и обязана показать уведомление. */
+        const val EXTRA_FOREGROUND = "foreground"
         const val EXTRA_TEXT = "text"
         private const val SAY_TAG = "Jarvis.ProactiveDelivery"
         private const val CHANNEL_ID = "jarvis_voice"
