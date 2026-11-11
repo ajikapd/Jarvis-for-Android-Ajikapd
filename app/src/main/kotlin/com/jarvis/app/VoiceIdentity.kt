@@ -90,11 +90,15 @@ object VoiceIdentity {
 
     /** Отпечаток записи для образца или null, если речи мало. */
     @Synchronized
-    fun embedSample(context: Context, pcm: FloatArray): FloatArray? = embed(context, pcm)
+    fun embedSample(context: Context, pcm: FloatArray): FloatArray? {
+        VoiceClips.save(context, "enroll_word", pcm)
+        return embed(context, pcm)
+    }
 
     /** Отпечатки кусков записанной фразы. */
     @Synchronized
     fun embedPhrase(context: Context, pcm: FloatArray): List<FloatArray> {
+        VoiceClips.save(context, "enroll_phrase", pcm)
         val engine = loadEmbedder(context) ?: return emptyList()
         return VoiceTrim.windows(VoiceTrim.speech(pcm)).mapNotNull { piece ->
             runCatching { engine.embed(piece) }.getOrNull()

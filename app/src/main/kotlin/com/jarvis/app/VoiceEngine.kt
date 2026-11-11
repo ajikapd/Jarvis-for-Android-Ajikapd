@@ -471,7 +471,9 @@ class VoiceEngine(
         if (!heard || !speechGate.speechPresent()) return
         bargeOwwAt = 0L
         bargeKeywordAt = 0L
-        val voice = VoiceIdentity.check(app, recentAudio.snapshot())
+        val bargeAudio = recentAudio.snapshot()
+        val voice = VoiceIdentity.check(app, bargeAudio)
+        VoiceClips.save(app, "barge", bargeAudio, voice?.score, "oww=$oww sherpa=$sherpa accepted=${voice?.accepted}")
         if (!oww && voice?.accepted != true) {
             VoiceHealthLog.write(app, "barge rejected: sherpa only, voice ${voice?.let(::voiceLine) ?: "off"}")
             return
@@ -507,6 +509,7 @@ class VoiceEngine(
             SystemClock.elapsedRealtime() - ownerWakeAtMs > OWNER_WAKE_TRUST_MS
         val check = VoiceIdentity.checkCommand(app, pcm, awaited, clean = !mediaPlaying)
         val allowed = check?.accepted ?: (!awaited || !VoiceIdentity.commandLocked(app))
+        VoiceClips.save(app, "command", pcm, check?.score, "awaited=$awaited media=$mediaPlaying allowed=$allowed")
         val score = check?.let { "${voiceLine(it)} ${"%.1f".format(it.seconds)}s" } ?: "none"
         VoiceHealthLog.write(app, "command voice=$score awaited=$awaited media=$mediaPlaying allowed=$allowed")
         if (!allowed) {
@@ -636,11 +639,19 @@ class VoiceEngine(
                     keywordSpotter?.reset()
                     return
                 }
+                val wakeAudio = recentAudio.snapshot()
                 val voice = VoiceIdentity.check(
                     app,
-                    recentAudio.snapshot(),
+                    wakeAudio,
                     clean = !mediaPlaying,
                     media = mediaPlaying,
+                )
+                VoiceClips.save(
+                    app,
+                    if (voice?.accepted == false) "wake_rejected" else "wake",
+                    wakeAudio,
+                    voice?.score,
+                    "media=$mediaPlaying oww=$owwHit sherpa=$keywordHit",
                 )
                 if (voice?.accepted == false) {
                     VoiceHealthLog.write(app, "wake rejected: voice ${voiceLine(voice)} media=$mediaPlaying")
