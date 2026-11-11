@@ -423,6 +423,14 @@ class VoiceEngine(
         syncHush(speaking)
         audioCapture?.echoCancel = speaking || mediaPlaying ||
             (sp != null && SystemClock.elapsedRealtime() - sp.lastPlayEndAtMs < ECHO_HOLD_MS)
+        if (!wasSpeaking && speaking) {
+            // Проверка голоса при перебивании должна слушать только то, что звучало поверх ответа,
+            // а не хвост только что сказанной команды: иначе голос владельца «подтверждался»
+            // на его же команде, и ложное срабатывание обрывало ответ.
+            recentAudio.clear()
+            bargeOwwAt = 0L
+            bargeKeywordAt = 0L
+        }
         if (wasSpeaking && !speaking) {
             VoiceHealthLog.write(app, "speech end owwPeak=${"%.3f".format(bargePeak)}")
             bargePeak = 0f
@@ -431,11 +439,12 @@ class VoiceEngine(
     }
 
     /**
-     * Прерывание голосом: «Джарвис» поверх собственной речи. На своей речи детекторы молчат,
-     * поэтому хватает любого; оба нужны, только когда Джарвис сам называет своё имя.
+     * Прерывание голосом: «Джарвис» поверх собственной речи.
      * После голосовой команды детектор выключен, а взводится лишь вне речи: взводим его здесь.
-     * Динамик рядом с микрофоном,
-     * поэтому нужны оба детектора в пределах секунды, иначе он перебивал бы сам себя.
+     * Основной детектор (oww) на своей речи молчит, ему хватает проверки голоса как обычно.
+     * Sherpa же срабатывает и на собственный голос Джарвиса из динамика, поэтому одному ему
+     * верим, только если голос владельца подтвердился на звуке, записанном поверх ответа.
+     * Когда Джарвис сам называет своё имя, нужны оба детектора.
      */
     private fun handleBargeIn(samples: FloatArray) {
         val kws = kwsSpotter ?: return
@@ -461,6 +470,10 @@ class VoiceEngine(
         bargeOwwAt = 0L
         bargeKeywordAt = 0L
         val voice = VoiceIdentity.check(app, recentAudio.snapshot())
+        if (!oww && voice?.accepted != true) {
+            VoiceHealthLog.write(app, "barge rejected: sherpa only, voice ${voice?.let(::voiceLine) ?: "off"}")
+            return
+        }
         if (voice?.accepted == false) {
             VoiceHealthLog.write(app, "barge rejected: voice ${voiceLine(voice)}")
             bargeOwwAt = 0L
