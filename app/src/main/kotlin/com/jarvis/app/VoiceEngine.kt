@@ -344,6 +344,8 @@ class VoiceEngine(
     private var bargeKeywordAt = 0L
     private var bargePeak = 0f
     @Volatile private var bargeWake = false
+    /** Когда слово активации последний раз подтвердилось голосом владельца. */
+    @Volatile private var ownerWakeAtMs = 0L
     private var wasSpeaking = false
     private val audioManager = app.getSystemService(android.media.AudioManager::class.java)
     /** Звук видео или музыки: подавление эха убирает его из микрофона, как и свою речь. */
@@ -480,6 +482,7 @@ class VoiceEngine(
             bargeKeywordAt = 0L
             return
         }
+        if (voice?.accepted == true) ownerWakeAtMs = now
         VoiceHealthLog.write(app, "barge-in voice=${voice?.let(::voiceLine) ?: "off"}")
         bargeWake = true
         kws.disarm()
@@ -496,7 +499,12 @@ class VoiceEngine(
      * команде сразу после слова активации, а в ожидании без него не верим: «да» из видео
      * не должно подтверждать действие.
      */
-    private fun commandVoiceAllowed(pcm: FloatArray, awaited: Boolean): Boolean {
+    private fun commandVoiceAllowed(pcm: FloatArray, awaitedRaw: Boolean): Boolean {
+        // «Джарвис», пауза, «Слушаю», команда: команда идёт как ожидаемая (строгий порог),
+        // хотя владелец только что подтвердил себя словом активации. Такую считаем командой
+        // после слова, иначе Джарвис отказывал хозяину (0,31–0,42 при пороге 0,45).
+        val awaited = awaitedRaw &&
+            SystemClock.elapsedRealtime() - ownerWakeAtMs > OWNER_WAKE_TRUST_MS
         val check = VoiceIdentity.checkCommand(app, pcm, awaited, clean = !mediaPlaying)
         val allowed = check?.accepted ?: (!awaited || !VoiceIdentity.commandLocked(app))
         val score = check?.let { "${voiceLine(it)} ${"%.1f".format(it.seconds)}s" } ?: "none"
@@ -640,6 +648,7 @@ class VoiceEngine(
                     keywordSpotter?.reset()
                     return
                 }
+                if (voice?.accepted == true) ownerWakeAtMs = SystemClock.elapsedRealtime()
                 VoiceHealthLog.write(
                     app,
                     "wake hit voice=${voice?.let(::voiceLine) ?: "off"} oww=$owwHit sherpa=$keywordHit score=${"%.3f".format(kws.lastScoreValue)} " +
@@ -767,7 +776,7 @@ class VoiceEngine(
             }
             var out = text.trim()
             val heard = synchronized(livePcmLock) { FloatArray(livePcm.size) { i -> livePcm[i] } }
-            if (out.isNotBlank() && heard.isNotEmpty() && !commandVoiceAllowed(heard, awaited = liveRefine)) {
+            if (out.isNotBlank() && heard.isNotEmpty() && !commandVoiceAllowed(heard, awaitedRaw = liveRefine)) {
                 synchronized(livePcmLock) { livePcm.clear() }
                 pendingLivePrefix = ""
                 return@launch
@@ -1003,6 +1012,7 @@ class VoiceEngine(
     companion object {
         private const val TAG = "Jarvis.Debug"
         private const val BARGE_WINDOW_MS = 1_000L
+        private const val OWNER_WAKE_TRUST_MS = 10_000L
         private const val ECHO_HOLD_MS = 700L
         private const val HUSH_MIN_MS = 1_500L
         private const val HUSH_AFTER_SPEECH_MS = 800L
