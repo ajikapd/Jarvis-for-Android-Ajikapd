@@ -347,6 +347,7 @@ class VoiceService : Service() {
     private fun enterForeground(entry: String): Boolean = try {
         startForeground(NOTIFICATION_ID, buildNotification(entry), ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
         inForeground = true
+        promiseKept = true
         true
     } catch (e: Exception) {
         Log.w(TAG, "foreground with microphone refused: ${e.message}")

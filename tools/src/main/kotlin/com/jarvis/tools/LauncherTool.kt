@@ -197,24 +197,14 @@ class LauncherTool(private val context: Context) : Tool {
 
     /**
      * Все приложения с иконкой: (пакет, название). Названия грузятся долго (сотни обращений
-     * к системе), а звали это и с главного потока — окно висло. Держим список полминуты.
+     * к системе), а звали это и с главного потока — окно висло. Поэтому список держим в памяти:
+     * устаревший отдаём сразу, а свежий подгружаем в фоне. Ждать приходится только при самом
+     * первом обращении, если прогрев при запуске ещё не успел.
      */
     fun launcherApps(): List<Pair<String, String>> {
-        val now = android.os.SystemClock.elapsedRealtime()
-        cachedApps?.let { if (now - cachedAt < APPS_TTL_MS) return it }
-        val fresh = runCatching {
-            val pm = context.packageManager
-            val main = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-            pm.queryIntentActivities(main, 0)
-                .map { it.activityInfo.packageName to (it.loadLabel(pm)?.toString() ?: "") }
-                .filter { it.second.isNotBlank() }
-                .distinctBy { it.first }
-        }.getOrDefault(emptyList())
-        if (fresh.isNotEmpty()) {
-            cachedApps = fresh
-            cachedAt = now
-        }
-        return fresh
+        val cached = cachedApps ?: return loadApps(context)
+        if (android.os.SystemClock.elapsedRealtime() - cachedAt >= APPS_TTL_MS) refreshInBackground(context)
+        return cached
     }
 
     private fun findByLabel(query: String): Intent? = runCatching {
@@ -266,10 +256,34 @@ class LauncherTool(private val context: Context) : Tool {
         @Volatile private var cachedApps: List<Pair<String, String>>? = null
         @Volatile private var cachedAt = 0L
 
-        /** Заранее, в фоне: чтобы первый «открой …» и экран синонимов не ждали. */
-        fun warmUp(context: Context) {
-            Thread({ runCatching { LauncherTool(context.applicationContext).launcherApps() } }, "jarvis-apps").start()
+        private val refreshing = java.util.concurrent.atomic.AtomicBoolean(false)
+
+        private fun loadApps(context: Context): List<Pair<String, String>> {
+            val fresh = runCatching {
+                val pm = context.packageManager
+                val main = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+                pm.queryIntentActivities(main, 0)
+                    .map { it.activityInfo.packageName to (it.loadLabel(pm)?.toString() ?: "") }
+                    .filter { it.second.isNotBlank() }
+                    .distinctBy { it.first }
+            }.getOrDefault(emptyList())
+            if (fresh.isNotEmpty()) {
+                cachedApps = fresh
+                cachedAt = android.os.SystemClock.elapsedRealtime()
+            }
+            return fresh
         }
+
+        private fun refreshInBackground(context: Context) {
+            if (!refreshing.compareAndSet(false, true)) return
+            val app = context.applicationContext
+            Thread({
+                try { loadApps(app) } finally { refreshing.set(false) }
+            }, "jarvis-apps").start()
+        }
+
+        /** Заранее, в фоне: чтобы первый «открой …» и экран синонимов не ждали. */
+        fun warmUp(context: Context) = refreshInBackground(context)
 
         val OPEN_VERBS = setOf("открой", "запусти", "открыть", "запустить", "приложение")
         const val STRONG_MATCH = 80
