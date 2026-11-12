@@ -44,6 +44,8 @@ class JarvisSpeaker(context: Context) {
         private const val MAX_QUEUE_DEPTH = 12
         /** Сколько готовых фраз может ждать воспроизведения. */
         private const val READ_AHEAD_CHUNKS = 2
+        /** Частота записей голоса «из фильма» и фирменного голоса. */
+        private const val CINEMA_RATE = 22_050
 
         /** Голоса по порядку: выбранный в настройках, затем фирменный и Дмитрий как запасные. */
         fun voiceConfigs(context: Context): List<JarvisTtsConfig> = VoiceCatalog.configs(context)
@@ -234,7 +236,68 @@ class JarvisSpeaker(context: Context) {
         return result.samples.takeIf { it.isNotEmpty() }?.let { JarvisVoiceFx.process(it, result.sampleRateHz) to result.sampleRateHz }
     }
 
+    private val cinemaClips = HashMap<String, FloatArray>()
+
+    /** Запись из assets/voices/cinema: моно 16 бит 22 050 Гц, см. tools/gen_cinema_voice.py. */
+    private fun cinemaClip(id: String): FloatArray? = synchronized(cinemaClips) {
+        cinemaClips[id] ?: runCatching {
+            val bytes = appCtx.assets.open("voices/cinema/$id.wav").use { it.readBytes() }
+            val buf = java.nio.ByteBuffer.wrap(bytes, 44, bytes.size - 44).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+            FloatArray((bytes.size - 44) / 2) { buf.short / 32768f }
+        }.onFailure { Log.w(TAG, "cinema clip $id: ${it.message}") }.getOrNull()?.also { cinemaClips[id] = it }
+    }
+
+    /**
+     * Голос «из фильма»: начала предложений, для которых есть запись, звучат ею,
+     * остальное читает обычный голос. Куски склеиваются в одну дорожку 22 050 Гц.
+     */
     private fun synthPcm(raw: String, gen: Int, queueDepth: Int): Pair<FloatArray, Int> {
+        if (VoiceCatalog.cinema(appCtx)) {
+            val parts = com.jarvis.core.nlp.CinemaPhrases.split(raw)
+            if (parts != null) {
+                val pieces = parts.mapNotNull { part ->
+                    if (gen != speakGeneration) return FloatArray(0) to CINEMA_RATE
+                    when (part) {
+                        is com.jarvis.core.nlp.CinemaPhrases.Part.Clip -> cinemaClip(part.id)
+                        is com.jarvis.core.nlp.CinemaPhrases.Part.Text -> {
+                            val (pcm, rate) = synthPlain(part.text, gen, queueDepth)
+                            resample(pcm, rate, CINEMA_RATE)
+                        }
+                    }?.takeIf { it.isNotEmpty() }
+                }
+                saysOwnName = false
+                val gap = FloatArray(CINEMA_RATE / 10)
+                val out = pieces.flatMapIndexed { i, p -> if (i == 0) listOf(p) else listOf(gap, p) }
+                return concat(out) to CINEMA_RATE
+            }
+        }
+        return synthPlain(raw, gen, queueDepth)
+    }
+
+    private fun concat(parts: List<FloatArray>): FloatArray {
+        val out = FloatArray(parts.sumOf { it.size })
+        var pos = 0
+        for (p in parts) {
+            p.copyInto(out, pos)
+            pos += p.size
+        }
+        return out
+    }
+
+    private fun resample(pcm: FloatArray, from: Int, to: Int): FloatArray {
+        if (from == to || pcm.isEmpty()) return pcm
+        val n = (pcm.size.toLong() * to / from).toInt()
+        val step = from.toDouble() / to
+        return FloatArray(n) { i ->
+            val x = i * step
+            val a = x.toInt().coerceAtMost(pcm.size - 1)
+            val b = (a + 1).coerceAtMost(pcm.size - 1)
+            val f = (x - a).toFloat()
+            pcm[a] * (1 - f) + pcm[b] * f
+        }
+    }
+
+    private fun synthPlain(raw: String, gen: Int, queueDepth: Int): Pair<FloatArray, Int> {
         com.jarvis.core.nlp.Translator.speechLocale(raw)?.let { locale ->
             foreignPcm(raw, locale, gen)?.let { return it }
         }

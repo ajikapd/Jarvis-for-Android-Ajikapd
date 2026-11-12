@@ -299,7 +299,10 @@ class SectionScreen(host: JarvisActivity) : Screen(host) {
                             com.jarvis.app.VoiceCatalog.select(host, v.id)
                             render()
                             com.jarvis.app.VoiceController.reloadVoice {
-                                host.runOnUiThread { com.jarvis.app.VoiceController.speak("Добрый день, сэр. Так теперь звучит мой голос.") }
+                                // У голоса «из фильма» пробная фраза начинается с его записи.
+                                val demo = if (v.id == "cinema") "К вашим услугам, сэр. Так теперь звучит мой голос."
+                                else "Добрый день, сэр. Так теперь звучит мой голос."
+                                host.runOnUiThread { com.jarvis.app.VoiceController.speak(demo) }
                             }
                         }
                         st?.state != ModelManager.State.DOWNLOADING -> v.downloadId?.let { mgr.download(it) }
