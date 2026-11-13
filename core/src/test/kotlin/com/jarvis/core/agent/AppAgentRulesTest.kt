@@ -215,4 +215,31 @@ class AppAgentDoneSynonymsTest {
         org.junit.Assert.assertEquals(AgentStep.Done("получилось 19"), AppAgentRules.parse("Готово получилось 19"))
         org.junit.Assert.assertNull(AppAgentRules.parse("Готовность 50%"))
     }
+
+    private val chatScreen = listOf(ScreenItem("Поиск", editable = false), ScreenItem("Маша", editable = false))
+
+    @Test fun planParsedFromList() {
+        val plan = AppAgentRules.parsePlan("Вот план:\n- открыть Telegram\n- найти чат с Машей\n2) написать «опоздаю»\n* отправить")
+        assertEquals(listOf("открыть Telegram", "найти чат с Машей", "написать «опоздаю»", "отправить"), plan)
+    }
+
+    @Test fun planIgnoresProse() = assertTrue(AppAgentRules.parsePlan("Сначала открою приложение, потом напишу.").isEmpty())
+
+    @Test fun planShownInStepPrompt() {
+        val text = AppAgentRules.prompt("напиши Маше", "app", chatScreen, emptyList(), plan = listOf("открыть Telegram", "отправить"))
+        assertTrue(text.contains("1) открыть Telegram; 2) отправить"))
+    }
+
+    @Test fun verifyYes() = assertEquals(true to "", AppAgentRules.parseVerify("ДА"))
+
+    @Test fun verifyNoWithRest() =
+        assertEquals(false to "отправить сообщение", AppAgentRules.parseVerify("НЕТ: отправить сообщение"))
+
+    @Test fun verifyGarbageIsNo() = assertFalse(AppAgentRules.parseVerify("Возможно").first)
+
+    @Test fun loopGuardCounts() {
+        val guard = AppAgentRules.LoopGuard()
+        assertEquals(1, guard.count(chatScreen, AgentStep.Back))
+        assertEquals(2, guard.count(chatScreen, AgentStep.Back))
+    }
 }

@@ -105,6 +105,15 @@ class AppAgentRunner(
         // Свой экран агенту не нужен: иначе модель начинает нажимать кнопки самого Джарвиса.
         if (ScreenController.activePackageName() == context.packageName) ScreenController.globalAction("home")
         Thread.sleep(START_PAUSE_MS)
+        // План заранее: с ним модель не забывает вторую половину задачи.
+        val plan = ask(AppAgentRules.planPrompt(goal, ScreenController.activePackageName().orEmpty()))
+            ?.let(AppAgentRules::parsePlan).orEmpty()
+        VoiceHealthLog.write(context, "agent plan ${plan.size}: ${plan.joinToString(" / ").take(RAW_LOG_CHARS)}")
+        var verifyRejected = 0
+        var lastLeft = ""
+        var unchangedSteps = 0
+        /** На прошлом круге действительно что-то сделано (а не только подсказка модели). */
+        var acted = false
         for (number in 1..AppAgentRules.MAX_STEPS) {
             if (cancelled) return "Остановился, сэр."
             val packageName = ScreenController.activePackageName().orEmpty()
@@ -113,40 +122,62 @@ class AppAgentRunner(
             val rows = AppAgentRules.compact(all.map(::raw))
             val screen = rows.map { it.item }
             val nodes = rows.map { all[it.source] }
-            if (AppAgentRules.resultOpened(goal, screen, lastScreen, typed && lastStep is AgentStep.Tap, queries)) {
+            if (plan.size <= 1 && AppAgentRules.resultOpened(goal, screen, lastScreen, typed && lastStep is AgentStep.Tap, queries)) {
                 return "Готово, сэр."
             }
             // Enter срабатывает не везде: тогда запрос запускается нажатием на подсказку.
-            if (lastStep is AgentStep.Enter && screen == lastScreen) {
+            if (acted && lastStep is AgentStep.Enter && screen == lastScreen) {
                 history += "ENTER не сработал, нажми подходящую подсказку из списка"
+            } else if (acted && lastStep !is AgentStep.Open && screen == lastScreen) {
+                // Шаг ничего не изменил: модели надо знать, иначе она повторит его снова.
+                history += "экран не изменился после шага, попробуй другой путь"
+                if (++unchangedSteps > MAX_UNCHANGED_STEPS) return partial("экран перестал меняться", lastLeft, history)
+            } else if (acted) {
+                unchangedSteps = 0
             }
+            acted = false
             lastScreen = screen
-            val answer = askTwice(AppAgentRules.prompt(goal, packageName, screen, history, typed))
+            val answer = askRetrying(AppAgentRules.prompt(goal, packageName, screen, history, typed, plan))
             if (answer == null) {
                 VoiceHealthLog.write(context, "agent no answer step $number items=${screen.size}")
-                return "Облако не ответило, сэр."
+                return partial("облако перестало отвечать", lastLeft, history)
             }
             if (cancelled) return "Остановился, сэр."
             var step = AppAgentRules.parse(answer, screen)
-            if (step == null) {
-                // Ответ не по формату: один раз напоминаем формат, прежде чем сдаться.
-                Log.w(TAG, "шаг $number: не разобран ответ «${answer.take(RAW_LOG_CHARS)}»")
-                VoiceHealthLog.write(context, "agent unparsed step $number: ${answer.take(RAW_LOG_CHARS).replace('\n', ' ')}")
-                val retry = askTwice(
-                    AppAgentRules.prompt(goal, packageName, screen, history + AppAgentRules.formatReminder(answer), typed),
-                )
-                step = retry?.let { AppAgentRules.parse(it, screen) }
+            var reply: String = answer
+            for (attempt in 1..MAX_FORMAT_RETRIES) {
+                if (step != null) break
+                // Ответ не по формату: напоминаем формат, а не сдаёмся.
+                Log.w(TAG, "шаг $number: не разобран ответ «${reply.take(RAW_LOG_CHARS)}»")
+                VoiceHealthLog.write(context, "agent unparsed step $number: ${reply.take(RAW_LOG_CHARS).replace('\n', ' ')}")
+                reply = askRetrying(
+                    AppAgentRules.prompt(goal, packageName, screen, history + AppAgentRules.formatReminder(reply), typed, plan),
+                ) ?: break
+                step = AppAgentRules.parse(reply, screen)
             }
             Log.i(TAG, "шаг $number: ${step?.let { describe(it, screen) }} (на экране ${screen.size})")
             VoiceHealthLog.write(context, "agent step $number ${step?.javaClass?.simpleName}")
-            if (step == null) return "Я не понял, что делать дальше, сэр."
+            if (step == null) {
+                // Модель так и не дала команду: шаг пропускаем, задачу не бросаем.
+                if (++blockedSteps > MAX_BLOCKED_STEPS + MAX_FORMAT_RETRIES) return partial("модель перестала давать понятные шаги", lastLeft, history)
+                history += "предыдущий ответ не был командой: ответь одной командой из списка"
+                continue
+            }
             if (step is AgentStep.Done) {
-                val finished = AppAgentRules.goalVisible(goal, screen) && !AppAgentRules.mustSearch(goal, screen, typed)
-                if (rejected >= MAX_REJECTED_DONE || finished) {
-                    return step.reply.ifBlank { "Готово, сэр." }
+                // Сначала дешёвая проверка: явно незаконченный поиск.
+                if (AppAgentRules.mustSearch(goal, screen, typed) && rejected < MAX_REJECTED_DONE) {
+                    rejected++
+                    history += "DONE рано: сначала воспользуйся поиском"
+                    continue
                 }
-                rejected++
-                history += "DONE отклонён: цель не выполнена, воспользуйся поиском или продолжай шагами"
+                val verdict = askRetrying(AppAgentRules.verifyPrompt(goal, plan, packageName, screen, history))
+                    ?.let(AppAgentRules::parseVerify)
+                VoiceHealthLog.write(context, "agent verify ${verdict?.first} ${verdict?.second.orEmpty().take(80)}")
+                // Проверка недоступна — верим модели, но сказанному «готово» без проверки.
+                if (verdict == null || verdict.first) return step.reply.ifBlank { "Готово, сэр." }
+                lastLeft = verdict.second
+                if (++verifyRejected > MAX_VERIFY_REJECTED) return partial("цель выполнена не полностью", lastLeft, history)
+                history += "DONE отклонён проверкой: " + lastLeft.ifBlank { "цель выполнена не полностью" } + ". Продолжай шагами"
                 continue
             }
             AppAgentRules.blocked(step, screen)?.let { why ->
@@ -167,7 +198,15 @@ class AppAgentRunner(
                 history += "повторный поиск запрещён, нажми результат"
                 continue
             }
-            if (guard.repeated(screen, step)) return "Я хожу по кругу, сэр, поэтому остановился."
+            when (guard.count(screen, step)) {
+                1 -> Unit
+                // Первый повтор — подсказка искать другой путь, второй — остановка.
+                2 -> {
+                    history += "${describe(step, screen)} на этом экране уже было и не помогло, выбери другой шаг (SCROLL, BACK, поиск)"
+                    continue
+                }
+                else -> return partial("хожу по кругу", lastLeft, history)
+            }
             show("Шаг $number из ${AppAgentRules.MAX_STEPS}: ${describe(step, screen)}")
             if (step is AgentStep.Tap && AppAgentRules.needsConfirmation(screen[step.index].label)) {
                 if (!confirmed("Нажать «${screen[step.index].label}», сэр?")) return "Хорошо, сэр, не нажимаю."
@@ -176,6 +215,7 @@ class AppAgentRunner(
                 if (!confirmed("Отправить введённое, сэр?")) return "Хорошо, сэр, не отправляю."
             }
             perform(step, nodes)
+            acted = true
             lastStep = step
             if (step is AgentStep.Type) queries += step.text
             if (step is AgentStep.Tap && screen[step.index].label.length <= MAX_QUERY && typed) queries += screen[step.index].label
@@ -183,14 +223,25 @@ class AppAgentRunner(
             history += describe(step, screen)
             Thread.sleep(STEP_PAUSE_MS)
         }
-        return "Не уложился в ${AppAgentRules.MAX_STEPS} шагов, сэр, и остановился."
+        return partial("не уложился в ${AppAgentRules.MAX_STEPS} шагов", lastLeft, history)
+    }
+
+    /** Честный итог незаконченной задачи: что сделано и что осталось. */
+    private fun partial(why: String, left: String, history: List<String>): String {
+        VoiceHealthLog.write(context, "agent partial: $why")
+        val done = history.count { !it.contains("отклон") && !it.contains("не изменился") && !it.contains("не был командой") && !it.contains("уже было") }
+        val rest = if (left.isNotBlank()) " Осталось: $left." else ""
+        return "Остановился, сэр: $why. Сделал шагов: $done.$rest"
     }
 
     /** Бесплатные ключи ограничены по частоте: короткий сбой не должен обрывать задачу. */
-    private fun askTwice(prompt: String): String? {
-        ask(prompt)?.takeIf { it.isNotBlank() }?.let { return it }
-        Thread.sleep(RETRY_PAUSE_MS)
-        return ask(prompt)?.takeIf { it.isNotBlank() }
+    private fun askRetrying(prompt: String): String? {
+        for ((i, pause) in RETRY_PAUSES_MS.withIndex()) {
+            if (cancelled) return null
+            if (i > 0) Thread.sleep(pause)
+            runCatching { ask(prompt) }.getOrNull()?.takeIf { it.isNotBlank() }?.let { return it }
+        }
+        return null
     }
 
     private fun raw(node: UiNode) = RawNode(
@@ -265,7 +316,10 @@ class AppAgentRunner(
         private const val MAX_NODES = 300
         private const val MAX_REJECTED_DONE = 2
         private const val MAX_QUERY = 40
-        private const val RETRY_PAUSE_MS = 3_000L
+        private val RETRY_PAUSES_MS = longArrayOf(0L, 2_000L, 5_000L)
+        private const val MAX_FORMAT_RETRIES = 2
+        private const val MAX_VERIFY_REJECTED = 3
+        private const val MAX_UNCHANGED_STEPS = 4
         private val STOP = Regex("^(стоп|хватит|отмена|отмени|останови(сь)?|прекрати)\\b")
         private val YES = Regex("^(да|ага|нажми|подтверждаю|давай)\\b")
 
