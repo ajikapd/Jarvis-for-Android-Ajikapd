@@ -3,7 +3,7 @@
 
 1. Снять записи:   adb exec-out run-as com.jarvis.assistant tar c files/voice_clips | tar x -C <папка>
 2. По желанию разметить: <папка>/files/voice_clips/labels.tsv, строки «имя_файла<TAB>owner|other».
-   Без разметки владельцем считаются образцы голоса (enroll_*), чужими — записи под видео (media=true).
+   Без разметки сравнение невозможно: эталон владельца — образцы голоса (enroll_*), остальное надо пометить.
 3. Запуск: python3 tools/voice_bench.py <папка>/files/voice_clips <папка_с_моделями>
 
 Для каждой модели из папки моделей (*.onnx): эталон владельца — средний отпечаток образцов,
@@ -89,8 +89,7 @@ def label_of(row, labels):
         return labels[row["file"]]
     if row["kind"].startswith("enroll"):
         return "enroll"
-    if "media=true" in row["note"]:
-        return "other"
+    # «media=true» значит лишь, что играл звук: владелец тоже говорит поверх видео.
     return "?"
 
 
@@ -132,14 +131,12 @@ def main():
         for r in tests:
             score = max(float(np.dot(ref, m.embed(w))) for w in windows(audio[r["file"]]))
             lab = label_of(r, labels)
-            if lab == "?":
-                lab = "owner?"
             groups.setdefault((lab, r["kind"].split("_")[0]), []).append(score)
             groups.setdefault((lab, "all"), []).append(score)
         print(f"\n== {mf}  ({np.median(m.ms):.0f} мс на кусок на этом ПК)")
         for (lab, kind), v in sorted(groups.items()):
             print(f"  {lab:7} {kind:8} n={len(v):3}  медиана {np.median(v):.2f}  мин {min(v):.2f}  макс {max(v):.2f}")
-        owner = groups.get(("owner", "all"), []) or groups.get(("owner?", "all"), [])
+        owner = groups.get(("owner", "all"), [])
         print("  " + stats("итог", owner, groups.get(("other", "all"), [])))
 
     cam = [r["cam"] for r in tests if r["cam"] is not None and label_of(r, labels) == "other"]

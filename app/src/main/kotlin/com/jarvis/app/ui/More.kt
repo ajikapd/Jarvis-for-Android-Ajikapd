@@ -468,6 +468,18 @@ class SectionScreen(host: JarvisActivity) : Screen(host) {
                         VoiceIdentity.warm(host)
                     })
                     box.addView(note("Выучено на ваших командах: ${VoiceIdentity.learnedCount(host)}"))
+                    if (!com.jarvis.app.VoiceSecondCheck.modelReady(host)) {
+                        val st2 = mgr.status(com.jarvis.app.VoiceSecondCheck.MODEL_ID)
+                        if (st2.state == ModelManager.State.DOWNLOADING) {
+                            box.addView(card("Скачивается точная проверка", "${(st2.progress * 100).toInt()}%"))
+                        } else {
+                            box.addView(card("Точная проверка голоса", "Вдвое реже пропускает чужой голос. Скачать один раз, 68 МБ") {
+                                mgr.download(com.jarvis.app.VoiceSecondCheck.MODEL_ID)
+                            })
+                        }
+                    } else {
+                        box.addView(note("Точная проверка голоса включена."))
+                    }
                     box.addView(card("Записать голос заново", "Предыдущий образец будет заменён") {
                         VoiceIdentity.forget(host)
                         render()

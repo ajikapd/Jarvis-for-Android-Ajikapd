@@ -344,6 +344,41 @@ class VoiceEngine(
     private var bargeKeywordAt = 0L
     private var bargePeak = 0f
     @Volatile private var bargeWake = false
+    /** Фоновая проверка ERes2NetV2 последнего «Джарвис»: команда ждёт её итога. */
+    @Volatile private var secondCheck: java.util.concurrent.CompletableFuture<VoiceSecondCheck.Result?>? = null
+    @Volatile private var secondCheckAtMs = 0L
+
+    private fun startSecondCheck(pcm: FloatArray, source: String) {
+        val future = VoiceSecondCheck.checkAsync(app, pcm) ?: run {
+            secondCheck = null
+            return
+        }
+        secondCheck = future
+        secondCheckAtMs = SystemClock.elapsedRealtime()
+        future.thenAccept { r ->
+            VoiceHealthLog.write(
+                app,
+                "check2 $source " + (r?.let { "${"%.2f".format(it.score)}/${"%.2f".format(VoiceSecondCheck.THRESHOLD)} ${it.ms}ms ok=${it.accepted}" } ?: "none"),
+            )
+        }
+    }
+
+    /**
+     * Команда после «Джарвис» выполняется, если вторая проверка не признала голос чужим.
+     * Обычно итог уже готов (команда длится дольше проверки); иначе ждём не дольше
+     * [SECOND_CHECK_WAIT_MS] и, если не успела, пропускаем: не отвечать хозяину хуже.
+     */
+    private fun secondCheckAllows(): Boolean {
+        val future = secondCheck ?: return true
+        secondCheck = null
+        if (SystemClock.elapsedRealtime() - secondCheckAtMs > SECOND_CHECK_FRESH_MS) return true
+        val result = runCatching {
+            future.get(SECOND_CHECK_WAIT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)
+        }.getOrNull() ?: return true
+        if (!result.accepted) VoiceHealthLog.write(app, "command rejected by check2 ${"%.2f".format(result.score)}")
+        return result.accepted
+    }
+
     /** Когда слово активации последний раз подтвердилось голосом владельца. */
     @Volatile private var ownerWakeAtMs = 0L
     private var wasSpeaking = false
@@ -485,6 +520,7 @@ class VoiceEngine(
             return
         }
         if (voice?.accepted == true) ownerWakeAtMs = now
+        startSecondCheck(bargeAudio, "barge")
         VoiceHealthLog.write(app, "barge-in voice=${voice?.let(::voiceLine) ?: "off"}")
         bargeWake = true
         kws.disarm()
@@ -505,6 +541,11 @@ class VoiceEngine(
         // «Джарвис», пауза, «Слушаю», команда: команда идёт как ожидаемая (строгий порог),
         // хотя владелец только что подтвердил себя словом активации. Такую считаем командой
         // после слова, иначе Джарвис отказывал хозяину (0,31–0,42 при пороге 0,45).
+        if (!awaitedRaw && !secondCheckAllows()) {
+            log("command rejected: second voice check")
+            JarvisEvents.publish(AssistantEvent.StateChanged(AssistantState.READY))
+            return false
+        }
         val awaited = awaitedRaw &&
             SystemClock.elapsedRealtime() - ownerWakeAtMs > OWNER_WAKE_TRUST_MS
         val check = VoiceIdentity.checkCommand(app, pcm, awaited, clean = !mediaPlaying)
@@ -660,6 +701,7 @@ class VoiceEngine(
                     return
                 }
                 if (voice?.accepted == true) ownerWakeAtMs = SystemClock.elapsedRealtime()
+                startSecondCheck(wakeAudio, "wake")
                 VoiceHealthLog.write(
                     app,
                     "wake hit voice=${voice?.let(::voiceLine) ?: "off"} oww=$owwHit sherpa=$keywordHit score=${"%.3f".format(kws.lastScoreValue)} " +
@@ -1031,6 +1073,8 @@ class VoiceEngine(
         private const val TAG = "Jarvis.Debug"
         private const val BARGE_WINDOW_MS = 1_000L
         private const val OWNER_WAKE_TRUST_MS = 10_000L
+        private const val SECOND_CHECK_WAIT_MS = 1_500L
+        private const val SECOND_CHECK_FRESH_MS = 20_000L
         private const val ECHO_HOLD_MS = 700L
         private const val HUSH_MIN_MS = 1_500L
         private const val HUSH_AFTER_SPEECH_MS = 800L
