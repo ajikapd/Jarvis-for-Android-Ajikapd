@@ -478,7 +478,8 @@ class SectionScreen(host: JarvisActivity) : Screen(host) {
                             })
                         }
                     } else {
-                        box.addView(note("Точная проверка голоса включена."))
+                        val (own, imp) = com.jarvis.app.VoiceSecondCheck.learnedCounts(host)
+                        box.addView(note("Точная проверка голоса включена. Выучено: ваших «Джарвис» $own, чужих голосов и шумов $imp."))
                     }
                     box.addView(card("Записать голос заново", "Предыдущий образец будет заменён") {
                         VoiceIdentity.forget(host)

@@ -221,6 +221,17 @@ class VoiceEngine(
                         if (now - lastWakeAtMs < 1000) return@collect
                         lastWakeAtMs = now
                         log("wake detected")
+                        // Откликаемся, только когда точная проверка признала голос: на чужое
+                        // «Джарвис» и шум — молчим. Слушать команду при этом уже начали.
+                        if (!wakeVoiceConfirmed()) {
+                            log("wake suppressed: second voice check")
+                            wakeWordEngine?.cancelListening()
+                            kwsSpotter?.armForNextWake(cooldownMs = 0)
+                            keywordSpotter?.reset()
+                            JarvisEvents.publish(AssistantEvent.StateChanged(AssistantState.READY))
+                            bargeWake = false
+                            return@collect
+                        }
                         JarvisEvents.publish(AssistantEvent.WakeDetected)
                         JarvisEvents.publish(AssistantEvent.StateChanged(AssistantState.LISTENING))
                         speaker?.onWakeDetected(chime = !bargeWake)
@@ -358,7 +369,7 @@ class VoiceEngine(
         future.thenAccept { r ->
             VoiceHealthLog.write(
                 app,
-                "check2 $source " + (r?.let { "${"%.2f".format(it.score)}/${"%.2f".format(VoiceSecondCheck.THRESHOLD)} ${it.ms}ms ok=${it.accepted}" } ?: "none"),
+                "check2 $source " + (r?.let { "${"%.2f".format(it.score)}/${"%.2f".format(VoiceSecondCheck.THRESHOLD)} imp=${it.impostor?.let { v -> "%.2f".format(v) } ?: "-"} ${it.ms}ms ok=${it.accepted}" } ?: "none"),
             )
         }
     }
@@ -375,8 +386,59 @@ class VoiceEngine(
         val result = runCatching {
             future.get(SECOND_CHECK_WAIT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)
         }.getOrNull() ?: return true
+        lastSecondResult = result
         if (!result.accepted) VoiceHealthLog.write(app, "command rejected by check2 ${"%.2f".format(result.score)}")
         return result.accepted
+    }
+
+    /** Итог проверки последнего «Джарвис», к которому относится текущая команда. */
+    @Volatile private var lastSecondResult: VoiceSecondCheck.Result? = null
+
+    /**
+     * Ждём точную проверку перед откликом на слово. Обычно она готова за ~0,3 с; дольше
+     * [WAKE_CHECK_WAIT_MS] не ждём, а не успела — откликаемся (решит проверка команды).
+     */
+    private suspend fun wakeVoiceConfirmed(): Boolean {
+        val future = secondCheck ?: return true
+        if (SystemClock.elapsedRealtime() - secondCheckAtMs > SECOND_CHECK_FRESH_MS) return true
+        val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching { future.get(WAKE_CHECK_WAIT_MS, java.util.concurrent.TimeUnit.MILLISECONDS) }.getOrNull()
+        } ?: return true
+        return result.accepted
+    }
+
+    /**
+     * Обучение второй проверки по итогу команды: команду после «Джарвис» отклонила проверка
+     * голоса — слово было чужим; приняла, и слово уверенно своё — пополняем эталон.
+     */
+    private fun learnFromCommand(allowed: Boolean) {
+        val result = lastSecondResult ?: return
+        lastSecondResult = null
+        learnFrom(result, allowed)
+    }
+
+    /**
+     * «Джарвис», пауза, «Слушаю», команда: команда идёт как ожидаемая, но относится к тому же
+     * слову. Её итог тоже учит вторую проверку, если слово прозвучало только что.
+     */
+    private fun learnFromFollowUp(allowed: Boolean) {
+        val future = secondCheck ?: return
+        if (SystemClock.elapsedRealtime() - secondCheckAtMs > OWNER_WAKE_TRUST_MS) return
+        val result = future.getNow(null) ?: return
+        secondCheck = null
+        // Ожидаемая команда проверяется строже, и владельцу её иногда отклоняют. Чтобы его
+        // голос не попал в чужие, учим «чужим» только слово, прошедшее впритык.
+        if (!allowed && result.score >= VoiceSecondCheck.THRESHOLD + FOLLOW_UP_IMPOSTOR_MARGIN) return
+        learnFrom(result, allowed)
+    }
+
+    private fun learnFrom(result: VoiceSecondCheck.Result, allowed: Boolean) {
+        if (!allowed) {
+            VoiceSecondCheck.learnImpostor(app, result)
+            VoiceHealthLog.write(app, "check2 learn impostor ${"%.2f".format(result.score)}")
+        } else if (result.accepted) {
+            VoiceSecondCheck.learnOwner(app, result)
+        }
     }
 
     /** Когда слово активации последний раз подтвердилось голосом владельца. */
@@ -551,6 +613,7 @@ class VoiceEngine(
         val check = VoiceIdentity.checkCommand(app, pcm, awaited, clean = !mediaPlaying)
         val allowed = check?.accepted ?: (!awaited || !VoiceIdentity.commandLocked(app))
         VoiceClips.save(app, "command", pcm, check?.score, "awaited=$awaited media=$mediaPlaying allowed=$allowed")
+        if (check != null) if (awaitedRaw) learnFromFollowUp(allowed) else learnFromCommand(allowed)
         val score = check?.let { "${voiceLine(it)} ${"%.1f".format(it.seconds)}s" } ?: "none"
         VoiceHealthLog.write(app, "command voice=$score awaited=$awaited media=$mediaPlaying allowed=$allowed")
         if (!allowed) {
@@ -1074,6 +1137,8 @@ class VoiceEngine(
         private const val BARGE_WINDOW_MS = 1_000L
         private const val OWNER_WAKE_TRUST_MS = 10_000L
         private const val SECOND_CHECK_WAIT_MS = 1_500L
+        private const val WAKE_CHECK_WAIT_MS = 700L
+        private const val FOLLOW_UP_IMPOSTOR_MARGIN = 0.05f
         private const val SECOND_CHECK_FRESH_MS = 20_000L
         private const val ECHO_HOLD_MS = 700L
         private const val HUSH_MIN_MS = 1_500L

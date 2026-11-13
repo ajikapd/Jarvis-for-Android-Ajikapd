@@ -30,12 +30,25 @@ object VoiceSecondCheck {
     const val THRESHOLD = 0.36f
     private const val RATE = 16_000
 
-    data class Result(val accepted: Boolean, val score: Float, val ms: Long)
+    data class Result(
+        val accepted: Boolean,
+        val score: Float,
+        val ms: Long,
+        /** Близость к знакомым чужим; null — их ещё не запомнено. */
+        val impostor: Float? = null,
+        val embedding: FloatArray? = null,
+    )
+
+    private const val LEARNED_OWNER_FILE = "voice2_owner_learned.txt"
+    private const val IMPOSTOR_FILE = "voice2_impostors.txt"
+    /** Отклонённое на слове запоминаем как чужое, только если оно далеко от владельца. */
+    private const val REJECT_LEARN_BELOW = THRESHOLD - 0.10f
 
     private val worker = Executors.newSingleThreadExecutor { r -> Thread(r, "jarvis-voice2") }
     private var embedder: SpeakerEmbedder? = null
     private var print: FloatArray? = null
     private var printKey: String? = null
+    @Volatile private var adaptive: com.jarvis.wakeword.AdaptiveVoicePrint? = null
 
     private fun enrollDir(context: Context) = File(context.filesDir, ENROLL_DIR)
 
@@ -63,8 +76,11 @@ object VoiceSecondCheck {
     fun forget(context: Context) {
         enrollDir(context).deleteRecursively()
         File(context.filesDir, PRINT_FILE).delete()
+        File(context.filesDir, LEARNED_OWNER_FILE).delete()
+        File(context.filesDir, IMPOSTOR_FILE).delete()
         print = null
         printKey = null
+        adaptive = null
     }
 
     /** Фоновая проверка куска с «Джарвис». null — проверка сейчас невозможна. */
@@ -85,14 +101,71 @@ object VoiceSecondCheck {
     @Synchronized
     private fun check(context: Context, pcm: FloatArray): Result? {
         val started = SystemClock.elapsedRealtime()
-        val owner = ownerPrint(context) ?: return null
+        val gate = gate(context) ?: return null
         val engine = loadEmbedder(context) ?: return null
         val speech = VoiceTrim.speech(pcm)
         if (speech.isEmpty()) return null
-        val score = VoiceTrim.windows(speech).mapNotNull { piece ->
-            runCatching { engine.embed(piece) }.getOrNull()?.let { dot(normalize(it), owner) }
-        }.maxOrNull() ?: return null
-        return Result(score >= THRESHOLD, score, SystemClock.elapsedRealtime() - started)
+        val best = VoiceTrim.windows(speech).mapNotNull { piece ->
+            runCatching { engine.embed(piece) }.getOrNull()?.let { e -> e to gate.score(e) }
+        }.maxByOrNull { it.second.owner } ?: return null
+        val (embedding, score) = best
+        val result = Result(
+            accepted = gate.accepts(score),
+            score = score.owner,
+            ms = SystemClock.elapsedRealtime() - started,
+            impostor = score.impostor,
+            embedding = embedding,
+        )
+        // Заведомо чужое (шум, другой голос) запоминаем сразу.
+        if (!result.accepted && score.owner < REJECT_LEARN_BELOW) learn(context, embedding, owner = false)
+        return result
+    }
+
+    /** «Джарвис» оказался чужим: после него команду отклонила проверка голоса. */
+    fun learnImpostor(context: Context, result: Result) {
+        result.embedding?.let { worker.execute { learn(context.applicationContext, it, owner = false) } }
+    }
+
+    /** «Джарвис» владельца подтверждён принятой командой. */
+    fun learnOwner(context: Context, result: Result) {
+        result.embedding?.let { worker.execute { learn(context.applicationContext, it, owner = true) } }
+    }
+
+    /** Для экрана настроек: только чтение готового, без загрузки модели. */
+    fun learnedCounts(context: Context): Pair<Int, Int> {
+        adaptive?.let { return it.learnedOwnerCount to it.impostorCount }
+        fun lines(name: String) = runCatching {
+            File(context.filesDir, name).readLines().count { it.isNotBlank() }
+        }.getOrDefault(0)
+        return lines(LEARNED_OWNER_FILE) to lines(IMPOSTOR_FILE)
+    }
+
+    @Synchronized
+    private fun learn(context: Context, embedding: FloatArray, owner: Boolean) {
+        val gate = gate(context) ?: return
+        val added = if (owner) gate.learnOwner(embedding) else gate.learnImpostor(embedding)
+        if (!added) return
+        val file = File(context.filesDir, if (owner) LEARNED_OWNER_FILE else IMPOSTOR_FILE)
+        val items = if (owner) gate.learnedOwner else gate.impostors
+        runCatching { file.writeText(items.joinToString("\n") { it.joinToString(",") }) }
+        Log.i(TAG, "learned ${if (owner) "owner" else "impostor"}: owner=${gate.learnedOwnerCount} impostors=${gate.impostorCount}")
+    }
+
+    private fun readMemory(context: Context, name: String): List<FloatArray> = runCatching {
+        File(context.filesDir, name).readLines().filter { it.isNotBlank() }
+            .map { line -> line.split(',').map { it.toFloat() }.toFloatArray() }
+    }.getOrDefault(emptyList())
+
+    @Synchronized
+    private fun gate(context: Context): com.jarvis.wakeword.AdaptiveVoicePrint? {
+        val owner = ownerPrint(context) ?: return null
+        adaptive?.let { return it }
+        return com.jarvis.wakeword.AdaptiveVoicePrint(
+            owner = owner,
+            threshold = THRESHOLD,
+            learnedOwner = readMemory(context, LEARNED_OWNER_FILE),
+            impostors = readMemory(context, IMPOSTOR_FILE),
+        ).also { adaptive = it }
     }
 
     private fun enrollFiles(context: Context): List<File> {
@@ -129,6 +202,7 @@ object VoiceSecondCheck {
             if (lines.size == 2 && lines[0] == key) {
                 print = lines[1].split(',').map { it.toFloat() }.toFloatArray()
                 printKey = key
+                adaptive = null
                 return print
             }
         }
@@ -148,6 +222,7 @@ object VoiceSecondCheck {
         Log.i(TAG, "owner print from ${files.size} samples, ${embeddings.size} pieces, ${SystemClock.elapsedRealtime() - started} ms")
         print = next
         printKey = key
+        adaptive = null
         return next
     }
 
