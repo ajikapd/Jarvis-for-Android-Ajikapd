@@ -144,13 +144,21 @@ class JarvisSpeaker(context: Context) {
         chimeExecutor.execute { runCatching { chimePlayer.playChime() } }
     }
 
-    fun sayListening() = speak(JarvisStyle.listening(listeningTurn++))
+    /** В голосе «из фильма» на «Джарвис» отвечают только записи из фильма. */
+    fun sayListening() {
+        if (VoiceCatalog.cinema(appCtx)) {
+            playCinema(listOf(com.jarvis.core.nlp.CinemaPhrases.Part.Clip(com.jarvis.core.nlp.CinemaPhrases.listening())))
+        } else {
+            speak(JarvisStyle.listening(listeningTurn++))
+        }
+    }
 
     fun speakResponse(
         text: String,
         onComplete: () -> Unit = {},
         onFirstAudio: ((Long) -> Unit)? = null,
-    ) = speak(text, onComplete, onFirstAudio)
+        hint: com.jarvis.core.nlp.CinemaPhrases.Hint? = null,
+    ) = speak(text, onComplete, onFirstAudio, hint)
 
     fun stop() = stopSpeaking()
 
@@ -166,6 +174,7 @@ class JarvisSpeaker(context: Context) {
         streamGeneration: Int,
         onFirstAudio: ((Long) -> Unit)? = null,
         onChunkDone: () -> Unit = {},
+        hint: com.jarvis.core.nlp.CinemaPhrases.Hint? = null,
     ) {
         val cleaned = address.apply(text.trim().replace(Regex("\\s+"), " "))
         if (cleaned.isEmpty()) {
@@ -184,7 +193,7 @@ class JarvisSpeaker(context: Context) {
                 dropped.onDone()
             }
             utteranceQueue.addLast(
-                QueuedUtterance(cleaned, streamGeneration, onFirstAudio, onChunkDone),
+                QueuedUtterance(cleaned, streamGeneration, onFirstAudio, onChunkDone, hint = hint),
             )
             if (!queuePumpRunning) {
                 queuePumpRunning = true
@@ -220,6 +229,7 @@ class JarvisSpeaker(context: Context) {
         val onFirstAudio: ((Long) -> Unit)?,
         val onDone: () -> Unit,
         val isEndMarker: Boolean = false,
+        val hint: com.jarvis.core.nlp.CinemaPhrases.Hint? = null,
     )
 
     private val utteranceQueue = ArrayDeque<QueuedUtterance>()
@@ -251,27 +261,60 @@ class JarvisSpeaker(context: Context) {
      * Голос «из фильма»: начала предложений, для которых есть запись, звучат ею,
      * остальное читает обычный голос. Куски склеиваются в одну дорожку 22 050 Гц.
      */
-    private fun synthPcm(raw: String, gen: Int, queueDepth: Int): Pair<FloatArray, Int> {
+    private fun synthPcm(raw: String, gen: Int, queueDepth: Int, hint: com.jarvis.core.nlp.CinemaPhrases.Hint? = null): Pair<FloatArray, Int> {
         if (VoiceCatalog.cinema(appCtx)) {
-            val parts = com.jarvis.core.nlp.CinemaPhrases.split(raw)
-            if (parts != null) {
-                val pieces = parts.mapNotNull { part ->
-                    if (gen != speakGeneration) return FloatArray(0) to CINEMA_RATE
-                    when (part) {
-                        is com.jarvis.core.nlp.CinemaPhrases.Part.Clip -> cinemaClip(part.id)
-                        is com.jarvis.core.nlp.CinemaPhrases.Part.Text -> {
-                            val (pcm, rate) = synthPlain(part.text, gen, queueDepth)
-                            resample(pcm, rate, CINEMA_RATE)
-                        }
-                    }?.takeIf { it.isNotEmpty() }
-                }
-                saysOwnName = false
-                val gap = FloatArray(CINEMA_RATE / 10)
-                val out = pieces.flatMapIndexed { i, p -> if (i == 0) listOf(p) else listOf(gap, p) }
-                return concat(out) to CINEMA_RATE
+            com.jarvis.core.nlp.CinemaPhrases.plan(raw, hint)?.let { parts ->
+                val pieces = cinemaBlocks(parts, gen, queueDepth).toList()
+                if (gen != speakGeneration) return FloatArray(0) to CINEMA_RATE
+                return concat(pieces) to CINEMA_RATE
             }
         }
         return synthPlain(raw, gen, queueDepth)
+    }
+
+    /**
+     * Куски голоса «из фильма» по порядку, все в 22 050 Гц, с короткой паузой между ними.
+     * Текст читается по предложениям, чтобы длинный ответ начинал звучать сразу.
+     */
+    private fun cinemaBlocks(parts: List<com.jarvis.core.nlp.CinemaPhrases.Part>, gen: Int, queueDepth: Int) = sequence {
+        saysOwnName = false
+        val gap = FloatArray(CINEMA_RATE / 10)
+        var first = true
+        for (part in parts) {
+            val pieces = when (part) {
+                is com.jarvis.core.nlp.CinemaPhrases.Part.Clip -> listOfNotNull(cinemaClip(part.id)).asSequence()
+                is com.jarvis.core.nlp.CinemaPhrases.Part.Text -> splitSentences(part.text).asSequence().map { s ->
+                    val (pcm, rate) = synthPlain(s, gen, queueDepth)
+                    resample(pcm, rate, CINEMA_RATE)
+                }
+            }
+            for (pcm in pieces) {
+                if (gen != speakGeneration) return@sequence
+                if (pcm.isEmpty()) continue
+                if (!first) yield(gap)
+                first = false
+                yield(pcm)
+            }
+        }
+    }
+
+    /** Только записи, без синтеза: слово активации. */
+    private fun playCinema(parts: List<com.jarvis.core.nlp.CinemaPhrases.Part>) {
+        speakJob?.cancel()
+        player.stop()
+        val gen = ++speakGeneration
+        speakJob = scope.launch {
+            speechPlaying = true
+            try {
+                val pcm = concat(cinemaBlocks(parts, gen, 0).toList())
+                if (gen == speakGeneration && pcm.isNotEmpty()) player.play(pcm, CINEMA_RATE)
+                if (gen == speakGeneration) setPlayEnd()
+            } catch (e: Exception) {
+                Log.e(TAG, "cinema clip failed: ${e.message}")
+            } finally {
+                speechPlaying = false
+            }
+        }
     }
 
     private fun concat(parts: List<FloatArray>): FloatArray {
@@ -370,7 +413,7 @@ class JarvisSpeaker(context: Context) {
                         continue
                     }
                     val t0 = SystemClock.elapsedRealtime()
-                    val (samples, rate) = synthPcm(next.text, next.streamGen, depth)
+                    val (samples, rate) = synthPcm(next.text, next.streamGen, depth, next.hint)
                     val synthMs = SystemClock.elapsedRealtime() - t0
                     if (next.streamGen != speakGeneration) {
                         next.onDone()
@@ -419,6 +462,7 @@ class JarvisSpeaker(context: Context) {
         text: String,
         onComplete: () -> Unit = {},
         onFirstAudio: ((Long) -> Unit)? = null,
+        hint: com.jarvis.core.nlp.CinemaPhrases.Hint? = null,
     ) {
         if (hybrid == null && tts == null) {
             Log.w(TAG, "speak: TTS engine null")
@@ -452,7 +496,18 @@ class JarvisSpeaker(context: Context) {
                     onFirstAudio?.invoke(ms)
                 }
 
-                if (cleaned.length <= FULL_SYNTH_MAX_CHARS) {
+                val cinemaParts = if (VoiceCatalog.cinema(appCtx)) {
+                    com.jarvis.core.nlp.CinemaPhrases.plan(cleaned, hint)
+                } else null
+                if (cinemaParts != null) {
+                    Log.d(TAG, "speak cinema parts=${cinemaParts.size}")
+                    player.playContinuous(
+                        sampleRate = CINEMA_RATE,
+                        onFirstWrite = { noteFirst() },
+                        blocks = cinemaBlocks(cinemaParts, gen, 0),
+                    )
+                    if (!firstAudioLogged) noteFirst()
+                } else if (cleaned.length <= FULL_SYNTH_MAX_CHARS) {
                     Log.d(TAG, "speak full chars=${cleaned.length}")
                     val (samples, rate) = synthPcm(cleaned, gen, 0)
                     if (gen != speakGeneration) return@launch
