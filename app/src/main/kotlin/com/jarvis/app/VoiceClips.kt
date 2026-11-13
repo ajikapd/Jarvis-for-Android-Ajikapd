@@ -11,7 +11,8 @@ import java.util.concurrent.Executors
 /**
  * Замер моделей узнавания голоса: короткие записи «Джарвис», команд и образцов голоса
  * с оценкой текущей модели. Их сравнивают на компьютере с другими моделями.
- * Только в отладочной сборке, только в личной папке приложения, не больше [MAX_CLIPS] файлов.
+ * Только в сборке с -PvoiceClips=true (не у тестеров), только в личной папке приложения,
+ * не больше [MAX_CLIPS] файлов.
  */
 object VoiceClips {
     private const val DIR = "voice_clips"
@@ -22,7 +23,7 @@ object VoiceClips {
     private val io = Executors.newSingleThreadExecutor { r -> Thread(r, "jarvis-clips") }
     private val name = SimpleDateFormat("MMdd-HHmmss-SSS", Locale.US)
 
-    val enabled: Boolean get() = BuildConfig.DEBUG
+    val enabled: Boolean get() = BuildConfig.VOICE_CLIPS
 
     /**
      * @param kind wake, wake_rejected, barge, command, enroll_word, enroll_phrase

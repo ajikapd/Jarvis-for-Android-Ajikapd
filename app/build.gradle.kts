@@ -14,6 +14,9 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "0.1.0-dev"
+        // Запись голосовых фрагментов для замера моделей узнавания (tools/voice_bench.py).
+        // Только для своей сборки: ./gradlew :app:assembleDebug -PvoiceClips=true
+        buildConfigField("boolean", "VOICE_CLIPS", (findProperty("voiceClips") == "true").toString())
         ndk {
             abiFilters += listOf("arm64-v8a")
         }
