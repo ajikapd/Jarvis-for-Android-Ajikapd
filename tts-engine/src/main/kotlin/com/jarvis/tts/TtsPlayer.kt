@@ -123,6 +123,20 @@ class TtsPlayer {
             }
         }
 
+        // Поток начинает звучать, только когда буфер заполнен. Короткая фраза (запись
+        // «Загружаю, сэр» ~1 с при буфере ~2 с) иначе так и не зазвучит: добиваем тишиной.
+        // Ждём ниже только до конца настоящего звука, хвост тишины обрывается.
+        val bufferFrames = track.bufferSizeInFrames
+        if (frames in 1 until bufferFrames) {
+            val silence = ShortArray(min(shortBuf.size, bufferFrames - frames))
+            var pad = bufferFrames - frames
+            while (pad > 0 && !stopRequested && playing === track) {
+                val w = track.write(silence, 0, min(silence.size, pad))
+                if (w <= 0) break
+                pad -= w
+            }
+        }
+
         // Дождаться конца буфера
         val timeoutAt = System.currentTimeMillis() + 30_000
         while (!stopRequested &&
