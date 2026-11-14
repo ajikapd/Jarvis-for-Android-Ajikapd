@@ -35,18 +35,19 @@ class AppAgentRunner(
     private val launcher = LauncherTool(context)
 
     fun start(goal: String): String {
-        shortcut(goal)?.let { return it }
-        if (!ScreenController.isAvailable()) return "Для этого нужна служба спец. возможностей Jarvis, сэр."
         if (!running.compareAndSet(false, true)) return "Я уже занят задачей, сэр. Скажите «стоп», чтобы прервать."
         cancelled = false
         Thread({
-            val reply = runCatching { work(goal) }.getOrElse {
+            val reply = runCatching {
+                shortcut(goal) ?: if (ScreenController.isAvailable()) work(goal)
+                else "Для этой задачи нужна служба спец. возможностей Jarvis, сэр."
+            }.getOrElse {
                 Log.e(TAG, "agent failed", it)
                 VoiceHealthLog.write(context, "agent error ${it.javaClass.simpleName}")
                 "Не получилось, сэр: произошла ошибка."
             }
-            running.set(false)
             pending = null
+            running.set(false)
             VoiceHealthLog.write(context, "agent finished")
             VoiceController.speak(reply)
         }, "jarvis-agent").start()
@@ -55,20 +56,18 @@ class AppAgentRunner(
 
     /** Прямой путь: приложение делает это само, без модели и угадывания. */
     private fun shortcut(goal: String): String? = when (val found = AgentShortcuts.match(goal)) {
-        is AgentShortcut.YouTubeSearch -> runCatching {
-            val search = Intent(Intent.ACTION_SEARCH).apply {
-                setPackage(YOUTUBE)
-                putExtra(SearchManager.QUERY, found.query)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            context.startActivity(search)
-            VoiceHealthLog.write(context, "agent shortcut youtube")
-            "Открыл результаты, сэр."
-        }.getOrNull()
+        is AgentShortcut.YouTubeSearch -> searchYouTube(found.query)
         is AgentShortcut.Setting -> {
-            val done = settings(found.name)
+            val done = if (found.name == "hotspot") {
+                open(Intent("android.settings.TETHER_SETTINGS"), "Открыл точку доступа, сэр.") != null
+            } else settings(found.name)
             if (done) VoiceHealthLog.write(context, "agent shortcut setting ${found.name}")
-            if (done) "Открыл настройки, сэр." else null
+            when {
+                done && found.name == "hotspot" -> "Открыл точку доступа, сэр."
+                done -> "Открыл настройки, сэр."
+                found.name == "hotspot" -> "Не удалось открыть раздел точки доступа, сэр."
+                else -> null
+            }
         }
         is AgentShortcut.MapSearch -> open(Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=${Uri.encode(found.place)}")), "Открыл карту, сэр.")
         is AgentShortcut.WebSearch -> open(
@@ -76,6 +75,20 @@ class AppAgentRunner(
             "Открыл поиск, сэр.",
         )
         null -> null
+    }
+
+    private fun searchYouTube(query: String): String? {
+        val active = ScreenController.activePackageName()?.takeIf { it in YOUTUBE_CLIENTS }
+        val clients = (listOfNotNull(active) + YOUTUBE_CLIENTS).distinct()
+        val url = Uri.parse("https://www.youtube.com/results?search_query=${Uri.encode(query)}")
+        for (client in clients) {
+            val search = Intent(Intent.ACTION_SEARCH).setPackage(client)
+                .putExtra(SearchManager.QUERY, query)
+            val reply = "Открыл результаты поиска на YouTube, сэр."
+            open(search, reply)?.let { return it }
+            open(Intent(Intent.ACTION_VIEW, url).setPackage(client), reply)?.let { return it }
+        }
+        return open(Intent(Intent.ACTION_VIEW, url), "Открыл поиск YouTube в браузере, сэр.")
     }
 
     private fun open(intent: Intent, reply: String): String? = runCatching {
@@ -96,19 +109,19 @@ class AppAgentRunner(
     private fun work(goal: String): String {
         val history = ArrayList<String>()
         val guard = AppAgentRules.LoopGuard()
-        var rejected = 0
-        var typed = false
+        var searched = false
+        var previousPackage = ""
+        var successfulSteps = 0
         var blockedSteps = 0
         var lastStep: AgentStep? = null
-        val queries = HashSet<String>()
         var lastScreen: List<ScreenItem> = emptyList()
         // Свой экран агенту не нужен: иначе модель начинает нажимать кнопки самого Джарвиса.
         if (ScreenController.activePackageName() == context.packageName) ScreenController.globalAction("home")
         Thread.sleep(START_PAUSE_MS)
         // План заранее: с ним модель не забывает вторую половину задачи.
-        val plan = ask(AppAgentRules.planPrompt(goal, ScreenController.activePackageName().orEmpty()))
+        val plan = askRetrying(AppAgentRules.planPrompt(goal, ScreenController.activePackageName().orEmpty()))
             ?.let(AppAgentRules::parsePlan).orEmpty()
-        VoiceHealthLog.write(context, "agent plan ${plan.size}: ${plan.joinToString(" / ").take(RAW_LOG_CHARS)}")
+        VoiceHealthLog.write(context, "agent plan items=${plan.size}")
         var verifyRejected = 0
         var lastLeft = ""
         var unchangedSteps = 0
@@ -122,25 +135,28 @@ class AppAgentRunner(
             val rows = AppAgentRules.compact(all.map(::raw))
             val screen = rows.map { it.item }
             val nodes = rows.map { all[it.source] }
-            if (plan.size <= 1 && AppAgentRules.resultOpened(goal, screen, lastScreen, typed && lastStep is AgentStep.Tap, queries)) {
-                return "Готово, сэр."
+            if (previousPackage != packageName ||
+                (searched && AppAgentRules.searchIndex(screen) == null && screen.any { it.editable })
+            ) {
+                searched = false
             }
+            previousPackage = packageName
             // Enter срабатывает не везде: тогда запрос запускается нажатием на подсказку.
             if (acted && lastStep is AgentStep.Enter && screen == lastScreen) {
                 history += "ENTER не сработал, нажми подходящую подсказку из списка"
             } else if (acted && lastStep !is AgentStep.Open && screen == lastScreen) {
                 // Шаг ничего не изменил: модели надо знать, иначе она повторит его снова.
                 history += "экран не изменился после шага, попробуй другой путь"
-                if (++unchangedSteps > MAX_UNCHANGED_STEPS) return partial("экран перестал меняться", lastLeft, history)
+                if (++unchangedSteps > MAX_UNCHANGED_STEPS) return partial("экран перестал меняться", lastLeft, successfulSteps)
             } else if (acted) {
                 unchangedSteps = 0
             }
             acted = false
             lastScreen = screen
-            val answer = askRetrying(AppAgentRules.prompt(goal, packageName, screen, history, typed, plan))
+            val answer = askRetrying(AppAgentRules.prompt(goal, packageName, screen, history, searched, plan))
             if (answer == null) {
                 VoiceHealthLog.write(context, "agent no answer step $number items=${screen.size}")
-                return partial("облако перестало отвечать", lastLeft, history)
+                return partial("облако перестало отвечать", lastLeft, successfulSteps)
             }
             if (cancelled) return "Остановился, сэр."
             var step = AppAgentRules.parse(answer, screen)
@@ -151,7 +167,7 @@ class AppAgentRunner(
                 Log.w(TAG, "шаг $number: не разобран ответ «${reply.take(RAW_LOG_CHARS)}»")
                 VoiceHealthLog.write(context, "agent unparsed step $number: ${reply.take(RAW_LOG_CHARS).replace('\n', ' ')}")
                 reply = askRetrying(
-                    AppAgentRules.prompt(goal, packageName, screen, history + AppAgentRules.formatReminder(reply), typed, plan),
+                    AppAgentRules.prompt(goal, packageName, screen, history + AppAgentRules.formatReminder(reply), searched, plan),
                 ) ?: break
                 step = AppAgentRules.parse(reply, screen)
             }
@@ -159,24 +175,19 @@ class AppAgentRunner(
             VoiceHealthLog.write(context, "agent step $number ${step?.javaClass?.simpleName}")
             if (step == null) {
                 // Модель так и не дала команду: шаг пропускаем, задачу не бросаем.
-                if (++blockedSteps > MAX_BLOCKED_STEPS + MAX_FORMAT_RETRIES) return partial("модель перестала давать понятные шаги", lastLeft, history)
+                if (++blockedSteps > MAX_BLOCKED_STEPS + MAX_FORMAT_RETRIES) return partial("модель перестала давать понятные шаги", lastLeft, successfulSteps)
                 history += "предыдущий ответ не был командой: ответь одной командой из списка"
                 continue
             }
             if (step is AgentStep.Done) {
-                // Сначала дешёвая проверка: явно незаконченный поиск.
-                if (AppAgentRules.mustSearch(goal, screen, typed) && rejected < MAX_REJECTED_DONE) {
-                    rejected++
-                    history += "DONE рано: сначала воспользуйся поиском"
-                    continue
-                }
                 val verdict = askRetrying(AppAgentRules.verifyPrompt(goal, plan, packageName, screen, history))
                     ?.let(AppAgentRules::parseVerify)
                 VoiceHealthLog.write(context, "agent verify ${verdict?.first} ${verdict?.second.orEmpty().take(80)}")
-                // Проверка недоступна — верим модели, но сказанному «готово» без проверки.
-                if (verdict == null || verdict.first) return step.reply.ifBlank { "Готово, сэр." }
+                if (cancelled) return "Остановился, сэр."
+                if (verdict?.first == true) return step.reply.ifBlank { "Готово, сэр." }
+                if (verdict == null) return partial("не удалось проверить результат", lastLeft, successfulSteps)
                 lastLeft = verdict.second
-                if (++verifyRejected > MAX_VERIFY_REJECTED) return partial("цель выполнена не полностью", lastLeft, history)
+                if (++verifyRejected > MAX_VERIFY_REJECTED) return partial("цель выполнена не полностью", lastLeft, successfulSteps)
                 history += "DONE отклонён проверкой: " + lastLeft.ifBlank { "цель выполнена не полностью" } + ". Продолжай шагами"
                 continue
             }
@@ -191,21 +202,14 @@ class AppAgentRunner(
                 history += "Shorts не подходит, нажми обычное видео"
                 continue
             }
-            // Строка поиска есть и на странице результатов: второй поиск ничего не даст.
-            if (typed && step is AgentStep.Tap &&
-                (step.index == AppAgentRules.searchIndex(screen) || screen[step.index].label in queries)
-            ) {
-                history += "повторный поиск запрещён, нажми результат"
-                continue
-            }
-            when (guard.count(screen, step)) {
+            when (guard.count(screen, step, packageName)) {
                 1 -> Unit
                 // Первый повтор — подсказка искать другой путь, второй — остановка.
                 2 -> {
                     history += "${describe(step, screen)} на этом экране уже было и не помогло, выбери другой шаг (SCROLL, BACK, поиск)"
                     continue
                 }
-                else -> return partial("хожу по кругу", lastLeft, history)
+                else -> return partial("хожу по кругу", lastLeft, successfulSteps)
             }
             show("Шаг $number из ${AppAgentRules.MAX_STEPS}: ${describe(step, screen)}")
             if (step is AgentStep.Tap && AppAgentRules.needsConfirmation(screen[step.index].label)) {
@@ -214,22 +218,28 @@ class AppAgentRunner(
             if (step is AgentStep.Enter && AppAgentRules.enterIsRisky(screen)) {
                 if (!confirmed("Отправить введённое, сэр?")) return "Хорошо, сэр, не отправляю."
             }
-            perform(step, nodes)
-            acted = true
+            if (cancelled) return "Остановился, сэр."
+            if (ScreenController.activePackageName().orEmpty() != packageName) {
+                history += "открыто другое приложение, перечитай экран"
+                continue
+            }
+            acted = perform(step, nodes)
             lastStep = step
-            if (step is AgentStep.Type) queries += step.text
-            if (step is AgentStep.Tap && screen[step.index].label.length <= MAX_QUERY && typed) queries += screen[step.index].label
-            typed = typed || step is AgentStep.Type
-            history += describe(step, screen)
+            if (acted) {
+                successfulSteps++
+                if (step is AgentStep.Type && AppAgentRules.isSearchField(screen[step.index])) searched = true
+                history += describe(step, screen)
+            } else {
+                history += "действие не сработало: ${describe(step, screen)}. Попробуй другой шаг."
+            }
             Thread.sleep(STEP_PAUSE_MS)
         }
-        return partial("не уложился в ${AppAgentRules.MAX_STEPS} шагов", lastLeft, history)
+        return partial("не уложился в ${AppAgentRules.MAX_STEPS} шагов", lastLeft, successfulSteps)
     }
 
     /** Честный итог незаконченной задачи: что сделано и что осталось. */
-    private fun partial(why: String, left: String, history: List<String>): String {
+    private fun partial(why: String, left: String, done: Int): String {
         VoiceHealthLog.write(context, "agent partial: $why")
-        val done = history.count { !it.contains("отклон") && !it.contains("не изменился") && !it.contains("не был командой") && !it.contains("уже было") }
         val rest = if (left.isNotBlank()) " Осталось: $left." else ""
         return "Остановился, сэр: $why. Сделал шагов: $done.$rest"
     }
@@ -265,21 +275,16 @@ class AppAgentRunner(
         is AgentStep.Done -> "готово"
     }
 
-    private fun perform(step: AgentStep, nodes: List<UiNode>) {
-        when (step) {
-            // Настоящее касание: программный клик видеолента YouTube часто игнорирует.
-            is AgentStep.Tap -> nodes[step.index].bounds.let {
-                ScreenController.tap(it.exactCenterX(), it.exactCenterY())
-            }
-            is AgentStep.Type -> ScreenController.setTextOnNode(nodes[step.index], step.text)
-            is AgentStep.Open -> launcher.execute(
-                ToolCall(requestId = "agent", toolId = "launcher", arguments = mapOf("action" to "open", "app" to step.app)),
-            ).also { if (it.status != ToolResultStatus.SUCCESS) Log.w(TAG, "не открылось: ${step.app}") }
-            is AgentStep.Scroll -> ScreenController.swipeDirection(if (step.down) "up" else "down")
-            AgentStep.Back -> ScreenController.globalAction("back")
-            AgentStep.Enter -> ScreenController.pressEnter()
-            is AgentStep.Done -> Unit
-        }
+    private fun perform(step: AgentStep, nodes: List<UiNode>): Boolean = when (step) {
+        is AgentStep.Tap -> ScreenController.tapCenter(nodes[step.index])
+        is AgentStep.Type -> ScreenController.setTextOnNode(nodes[step.index], step.text)
+        is AgentStep.Open -> launcher.execute(
+            ToolCall(requestId = "agent", toolId = "launcher", arguments = mapOf("action" to "open", "app" to step.app)),
+        ).status == ToolResultStatus.SUCCESS
+        is AgentStep.Scroll -> ScreenController.swipeDirection(if (step.down) "up" else "down")
+        AgentStep.Back -> ScreenController.globalAction("back")
+        AgentStep.Enter -> ScreenController.pressEnter()
+        is AgentStep.Done -> false
     }
 
     /** Вопрос голосом; без ответа считается «нет». */
@@ -308,14 +313,12 @@ class AppAgentRunner(
 
         private const val RAW_LOG_CHARS = 160
         private const val TAG = "Jarvis.Agent"
-        private const val YOUTUBE = "com.google.android.youtube"
+        private val YOUTUBE_CLIENTS = listOf("com.google.android.youtube", "app.morphe.android.youtube")
         private const val START_PAUSE_MS = 1_500L
         private const val STEP_PAUSE_MS = 1_500L
         private const val CONFIRM_WAIT_MS = 10_000L
         private const val SPEECH_MARGIN_MS = 6_000L
         private const val MAX_NODES = 300
-        private const val MAX_REJECTED_DONE = 2
-        private const val MAX_QUERY = 40
         private val RETRY_PAUSES_MS = longArrayOf(0L, 2_000L, 5_000L)
         private const val MAX_FORMAT_RETRIES = 2
         private const val MAX_VERIFY_REJECTED = 3

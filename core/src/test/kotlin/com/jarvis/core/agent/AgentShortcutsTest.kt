@@ -34,4 +34,10 @@ class AgentShortcutsTest {
         assertNull(AgentShortcuts.match("открой настройки блютуз и выключи его"))
         assertNull(AgentShortcuts.match("открой телеграм и напиши привет"))
     }
+    @Test fun hotspotLookupDoesNotChangeSettings() {
+        assertEquals(AgentShortcut.Setting("hotspot"), AgentShortcuts.match("В настройках найди точку доступа."))
+        assertEquals(AgentShortcut.Setting("hotspot"), AgentShortcuts.match("Найди точку доступа"))
+        assertNull(AgentShortcuts.match("Открой настройки и включи точку доступа"))
+        assertNull(AgentShortcuts.match("В настройках выключи Bluetooth"))
+    }
 }

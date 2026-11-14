@@ -242,4 +242,14 @@ class AppAgentDoneSynonymsTest {
         assertEquals(1, guard.count(chatScreen, AgentStep.Back))
         assertEquals(2, guard.count(chatScreen, AgentStep.Back))
     }
+    @Test fun confirmationRequiresAnExplicitYes() {
+        assertFalse(AppAgentRules.parseVerify("Даже если экран открыт, задача не выполнена").first)
+        assertFalse(AppAgentRules.parseVerify("Yes, but the message is still a draft").first)
+        assertTrue(AppAgentRules.parseVerify("ДА.").first)
+    }
+
+    @Test fun messageComposerIsNotASearchField() {
+        assertTrue(AppAgentRules.isSearchField(ScreenItem("Поиск на YouTube", true)))
+        assertFalse(AppAgentRules.isSearchField(ScreenItem("Сообщение", true)))
+    }
 }
