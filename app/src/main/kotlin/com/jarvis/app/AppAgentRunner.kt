@@ -108,6 +108,7 @@ class AppAgentRunner(
 
     private fun work(goal: String): String {
         val history = ArrayList<String>()
+        val savedChatLookup = AppAgentRules.isSavedChatLookup(goal)
         val guard = AppAgentRules.LoopGuard()
         var searched = false
         var previousPackage = ""
@@ -135,7 +136,7 @@ class AppAgentRunner(
             val rows = AppAgentRules.compact(all.map(::raw))
             val screen = rows.map { it.item }
             val nodes = rows.map { all[it.source] }
-            if (AppAgentRules.isSavedChatLookup(goal) &&
+            if (savedChatLookup &&
                 packageName in com.jarvis.core.common.AppFamilies.TELEGRAM &&
                 AppAgentRules.savedChatOpen(screen)
             ) {
@@ -187,6 +188,14 @@ class AppAgentRunner(
                 continue
             }
             if (step is AgentStep.Done) {
+                if (savedChatLookup) {
+                    lastLeft = "открыть чат «Избранное»"
+                    if (++verifyRejected > MAX_VERIFY_REJECTED) {
+                        return partial("не подтвердил открытие нужного чата", lastLeft, successfulSteps)
+                    }
+                    history += "Чат «Избранное» не подтверждён. Если открыт другой чат, вернись к списку и открой «Избранное» через меню."
+                    continue
+                }
                 val verdict = askRetrying(AppAgentRules.verifyPrompt(goal, plan, packageName, screen, history))
                     ?.let(AppAgentRules::parseVerify)
                 VoiceHealthLog.write(context, "agent verify ${verdict?.first} ${verdict?.second.orEmpty().take(80)}")
