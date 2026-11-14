@@ -260,4 +260,10 @@ class AppAgentDoneSynonymsTest {
         assertFalse(AppAgentRules.savedChatOpen(listOf(header, ScreenItem("Поиск", true))))
         assertTrue(AppAgentRules.savedChatOpen(listOf(header, ScreenItem("Сообщение", true))))
     }
+    @Test fun editableFieldsKeepTheirPurposeAfterTyping() {
+        val prompt = AppAgentRules.screenLabel("котики", "", "Поиск", true, false)
+        assertTrue(AppAgentRules.isSearchField(ScreenItem(prompt, true)))
+        assertEquals("Сообщение: привет", AppAgentRules.screenLabel("привет", "", "Сообщение", true, false))
+        assertEquals("", AppAgentRules.screenLabel("private", "", "Пароль", true, true))
+    }
 }

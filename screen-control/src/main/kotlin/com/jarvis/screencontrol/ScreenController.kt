@@ -191,6 +191,7 @@ object ScreenController {
             enabled = node.isEnabled,
             depth = depth,
             password = node.isPassword,
+            hint = node.hintText?.toString().orEmpty(),
         )
     }
 

@@ -11,13 +11,13 @@ sealed class AgentShortcut {
 /** Угадывание по экрану нужно только там, где нет прямого пути. */
 object AgentShortcuts {
     private val YOUTUBE = Regex("ютуб|ютьюб|youtube")
-    private val AFTER_SEARCH = Regex("(?:найди|найти|поищи|ищи|включи|покажи)\\s+(?:мне\\s+)?(?:видео\\s+|ролик\\s+|ролики\\s+)?(?:про\\s+|о\\s+|об\\s+)?(.+)$")
+    private val AFTER_SEARCH = Regex("(?:найди|найти|поищи|ищи|покажи)\\s+(?:мне\\s+)?(?:видео\\s+|ролик\\s+|ролики\\s+)?(?:про\\s+|о\\s+|об\\s+)?(.+)$")
     private val YOUTUBE_WORD = Regex("\\s*(?:на|в)\\s+(?:ютубе|ютьюбе|youtube)\\s*")
     private val SETTINGS = Regex("настрой")
     private val MAPS = Regex("(?:найди|покажи)\\s+(?:на\\s+карт[еах]+|в\\s+(?:яндекс\\s+)?картах)\\s+(.+)$")
     private val MAPS_AFTER = Regex("(?:найди|покажи)\\s+(.+?)\\s+(?:на\\s+карт[еах]+|в\\s+(?:яндекс\\s+)?картах)$")
     private val WEB = Regex("(?:найди|поищи)\\s+в\\s+(?:браузере|интернете|сети|гугле|яндексе)\\s+(.+)$")
-    private val MORE_ACTIONS = Regex("\\bи\\s+(?:включи|выключи|открой|запусти|нажми|напиши|отправь|поставь)\\b")
+    private val MORE_ACTIONS = Regex("\\b(?:и|затем|потом|после этого)\\s+(?:включи|выключи|открой|запусти|нажми|напиши|отправь|поставь|удали|сохрани|скопируй|подпишись|выбери|прочитай|скажи|воспроизведи|позвони)\\b")
     private val HOTSPOT_LOOKUP = Regex(
         "^(?:(?:в настройках )?(?:найди|найти|покажи|открой) (?:в настройках )?|" +
             "открой настройки и (?:найди|покажи|открой) )(?:мобильную )?точку доступа(?: wi[- ]?fi)?$",
@@ -40,6 +40,7 @@ object AgentShortcuts {
         val text = goal.lowercase().trim().trimEnd('.', '!', '?').replace(Regex("\\s+"), " ")
         if (MORE_ACTIONS.containsMatchIn(text)) return null
         if (YOUTUBE.containsMatchIn(text)) {
+            if (Regex("\\b(?:включи|воспроизведи|запусти)\\b").containsMatchIn(text)) return null
             val query = AFTER_SEARCH.find(text)?.groupValues?.get(1)?.replace(YOUTUBE_WORD, " ")?.trim()
             return query?.takeIf { it.isNotEmpty() && !YOUTUBE.matches(it) }?.let { AgentShortcut.YouTubeSearch(it) }
         }

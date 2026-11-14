@@ -120,19 +120,35 @@ class AppAgentRunner(
         if (ScreenController.activePackageName() == context.packageName) ScreenController.globalAction("home")
         Thread.sleep(START_PAUSE_MS)
         // План заранее: с ним модель не забывает вторую половину задачи.
-        val plan = askRetrying(AppAgentRules.planPrompt(goal, ScreenController.activePackageName().orEmpty()))
+        var plan = askRetrying(AppAgentRules.planPrompt(goal, ScreenController.activePackageName().orEmpty()))
             ?.let(AppAgentRules::parsePlan).orEmpty()
         VoiceHealthLog.write(context, "agent plan items=${plan.size}")
         var verifyRejected = 0
         var lastLeft = ""
+        var recoveries = 0
         var unchangedSteps = 0
         /** На прошлом круге действительно что-то сделано (а не только подсказка модели). */
         var acted = false
+        fun recover(packageName: String): Boolean {
+            if (recoveries >= MAX_RECOVERIES || cancelled) return false
+            recoveries++
+            val revised = askRetrying(AppAgentRules.planPrompt(goal, packageName, history))
+                ?.let(AppAgentRules::parsePlan).orEmpty()
+            if (revised.isNotEmpty()) plan = revised
+            VoiceHealthLog.write(context, "agent replanned attempt=$recoveries")
+            return !cancelled
+        }
+
         for (number in 1..AppAgentRules.MAX_STEPS) {
             if (cancelled) return "Остановился, сэр."
             val packageName = ScreenController.activePackageName().orEmpty()
             if (AppAgentRules.forbiddenApp(packageName)) return "В банковских приложениях я не работаю, сэр."
             val all = ScreenController.visibleNodes(MAX_NODES)
+            if (all.isEmpty() || all.first().packageName != packageName) {
+                Thread.sleep(SCREEN_RETRY_MS)
+                continue
+            }
+            if (all.any { it.password }) return partial("на экране открыто поле пароля", lastLeft, successfulSteps)
             val rows = AppAgentRules.compact(all.map(::raw))
             val screen = rows.map { it.item }
             val nodes = rows.map { all[it.source] }
@@ -155,7 +171,12 @@ class AppAgentRunner(
             } else if (acted && lastStep !is AgentStep.Open && screen == lastScreen) {
                 // Шаг ничего не изменил: модели надо знать, иначе она повторит его снова.
                 history += "экран не изменился после шага, попробуй другой путь"
-                if (++unchangedSteps > MAX_UNCHANGED_STEPS) return partial("экран перестал меняться", lastLeft, successfulSteps)
+                if (++unchangedSteps > MAX_UNCHANGED_STEPS) {
+                    if (!recover(packageName)) return partial("экран перестал меняться", lastLeft, successfulSteps)
+                    unchangedSteps = 0
+                    acted = false
+                    continue
+                }
             } else if (acted) {
                 unchangedSteps = 0
             }
@@ -223,13 +244,20 @@ class AppAgentRunner(
                 // Первый повтор — подсказка искать другой путь, второй — остановка.
                 2 -> {
                     history += "${describe(step, screen)} на этом экране уже было и не помогло, выбери другой шаг (SCROLL, BACK, поиск)"
-                    continue
+                    if (recover(packageName)) continue
+                    return partial("повторяется действие без продвижения", lastLeft, successfulSteps)
                 }
-                else -> return partial("хожу по кругу", lastLeft, successfulSteps)
+                else -> {
+                    if (recover(packageName)) continue
+                    return partial("хожу по кругу", lastLeft, successfulSteps)
+                }
             }
             show("Шаг $number из ${AppAgentRules.MAX_STEPS}: ${describe(step, screen)}")
-            if (step is AgentStep.Tap && AppAgentRules.needsConfirmation(screen[step.index].label)) {
-                if (!confirmed("Нажать «${screen[step.index].label}», сэр?")) return "Хорошо, сэр, не нажимаю."
+            if (step is AgentStep.Tap && (AppAgentRules.needsConfirmation(screen[step.index].label) ||
+                    AppAgentRules.needsConfirmation(nodes[step.index].contentDescription))
+            ) {
+                val label = nodes[step.index].contentDescription.ifBlank { screen[step.index].label }
+                if (!confirmed("Нажать «$label», сэр?")) return "Хорошо, сэр, не нажимаю."
             }
             if (step is AgentStep.Enter && AppAgentRules.enterIsRisky(screen)) {
                 if (!confirmed("Отправить введённое, сэр?")) return "Хорошо, сэр, не отправляю."
@@ -237,6 +265,15 @@ class AppAgentRunner(
             if (cancelled) return "Остановился, сэр."
             if (ScreenController.activePackageName().orEmpty() != packageName) {
                 history += "открыто другое приложение, перечитай экран"
+                continue
+            }
+            val target = when (step) {
+                is AgentStep.Tap -> nodes[step.index]
+                is AgentStep.Type -> nodes[step.index]
+                else -> null
+            }
+            if (target != null && ScreenController.visibleNodes(MAX_NODES).none { it.enabled && it == target }) {
+                history += "элемент изменился или недоступен, перечитай экран"
                 continue
             }
             acted = perform(step, nodes)
@@ -271,7 +308,9 @@ class AppAgentRunner(
     }
 
     private fun raw(node: UiNode) = RawNode(
-        text = if (node.password) "" else node.text.ifBlank { node.contentDescription },
+        text = AppAgentRules.screenLabel(
+            node.text, node.contentDescription, node.hint, node.editable, node.password,
+        ),
         left = node.bounds.left,
         top = node.bounds.top,
         right = node.bounds.right,
@@ -339,6 +378,8 @@ class AppAgentRunner(
         private const val MAX_FORMAT_RETRIES = 2
         private const val MAX_VERIFY_REJECTED = 3
         private const val MAX_UNCHANGED_STEPS = 4
+        private const val MAX_RECOVERIES = 2
+        private const val SCREEN_RETRY_MS = 400L
         private val STOP = Regex("^(стоп|хватит|отмена|отмени|останови(сь)?|прекрати)\\b")
         private val YES = Regex("^(да|ага|нажми|подтверждаю|давай)\\b")
 

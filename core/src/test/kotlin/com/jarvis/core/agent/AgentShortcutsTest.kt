@@ -40,4 +40,8 @@ class AgentShortcutsTest {
         assertNull(AgentShortcuts.match("Открой настройки и включи точку доступа"))
         assertNull(AgentShortcuts.match("В настройках выключи Bluetooth"))
     }
+    @Test fun searchShortcutDoesNotSwallowPlaybackOrFollowUp() {
+        assertNull(AgentShortcuts.match("включи на ютубе видео про котиков"))
+        assertNull(AgentShortcuts.match("открой ютуб и найди котиков потом выбери первый ролик"))
+    }
 }
