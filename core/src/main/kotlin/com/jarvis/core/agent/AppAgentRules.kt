@@ -122,6 +122,9 @@ object AppAgentRules {
         appendLine("Подбирай по смыслу, не по точному совпадению: другие формы слова и синонимы подходят. «Точку доступа» ищи как «Точка доступа Wi-Fi», «блютуз» как Bluetooth, «вайфай» как Wi-Fi.")
         appendLine("OPEN только открывает приложение и не выполняет цель целиком: дальше продолжай шагами.")
         appendLine("Ищи нужный пункт на экране, листай и переходи по разделам. DONE пиши только при выполненной цели. Если надо найти или показать настройку, остановись на нужном экране. Переключай настройки только по прямой просьбе пользователя.")
+        if (isSavedChatLookup(goal)) {
+            appendLine("В Telegram открой «Избранное» из меню или списка чатов. У открытого чата есть поле сообщения. Не нажимай заголовок чата. Если видны вкладки «Медиа», «Файлы» и поиск сообщений, но нет поля сообщения, вернись BACK.")
+        }
         if (history.isNotEmpty()) appendLine("Уже сделано: ${history.joinToString("; ")}")
         appendLine("Пример. Цель: открой настройки и найди вайфай. Шаги: OPEN Настройки, затем TAP пункт поиска или SCROLL, затем TAP нужный пункт, и только потом DONE.")
         if (searched) {
@@ -239,6 +242,18 @@ object AppAgentRules {
         val target = words.drop(words.indexOfLast { it in GOAL_VERBS } + 1)
         return target.filter { it !in GOAL_FILLER }.all { it.take(ROOT_LENGTH) in shown }
     }
+
+    private val SAVED_CHAT_LOOKUP = Regex(
+        "^(?:открой (?:телеграм\\w*|telegram) и )?(?:найди|открой|покажи) (?:чат )?" +
+            "[«\"]?(?:избранное|saved messages)[»\"]?(?: в (?:телеграм\\w*|telegram))?[.!]?$",
+        RegexOption.IGNORE_CASE,
+    )
+
+    fun isSavedChatLookup(goal: String): Boolean = SAVED_CHAT_LOOKUP.matches(goal.trim())
+
+    fun savedChatOpen(screen: List<ScreenItem>): Boolean =
+        screen.any { it.label.equals("избранное", true) || it.label.equals("saved messages", true) } &&
+            screen.any { it.editable && !isSearchField(it) && !it.password }
 
     /** Поисковое поле отличается от редактора сообщения или другого поля. */
     fun isSearchField(item: ScreenItem): Boolean = item.editable && SEARCH.containsMatchIn(item.label)

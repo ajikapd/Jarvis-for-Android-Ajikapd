@@ -135,6 +135,13 @@ class AppAgentRunner(
             val rows = AppAgentRules.compact(all.map(::raw))
             val screen = rows.map { it.item }
             val nodes = rows.map { all[it.source] }
+            if (AppAgentRules.isSavedChatLookup(goal) &&
+                packageName in com.jarvis.core.common.AppFamilies.TELEGRAM &&
+                AppAgentRules.savedChatOpen(screen)
+            ) {
+                VoiceHealthLog.write(context, "agent verified saved chat")
+                return "Открыл «Избранное», сэр."
+            }
             if (previousPackage != packageName ||
                 (searched && AppAgentRules.searchIndex(screen) == null && screen.any { it.editable })
             ) {

@@ -252,4 +252,12 @@ class AppAgentDoneSynonymsTest {
         assertTrue(AppAgentRules.isSearchField(ScreenItem("Поиск на YouTube", true)))
         assertFalse(AppAgentRules.isSearchField(ScreenItem("Сообщение", true)))
     }
+    @Test fun savedChatLookupRequiresTheConversationScreen() {
+        assertTrue(AppAgentRules.isSavedChatLookup("открой телеграм и найди чат избранное"))
+        assertFalse(AppAgentRules.isSavedChatLookup("найди избранное и напиши привет"))
+        val header = ScreenItem("Избранное", false)
+        assertFalse(AppAgentRules.savedChatOpen(listOf(header, ScreenItem("Медиа", false))))
+        assertFalse(AppAgentRules.savedChatOpen(listOf(header, ScreenItem("Поиск", true))))
+        assertTrue(AppAgentRules.savedChatOpen(listOf(header, ScreenItem("Сообщение", true))))
+    }
 }
