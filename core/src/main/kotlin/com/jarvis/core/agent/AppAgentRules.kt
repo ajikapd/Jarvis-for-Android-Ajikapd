@@ -273,6 +273,11 @@ object AppAgentRules {
         screen.any { it.label.equals("избранное", true) || it.label.equals("saved messages", true) } &&
             screen.any { it.editable && !isSearchField(it) && !it.password }
 
+    fun savedChatAttachmentsOpen(screen: List<ScreenItem>): Boolean =
+        screen.any { it.label.equals("избранное", true) || it.label.equals("saved messages", true) } &&
+            screen.any { it.label.startsWith("поиск сообщений и тегов", true) } &&
+            screen.none { it.editable }
+
     /** Поисковое поле отличается от редактора сообщения или другого поля. */
     fun isSearchField(item: ScreenItem): Boolean = item.editable && SEARCH.containsMatchIn(item.label)
 

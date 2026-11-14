@@ -126,6 +126,7 @@ class AppAgentRunner(
         var verifyRejected = 0
         var lastLeft = ""
         var recoveries = 0
+        var recoveredSavedAttachments = false
         var unchangedSteps = 0
         /** На прошлом круге действительно что-то сделано (а не только подсказка модели). */
         var acted = false
@@ -158,6 +159,19 @@ class AppAgentRunner(
             ) {
                 VoiceHealthLog.write(context, "agent verified saved chat")
                 return "Открыл «Избранное», сэр."
+            }
+            if (savedChatLookup && !recoveredSavedAttachments &&
+                packageName in com.jarvis.core.common.AppFamilies.TELEGRAM &&
+                AppAgentRules.savedChatAttachmentsOpen(screen)
+            ) {
+                recoveredSavedAttachments = true
+                if (cancelled) return "Остановился, сэр."
+                if (ScreenController.activePackageName() == packageName && ScreenController.globalAction("back")) {
+                    history += "вернулся из вложений «Избранного». Открой беседу через список чатов или глобальный поиск"
+                    VoiceHealthLog.write(context, "agent backed out of saved chat attachments")
+                    Thread.sleep(STEP_PAUSE_MS)
+                    continue
+                }
             }
             if (previousPackage != packageName ||
                 (searched && AppAgentRules.searchIndex(screen) == null && screen.any { it.editable })

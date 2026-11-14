@@ -266,4 +266,9 @@ class AppAgentDoneSynonymsTest {
         assertEquals("Сообщение: привет", AppAgentRules.screenLabel("привет", "", "Сообщение", true, false))
         assertEquals("", AppAgentRules.screenLabel("private", "", "Пароль", true, true))
     }
+    @Test fun savedAttachmentsAreDistinctFromConversation() {
+        val header = ScreenItem("Избранное", false)
+        assertTrue(AppAgentRules.savedChatAttachmentsOpen(listOf(header, ScreenItem("Поиск сообщений и тегов", false))))
+        assertFalse(AppAgentRules.savedChatAttachmentsOpen(listOf(header, ScreenItem("Сообщение", true))))
+    }
 }
