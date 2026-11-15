@@ -55,7 +55,8 @@ object TelegramAgentScreen {
 
     fun isMessageHint(text: String): Boolean = key(text) in setOf("сообщение", "message")
 
-    fun protectsHeader(goal: String): Boolean = !openDetails.containsMatchIn(goal.substringBefore('«').substringBefore('"'))
+    fun protectsHeader(goal: String): Boolean =
+        !openDetails.containsMatchIn(goal.replace(Regex("«[^»]*»|\"[^\"]*\""), " "))
 
     fun isHeaderTarget(nodes: List<RawNode>, conversation: Conversation, target: Int): Boolean {
         val header = nodes[conversation.header]

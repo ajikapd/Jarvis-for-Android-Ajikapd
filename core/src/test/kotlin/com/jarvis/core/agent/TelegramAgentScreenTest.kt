@@ -42,6 +42,7 @@ class TelegramAgentScreenTest {
         assertTrue(TelegramAgentScreen.protectsHeader("найди чат с Сашей и напиши привет"))
         assertTrue(TelegramAgentScreen.protectsHeader("напиши в чат «открой профиль автора»"))
         assertFalse(TelegramAgentScreen.protectsHeader("открой чат с Сашей и покажи профиль"))
+        assertFalse(TelegramAgentScreen.protectsHeader("открой чат «Саша» и покажи профиль"))
         assertFalse(TelegramAgentScreen.protectsHeader("зайди в медиа чата"))
     }
 
