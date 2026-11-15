@@ -125,7 +125,7 @@ class AppAgentRunner(
             Thread.sleep(250)
         }
         val expected = (left + right).toString()
-        val actual = calculatorExpression(expression)?.filter { it.isDigit() || it == '-' }
+        val actual = calculatorExpression("com.miui.calculator:id/result")?.filter { it.isDigit() || it == '-' }
         if (actual != expected) {
             VoiceHealthLog.write(context, "agent calculator mismatch expected=$expected actual=${actual.orEmpty()}")
             return "Ввёл пример, но не смог подтвердить ответ калькулятора, сэр."
