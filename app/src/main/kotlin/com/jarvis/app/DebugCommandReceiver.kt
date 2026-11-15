@@ -384,7 +384,7 @@ class DebugCommandReceiver : BroadcastReceiver() {
         val store = SecureKeyStore(context)
         Log.d(
             TAG,
-            "keys groq=${store.hasKey("groq")} gemini=${store.hasKey("gemini")} gigachat=${store.hasKey("gigachat")} " +
+            "keys groq=${store.hasKey("groq")} gemini=${store.hasKey("gemini")} gigachat=${store.hasKey("gigachat")} safev=${store.hasKey("safev")} " +
                 "custom=${store.hasKey("custom")} migrated=${SecureKeyMigration.isMigrated(context)}",
         )
         // Проверка TLS до Сбера заведомо неверным ключом: ждём 401, а не ошибку сертификата.

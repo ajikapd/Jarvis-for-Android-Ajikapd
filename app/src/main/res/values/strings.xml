@@ -21,6 +21,9 @@
     <string name="cloud_groq_title">Groq</string>
     <string name="cloud_gemini_title">Google Gemini</string>
     <string name="cloud_gigachat_title">GigaChat (Сбер), без VPN</string>
+    <string name="cloud_safev_title">SafeV · NVIDIA Nemotron</string>
+    <string name="cloud_safev_model">nemotron-3-5-lightning · api.safev.ru</string>
+    <string name="cloud_safev_key_description">Поле ключа SafeV</string>
     <string name="cloud_gigachat_free_tier_notice">Бесплатно для физлиц: вход через Сбер ID на developers.sber.ru → проект GigaChat API → «Настройки API» → «Получить ключ». Вставьте Authorization key.</string>
     <string name="cloud_gigachat_key_description">Поле ключа GigaChat</string>
     <string name="cloud_api_key_hint">API key</string>

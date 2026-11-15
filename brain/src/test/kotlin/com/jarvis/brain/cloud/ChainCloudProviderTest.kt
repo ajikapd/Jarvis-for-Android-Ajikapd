@@ -151,6 +151,18 @@ class ChainCloudProviderTest {
         assertEquals("groq/openai/gpt-oss-120b", p.lastWinner)
     }
 
+    @Test
+    fun complete_safevOnlyUsesNemotronEndpointEntry() {
+        val fc = FakeCall().apply { behavior = successBehavior }
+        val (p, _) = provider(keys = { setOf("safev") }, fakeCall = fc)
+        val r = p.complete(req)
+        assertEquals(AICompletionStatus.SUCCESS, r.status)
+        assertEquals("safev/nemotron-3-5-lightning", p.lastWinner)
+        val entry = com.jarvis.core.cloud.DefaultCloudChain.entries().single { it.providerId == "safev" }
+        assertEquals("https://api.safev.ru/v1", entry.baseUrl)
+        assertEquals("nemotron-3-5-lightning", entry.modelId)
+    }
+
     // 7. thought-теги не попадают в TEXT (ThoughtStripper вырезает блок, даже разорванный между чанками)
     @Test
     fun stream_thoughtTextNotInEvents() {

@@ -10,7 +10,7 @@ class DefaultCloudChainTest {
     @Test
     fun entriesReturnsAllProvidersInOrder() {
         val entries = DefaultCloudChain.entries()
-        assertEquals(6, entries.size)
+        assertEquals(7, entries.size)
         // порядок по бенчу: groq120b, gemini3.5-lite, groq qwen, gemini3.1-lite
         assertEquals("groq", entries[0].providerId)
         assertEquals("openai/gpt-oss-120b", entries[0].modelId)
@@ -27,6 +27,10 @@ class DefaultCloudChainTest {
         assertEquals("GigaChat-2", entries[4].modelId)
         assertEquals("https://api.giga.chat/v1", entries[4].baseUrl)
         assertEquals("GigaChat-2-Pro", entries[5].modelId)
+        assertEquals("safev", entries[6].providerId)
+        assertEquals("nemotron-3-5-lightning", entries[6].modelId)
+        assertEquals("https://api.safev.ru/v1", entries[6].baseUrl)
+        assertTrue(entries[6].paramCandidates.single().isEmpty())
     }
 
     @Test
@@ -34,6 +38,14 @@ class DefaultCloudChainTest {
         val only = DefaultCloudChain.availableEntries(DefaultCloudChain.entries(), setOf("gigachat"))
         assertEquals(listOf("GigaChat-2", "GigaChat-2-Pro"), only.map { it.modelId })
         assertTrue("gigachat" in DefaultCloudChain.PROVIDERS)
+    }
+
+    @Test
+    fun safevAloneGivesItsNemotronEntry() {
+        val only = DefaultCloudChain.availableEntries(DefaultCloudChain.entries(), setOf("safev"))
+        assertEquals(listOf("nemotron-3-5-lightning"), only.map { it.modelId })
+        assertEquals("https://api.safev.ru/v1", only.single().baseUrl)
+        assertTrue("safev" in DefaultCloudChain.PROVIDERS)
     }
 
     @Test
@@ -90,7 +102,7 @@ class DefaultCloudChainTest {
         val chain = DefaultCloudChain
         val entries = DefaultCloudChain.entries()
         val allKeys = entries.map { it.providerId }.toSet()
-        assertEquals(6, DefaultCloudChain.availableEntries(entries, allKeys).size)
+        assertEquals(7, DefaultCloudChain.availableEntries(entries, allKeys).size)
     }
 
     @Test
@@ -98,7 +110,7 @@ class DefaultCloudChainTest {
         val all = DefaultCloudChain.entries()
         val strong = DefaultCloudChain.strongFirst(all)
         assertEquals(all.take(4), strong.take(4))
-        assertEquals(listOf("GigaChat-2-Pro", "GigaChat-2"), strong.drop(4).map { it.modelId })
+        assertEquals(listOf("GigaChat-2-Pro", "GigaChat-2", "nemotron-3-5-lightning"), strong.drop(4).map { it.modelId })
         val groqOnly = DefaultCloudChain.availableEntries(all, setOf("groq"))
         assertEquals(groqOnly, DefaultCloudChain.strongFirst(groqOnly))
     }

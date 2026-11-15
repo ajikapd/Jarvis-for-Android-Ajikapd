@@ -600,6 +600,7 @@ object Sections {
             b.addView(keyRow("Groq", "Основная быстрая модель", "groq"))
             b.addView(keyRow("Gemini", "Запасная цепочка", "gemini"))
             b.addView(keyRow("GigaChat", "Бесплатно и без VPN, ключ через Сбер ID", "gigachat"))
+            b.addView(keyRow("SafeV · Nemotron", "nemotron-3-5-lightning · api.safev.ru", "safev"))
             b.addView(note("GigaChat: developers.sber.ru → войти по Сбер ID → создать проект GigaChat API → «Настройки API» → «Получить ключ». Вставьте Authorization key."))
             b.addView(urlField("Адрес своего сервера", JarvisSettings.cloudBaseUrl(c)) { JarvisSettings.setCloudBaseUrl(c, it) })
             b.addView(keyRow("Свой сервер", "Совместимый с OpenAI", "custom"))

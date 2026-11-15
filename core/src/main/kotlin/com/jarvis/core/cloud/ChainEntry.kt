@@ -71,13 +71,23 @@ object DefaultCloudChain {
             label = "gigachat 2 pro",
             baseUrl = GIGACHAT_URL,
             paramCandidates = listOf(emptyMap())
+        ),
+        // SafeV OpenAI-compatible API.
+        ChainEntry(
+            providerId = "safev",
+            modelId = SAFEV_MODEL_ID,
+            label = "safev nemotron 3.5 lightning",
+            baseUrl = SAFEV_BASE_URL,
+            paramCandidates = listOf(emptyMap())
         )
     )
 
     const val GIGACHAT_URL = "https://api.giga.chat/v1"
+    const val SAFEV_BASE_URL = "https://api.safev.ru/v1"
+    const val SAFEV_MODEL_ID = "nemotron-3-5-lightning"
 
     /** Провайдеры цепочки: ключ любого из них включает облако. */
-    val PROVIDERS = setOf("groq", "gemini", "gigachat")
+    val PROVIDERS = setOf("groq", "gemini", "gigachat", "safev")
 
     /** Для трудных задач (агент на экране): у GigaChat сначала Pro — Lite путает кнопки и формат. */
     fun strongFirst(entries: List<ChainEntry>): List<ChainEntry> {

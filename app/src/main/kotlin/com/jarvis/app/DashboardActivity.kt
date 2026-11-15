@@ -2820,6 +2820,13 @@ class DashboardActivity : AppCompatActivity() {
             saveId = R.id.gigachatKeySave,
             clearId = R.id.gigachatKeyClear,
         )
+        bindCloudProviderKey(
+            providerId = "safev",
+            inputId = R.id.safevKeyInput,
+            statusId = R.id.safevKeyStatus,
+            saveId = R.id.safevKeySave,
+            clearId = R.id.safevKeyClear,
+        )
 
         // ── ASR mode (V2-08) ──
         val asrModes = listOf("AUTO", "CLOUD_PREFERRED", "LOCAL_ONLY")
