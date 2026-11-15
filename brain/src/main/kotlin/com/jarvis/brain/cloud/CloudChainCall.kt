@@ -57,6 +57,9 @@ class CloudChainCall(
                 auth.token
             } else stored
             var firstTokenSent = false
+            val prompt = if (entry.providerId == "safev") {
+                "$systemPrompt\nОтвечай только готовым ответом на русском языке. Не показывай рассуждения, план, перевод вопроса или английский текст."
+            } else systemPrompt
             val client = OpenAiCompatibleCloudClient(
                 baseUrlProvider = { entry.baseUrl },
                 apiKeyProvider = { key },
@@ -66,10 +69,10 @@ class CloudChainCall(
             )
             val result = client.streamChat(
                 model = entry.modelId,
-                systemPrompt = systemPrompt,
+                systemPrompt = prompt,
                 userText = userText,
                 history = history,
-                maxTokens = maxTokens,
+                maxTokens = if (entry.providerId == "safev") maxOf(maxTokens, 512) else maxTokens,
                 extraBody = params,
                 isCancelled = { cancelled.get() },
                 onAbortable = { abort ->
