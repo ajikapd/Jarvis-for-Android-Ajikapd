@@ -461,4 +461,22 @@ class AssistantOrchestratorTest {
         override fun clear() = facts.clear()
         override fun count(): Int = facts.size
     }
+    @Test fun explicitAgentReceivesUnchangedTaskInsteadOfSemanticRewrite() {
+        var captured: Any? = null
+        val tool = object : Tool {
+            override val definition = ToolDefinition(
+                id = "agent.run", name = "Агент", description = "Тест",
+                parameters = listOf(ToolParameter("goal", "Задача", ParameterType.STRING, required = true)),
+                riskLevel = RiskLevel.SAFE, onlineRequirement = OnlineRequirement.ONLINE_ALLOWED,
+            )
+
+            override fun execute(call: ToolCall): ToolResult {
+                captured = call.arguments["goal"]
+                return ToolResult(call.requestId, definition.id, ToolResultStatus.SUCCESS, "Приступаю.")
+            }
+        }
+        val goal = "открой Избранное и введи «Тест: A-12», но не отправляй"
+        orchestrator(tool).process(UserRequest("Сделай сам: $goal"))
+        assertEquals(goal, captured)
+    }
 }

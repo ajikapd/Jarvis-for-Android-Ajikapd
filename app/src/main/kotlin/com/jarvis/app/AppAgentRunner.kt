@@ -4,6 +4,7 @@ import android.app.SearchManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.provider.AlarmClock
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -14,6 +15,8 @@ import com.jarvis.core.agent.AgentStep
 import com.jarvis.core.agent.AppAgentRules
 import com.jarvis.core.agent.RawNode
 import com.jarvis.core.agent.ScreenItem
+import com.jarvis.core.agent.TelegramAgentScreen
+import com.jarvis.core.common.AppFamilies
 import com.jarvis.core.common.model.ToolCall
 import com.jarvis.core.common.model.ToolResultStatus
 import com.jarvis.screencontrol.ScreenController
@@ -56,7 +59,8 @@ class AppAgentRunner(
 
     /** Прямой путь: приложение делает это само, без модели и угадывания. */
     private fun shortcut(goal: String): String? = when (val found = AgentShortcuts.match(goal)) {
-        is AgentShortcut.YouTubeSearch -> searchYouTube(found.query)
+        is AgentShortcut.YouTubeSearch ->
+            if (found.playFirst) playFirstYouTube(found.query) else searchYouTube(found.query)
         is AgentShortcut.Setting -> {
             val done = if (found.name == "hotspot") {
                 open(Intent("android.settings.TETHER_SETTINGS"), "Открыл точку доступа, сэр.") != null
@@ -74,7 +78,104 @@ class AppAgentRunner(
             Intent(Intent.ACTION_VIEW, Uri.parse("https://yandex.ru/search/?text=${Uri.encode(found.query)}")),
             "Открыл поиск, сэр.",
         )
+        is AgentShortcut.DialDraft -> dial(found.number)
+        is AgentShortcut.Timer -> startTimer(found.seconds)
+        is AgentShortcut.CalculatorSum -> calculate(found.left, found.right)
+        is AgentShortcut.OpenFirstResult -> openFirstResult(found.query)
         null -> null
+    }
+
+    private fun dial(number: String): String? = open(
+        Intent(Intent.ACTION_DIAL, Uri.parse("tel:$number")),
+        "Набрал номер, сэр. Звонок не начинал.",
+    )
+
+    private fun startTimer(seconds: Int): String? = open(
+        Intent(AlarmClock.ACTION_SET_TIMER)
+            .putExtra(AlarmClock.EXTRA_LENGTH, seconds)
+            .putExtra(AlarmClock.EXTRA_SKIP_UI, true)
+            .putExtra(AlarmClock.EXTRA_MESSAGE, "проверка"),
+        "Поставил таймер, сэр.",
+    )
+
+    private fun calculate(left: Int, right: Int): String? {
+        val launch = context.packageManager.getLaunchIntentForPackage("com.miui.calculator")
+            ?: return open(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/search?q=$left%2B$right")), "Посчитал в браузере, сэр.")
+        if (open(launch, "opened") == null) return null
+        if (!ScreenController.isAvailable()) return "Открыл калькулятор, сэр. Чтобы нажать кнопки, нужна служба спец. возможностей."
+        Thread.sleep(START_PAUSE_MS)
+        val expression = "com.miui.calculator:id/expression"
+        val delete = "com.miui.calculator:id/btn_del_s"
+        val current = calculatorExpression(expression).orEmpty()
+        // Не продолжаем вычисление поверх старого результата или введённого выражения.
+        repeat(current.filter { it.isDigit() || it in "+−-×÷.," }.length.coerceAtMost(24)) {
+            if (calculatorExpression(expression).orEmpty().filter(Char::isDigit) == "0") return@repeat
+            if (!tapCalculatorId(delete)) return "Открыл калькулятор, но не смог очистить прошлое выражение, сэр."
+            Thread.sleep(100)
+        }
+        val keys = left.toString().map { "com.miui.calculator:id/digit_$it" } +
+            "com.miui.calculator:id/op_add" + right.toString().map { "com.miui.calculator:id/digit_$it" } +
+            "com.miui.calculator:id/btn_equal_s"
+        for (key in keys) {
+            if (cancelled) return "Остановился, сэр."
+            if (!tapCalculatorId(key)) {
+                VoiceHealthLog.write(context, "agent calculator missed $key")
+                return "Открыл калькулятор, но не нашёл нужную кнопку, сэр."
+            }
+            Thread.sleep(250)
+        }
+        val expected = (left + right).toString()
+        val actual = calculatorExpression(expression)?.filter { it.isDigit() || it == '-' }
+        if (actual != expected) {
+            VoiceHealthLog.write(context, "agent calculator mismatch expected=$expected actual=${actual.orEmpty()}")
+            return "Ввёл пример, но не смог подтвердить ответ калькулятора, сэр."
+        }
+        VoiceHealthLog.write(context, "agent calculator ${left}+$right")
+        return "Проверил на калькуляторе: $left плюс $right равно $expected, сэр."
+    }
+
+    private fun tapCalculatorId(viewId: String): Boolean {
+        val nodes = ScreenController.visibleNodes(MAX_NODES)
+        val target = nodes.firstOrNull { it.enabled && it.viewId == viewId } ?: return false
+        return ScreenController.tapCenter(target)
+    }
+
+    private fun calculatorExpression(viewId: String): String? =
+        ScreenController.visibleNodes(MAX_NODES).firstOrNull { it.viewId == viewId }?.text
+
+    private fun openFirstResult(query: String): String? {
+        val uri = Uri.parse("https://yandex.ru/search/").buildUpon()
+            .appendQueryParameter("text", query)
+            .build()
+        if (open(Intent(Intent.ACTION_VIEW, uri).setPackage("com.yandex.browser"), "opened") == null &&
+            open(Intent(Intent.ACTION_VIEW, uri), "opened") == null
+        ) return null
+        if (!ScreenController.isAvailable()) return "Открыл поиск, сэр. Чтобы открыть первый результат, нужна служба спец. возможностей."
+        Thread.sleep(START_PAUSE_MS)
+        repeat(12) {
+            if (cancelled) return "Остановился, сэр."
+            val nodes = ScreenController.visibleNodes(MAX_NODES)
+            val raw = nodes.map { node ->
+                RawNode(
+                    text = listOf(node.text, node.contentDescription).filter { it.isNotBlank() }.joinToString(" "),
+                    left = node.bounds.left,
+                    top = node.bounds.top,
+                    right = node.bounds.right,
+                    bottom = node.bounds.bottom,
+                    clickable = node.clickable && node.enabled,
+                    editable = node.editable,
+                )
+            }
+            val card = AppAgentRules.firstSearchResult(raw)
+            val target = card?.let { nodes.getOrNull(raw.indexOf(it)) }
+            if (target != null && ScreenController.tapCenter(target)) {
+                VoiceHealthLog.write(context, "agent first result")
+                return "Открыл первый результат, сэр."
+            }
+            Thread.sleep(SCREEN_RETRY_MS)
+        }
+        VoiceHealthLog.write(context, "agent first result missing")
+        return "Открыл поиск, но первый результат не нашёл, сэр."
     }
 
     private fun searchYouTube(query: String): String? {
@@ -89,6 +190,51 @@ class AppAgentRunner(
             open(Intent(Intent.ACTION_VIEW, url).setPackage(client), reply)?.let { return it }
         }
         return open(Intent(Intent.ACTION_VIEW, url), "Открыл поиск YouTube в браузере, сэр.")
+    }
+
+    /**
+     * Поиск с фильтром «видео» и нажатие первой широкой карточки.
+     * Так не открывается полка Shorts и не начинается угадывание по пустым кнопкам.
+     */
+    private fun playFirstYouTube(query: String): String? {
+        val uri = Uri.parse("https://www.youtube.com/results").buildUpon()
+            .appendQueryParameter("search_query", query)
+            .appendQueryParameter("sp", "EgIQAQ==")
+            .build()
+        val view = Intent(Intent.ACTION_VIEW, uri)
+        val openedInApp = YOUTUBE_CLIENTS.any { client ->
+            open(Intent(view).setPackage(client), "opened") != null
+        } || open(view, "opened") != null
+        if (!openedInApp) return null
+        if (!ScreenController.isAvailable()) {
+            return "Открыл поиск видео на YouTube, сэр. Чтобы включить ролик, нужна служба спец. возможностей."
+        }
+        Thread.sleep(START_PAUSE_MS)
+        repeat(16) {
+            if (cancelled) return "Остановился, сэр."
+            val nodes = ScreenController.visibleNodes(MAX_NODES)
+            val raw = nodes.map { node ->
+                RawNode(
+                    text = listOf(node.text, node.contentDescription).filter { it.isNotBlank() }.joinToString(" "),
+                    left = node.bounds.left,
+                    top = node.bounds.top,
+                    right = node.bounds.right,
+                    bottom = node.bounds.bottom,
+                    clickable = node.clickable && node.enabled,
+                    editable = node.editable,
+                )
+            }
+            val card = AppAgentRules.firstFullVideo(raw)
+            val target = card?.let { nodes.getOrNull(raw.indexOf(it)) }
+            if (target != null && ScreenController.tapCenter(target)) {
+                VoiceHealthLog.write(context, "agent youtube first video")
+                Thread.sleep(STEP_PAUSE_MS)
+                return "Включил первое видео, сэр."
+            }
+            Thread.sleep(SCREEN_RETRY_MS)
+        }
+        VoiceHealthLog.write(context, "agent youtube no full video")
+        return "Открыл поиск на YouTube, но обычное видео не нашёл, сэр."
     }
 
     private fun open(intent: Intent, reply: String): String? = runCatching {
@@ -109,6 +255,11 @@ class AppAgentRunner(
     private fun work(goal: String): String {
         val history = ArrayList<String>()
         val savedChatLookup = AppAgentRules.isSavedChatLookup(goal)
+        val draftText = TelegramAgentScreen.draftText(goal)
+        val savedTask = savedChatLookup || draftText != null
+        val protectChatHeader = TelegramAgentScreen.protectsHeader(goal)
+        val chatLookupTitle = TelegramAgentScreen.lookupTitle(goal)
+        val savedActions = HashSet<UiNode>()
         val guard = AppAgentRules.LoopGuard()
         var searched = false
         var previousPackage = ""
@@ -120,14 +271,26 @@ class AppAgentRunner(
         if (ScreenController.activePackageName() == context.packageName) ScreenController.globalAction("home")
         Thread.sleep(START_PAUSE_MS)
         // План заранее: с ним модель не забывает вторую половину задачи.
-        var plan = askRetrying(AppAgentRules.planPrompt(goal, ScreenController.activePackageName().orEmpty()))
-            ?.let(AppAgentRules::parsePlan).orEmpty()
+        var plan = if (savedTask) emptyList() else
+            askRetrying(AppAgentRules.planPrompt(goal, ScreenController.activePackageName().orEmpty()))
+                ?.let(AppAgentRules::parsePlan).orEmpty()
+                .ifEmpty { AppAgentRules.outline(goal) }
         VoiceHealthLog.write(context, "agent plan items=${plan.size}")
         var verifyRejected = 0
         var lastLeft = ""
         var recoveries = 0
         var recoveredSavedAttachments = false
         var unchangedSteps = 0
+        /** В этой задаче уже ввели запрошенный текст. Вторую такую заметку создавать не нужно. */
+        var wroteRequested = false
+        val requestedText = AppAgentRules.requestedText(goal)
+        fun writtenNow(): Boolean {
+            if (requestedText == null) return false
+            val visible = ScreenController.visibleNodes(MAX_NODES)
+            if (visible.isEmpty()) return false
+            val items = AppAgentRules.compact(visible.map(::raw)).map { it.item }
+            return AppAgentRules.writeSatisfied(goal, items)
+        }
         /** На прошлом круге действительно что-то сделано (а не только подсказка модели). */
         var acted = false
         fun recover(packageName: String): Boolean {
@@ -144,34 +307,77 @@ class AppAgentRunner(
             if (cancelled) return "Остановился, сэр."
             val packageName = ScreenController.activePackageName().orEmpty()
             if (AppAgentRules.forbiddenApp(packageName)) return "В банковских приложениях я не работаю, сэр."
-            val all = ScreenController.visibleNodes(MAX_NODES)
-            if (all.isEmpty() || all.first().packageName != packageName) {
+            var all = ScreenController.visibleNodes(MAX_NODES)
+            var waits = 0
+            while ((all.isEmpty() || all.first().packageName != packageName) && waits < 10 && !cancelled) {
                 Thread.sleep(SCREEN_RETRY_MS)
+                waits++
+                all = ScreenController.visibleNodes(MAX_NODES)
+            }
+            if (all.isEmpty() || all.first().packageName != packageName) continue
+            if (all.any { it.password }) return partial("на экране открыто поле пароля", lastLeft, successfulSteps)
+            val rawNodes = all.map(::raw)
+            val isTelegram = packageName in AppFamilies.TELEGRAM
+            val conversation = if (isTelegram) TelegramAgentScreen.conversation(rawNodes) else null
+            val rows = AppAgentRules.compact(rawNodes)
+            val screen = rows.map { row ->
+                if (protectChatHeader && conversation != null &&
+                    TelegramAgentScreen.isHeaderTarget(rawNodes, conversation, row.source)
+                ) row.item.copy(readOnly = true) else row.item
+            }
+            val nodes = rows.map { all[it.source] }
+
+            if (savedTask) {
+                when {
+                    !isTelegram -> {
+                        if (!perform(AgentStep.Open("Telegram"), emptyList())) {
+                            return partial("не удалось открыть Telegram", lastLeft, successfulSteps)
+                        }
+                        successfulSteps++
+                    }
+                    conversation != null && TelegramAgentScreen.isSaved(conversation.title) -> {
+                        if (draftText == null || all[conversation.editor].text == draftText) {
+                            VoiceHealthLog.write(context, if (draftText == null) "agent verified saved chat" else "agent verified saved draft")
+                            return if (draftText == null) "Открыл «Избранное», сэр."
+                            else "Черновик в «Избранном» готов, сэр."
+                        }
+                        val editor = all[conversation.editor]
+                        if (editor.text.isNotBlank() && !TelegramAgentScreen.isMessageHint(editor.text) &&
+                            editor.text != editor.hint
+                        ) {
+                            return partial("в «Избранном» уже есть другой черновик", "ввести запрошенный текст", successfulSteps)
+                        }
+                        if (!savedActions.add(editor)) return partial("ввод текста не подтвердился", lastLeft, successfulSteps)
+                        if (!ScreenController.setTextOnNode(editor, draftText)) {
+                            return partial("не удалось ввести текст", lastLeft, successfulSteps)
+                        }
+                        successfulSteps++
+                    }
+                    conversation != null || AppAgentRules.savedChatAttachmentsOpen(screen) -> {
+                        if (recoveredSavedAttachments || !ScreenController.globalAction("back")) {
+                            return partial("не удалось вернуться к списку чатов", lastLeft, successfulSteps)
+                        }
+                        recoveredSavedAttachments = true
+                        VoiceHealthLog.write(context, "agent returned to Telegram chat list")
+                    }
+                    else -> {
+                        val target = TelegramAgentScreen.savedNavigation(rawNodes)?.let(all::get)
+                            ?.takeIf { it.enabled && it.clickable }
+                            ?: return partial("пункт «Избранное» не найден на экране Telegram", lastLeft, successfulSteps)
+                        if (!savedActions.add(target) || !ScreenController.tapCenter(target)) {
+                            return partial("не удалось открыть «Избранное»", lastLeft, successfulSteps)
+                        }
+                        successfulSteps++
+                        VoiceHealthLog.write(context, "agent used Telegram saved navigation")
+                    }
+                }
+                Thread.sleep(STEP_PAUSE_MS)
                 continue
             }
-            if (all.any { it.password }) return partial("на экране открыто поле пароля", lastLeft, successfulSteps)
-            val rows = AppAgentRules.compact(all.map(::raw))
-            val screen = rows.map { it.item }
-            val nodes = rows.map { all[it.source] }
-            if (savedChatLookup &&
-                packageName in com.jarvis.core.common.AppFamilies.TELEGRAM &&
-                AppAgentRules.savedChatOpen(screen)
-            ) {
-                VoiceHealthLog.write(context, "agent verified saved chat")
-                return "Открыл «Избранное», сэр."
-            }
-            if (savedChatLookup && !recoveredSavedAttachments &&
-                packageName in com.jarvis.core.common.AppFamilies.TELEGRAM &&
-                AppAgentRules.savedChatAttachmentsOpen(screen)
-            ) {
-                recoveredSavedAttachments = true
-                if (cancelled) return "Остановился, сэр."
-                if (ScreenController.activePackageName() == packageName && ScreenController.globalAction("back")) {
-                    history += "вернулся из вложений «Избранного». Открой беседу через список чатов или глобальный поиск"
-                    VoiceHealthLog.write(context, "agent backed out of saved chat attachments")
-                    Thread.sleep(STEP_PAUSE_MS)
-                    continue
-                }
+
+            if (chatLookupTitle != null && conversation?.title?.trim()?.equals(chatLookupTitle, ignoreCase = true) == true) {
+                VoiceHealthLog.write(context, "agent verified requested chat")
+                return "Открыл нужный чат, сэр."
             }
             if (previousPackage != packageName ||
                 (searched && AppAgentRules.searchIndex(screen) == null && screen.any { it.editable })
@@ -179,6 +385,21 @@ class AppAgentRunner(
                 searched = false
             }
             previousPackage = packageName
+            if (wroteRequested && AppAgentRules.writeSatisfied(goal, screen)) {
+                VoiceHealthLog.write(context, "agent verified written text")
+                return "Готово, сэр."
+            }
+            if (requestedText != null && !wroteRequested) {
+                val body = AppAgentRules.bodyField(screen, requestedText)
+                if (body != null && perform(AgentStep.Type(body, requestedText), nodes)) {
+                    wroteRequested = true
+                    successfulSteps++
+                    VoiceHealthLog.write(context, "agent typed requested text")
+                    history += "ввёл «$requestedText»"
+                    Thread.sleep(STEP_PAUSE_MS)
+                    continue
+                }
+            }
             // Enter срабатывает не везде: тогда запрос запускается нажатием на подсказку.
             if (acted && lastStep is AgentStep.Enter && screen == lastScreen) {
                 history += "ENTER не сработал, нажми подходящую подсказку из списка"
@@ -223,21 +444,35 @@ class AppAgentRunner(
                 continue
             }
             if (step is AgentStep.Done) {
-                if (savedChatLookup) {
-                    lastLeft = "открыть чат «Избранное»"
+                if (chatLookupTitle != null) {
+                    lastLeft = "открыть чат «$chatLookupTitle»"
                     if (++verifyRejected > MAX_VERIFY_REJECTED) {
-                        return partial("не подтвердил открытие нужного чата", lastLeft, successfulSteps)
+                        return partial("не удалось подтвердить заголовок беседы", lastLeft, successfulSteps)
                     }
-                    history += "Чат «Избранное» не подтверждён. Если открыт другой чат, вернись к списку и открой «Избранное» через меню."
+                    history += "Заголовок открытой беседы не совпадает с искомым. Проверь, какой чат открыт, и продолжай поиск."
                     continue
                 }
-                val verdict = askRetrying(AppAgentRules.verifyPrompt(goal, plan, packageName, screen, history))
-                    ?.let(AppAgentRules::parseVerify)
-                VoiceHealthLog.write(context, "agent verify ${verdict?.first} ${verdict?.second.orEmpty().take(80)}")
+                if (wroteRequested && AppAgentRules.writeSatisfied(goal, screen)) {
+                    VoiceHealthLog.write(context, "agent verified written text")
+                    return step.reply.ifBlank { "Готово, сэр." }
+                }
+                if (requestedText != null && !wroteRequested) {
+                    history += "текст «$requestedText» в этой задаче ещё не введён. Введи его и не создавай лишних заметок"
+                    if (++verifyRejected > MAX_VERIFY_REJECTED) {
+                        return partial("текст так и не был введён", requestedText, successfulSteps)
+                    }
+                    continue
+                }
+                val verification = askRetrying(AppAgentRules.verifyPrompt(goal, plan, packageName, screen, history))
                 if (cancelled) return "Остановился, сэр."
-                if (verdict?.first == true) return step.reply.ifBlank { "Готово, сэр." }
-                if (verdict == null) return partial("не удалось проверить результат", lastLeft, successfulSteps)
-                lastLeft = verdict.second
+                if (verification == null) return partial("не удалось проверить результат", lastLeft, successfulSteps)
+                val evidence = AppAgentRules.completionEvidence(verification, screen)
+                val visible = if (evidence.isEmpty()) emptyList() else ScreenController.visibleNodes(MAX_NODES)
+                val verified = visible.firstOrNull()?.packageName == packageName &&
+                    evidence.all { index -> visible.any { it == nodes[index] } }
+                VoiceHealthLog.write(context, "agent verify $verified visibleEvidence=${evidence.size}")
+                if (verified) return step.reply.ifBlank { "Готово, сэр." }
+                lastLeft = AppAgentRules.parseVerify(verification).second
                 if (++verifyRejected > MAX_VERIFY_REJECTED) return partial("цель выполнена не полностью", lastLeft, successfulSteps)
                 history += "DONE отклонён проверкой: " + lastLeft.ifBlank { "цель выполнена не полностью" } + ". Продолжай шагами"
                 continue
@@ -247,6 +482,14 @@ class AppAgentRunner(
                 if (step is AgentStep.Type && screen.getOrNull(step.index)?.password == true) return "Остановился, сэр: $why."
                 if (++blockedSteps > MAX_BLOCKED_STEPS) return "Остановился, сэр: $why."
                 history += AppAgentRules.blockedHint(step, why)
+                continue
+            }
+            if (step is AgentStep.Tap && screen[step.index].readOnly) {
+                history += "Заголовок уже открытого чата ведёт в профиль или вложения. Используй поле «Сообщение» либо закончи поиск чата."
+                VoiceHealthLog.write(context, "agent blocked unnecessary chat header tap")
+                if (++blockedSteps > MAX_BLOCKED_STEPS && !recover(packageName)) {
+                    return partial("модель повторяет лишний переход из чата", lastLeft, successfulSteps)
+                }
                 continue
             }
             if (step is AgentStep.Tap && AppAgentRules.unwantedShorts(goal, screen[step.index].label)) {
@@ -293,13 +536,25 @@ class AppAgentRunner(
             acted = perform(step, nodes)
             lastStep = step
             if (acted) {
+                blockedSteps = 0
                 successfulSteps++
                 if (step is AgentStep.Type && AppAgentRules.isSearchField(screen[step.index])) searched = true
+                if (step is AgentStep.Type && requestedText != null &&
+                    step.text.contains(requestedText, ignoreCase = true)
+                ) wroteRequested = true
                 history += describe(step, screen)
             } else {
                 history += "действие не сработало: ${describe(step, screen)}. Попробуй другой шаг."
             }
             Thread.sleep(STEP_PAUSE_MS)
+            if (writtenNow()) {
+                VoiceHealthLog.write(context, "agent verified written text")
+                return "Готово, сэр."
+            }
+        }
+        if (writtenNow()) {
+            VoiceHealthLog.write(context, "agent verified written text")
+            return "Готово, сэр."
         }
         return partial("не уложился в ${AppAgentRules.MAX_STEPS} шагов", lastLeft, successfulSteps)
     }

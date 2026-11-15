@@ -14,6 +14,46 @@ class AppAgentRulesTest {
         ScreenItem("Настройки", editable = false),
     )
 
+    @Test fun agentStartsOnlyAfterExplicitPhrase() {
+        assertNull(AppAgentRules.requestedGoal("открой настройки"))
+        assertEquals("", AppAgentRules.requestedGoal("Джарвис, сделай сам"))
+        assertEquals(
+            "открой заметки и напиши молоко",
+            AppAgentRules.requestedGoal("джарвис сделай сам: открой заметки и напиши молоко"),
+        )
+        assertEquals("вызови такси", AppAgentRules.requestedGoal("сам сделай вызови такси"))
+    }
+
+    @Test fun outlineKeepsEveryPartOfAFreeTask() {
+        assertEquals(
+            listOf("открой заметки", "напиши молоко"),
+            AppAgentRules.outline("открой заметки и напиши молоко"),
+        )
+        assertEquals(1, AppAgentRules.outline("посчитай 17 плюс 4").size)
+        val note = listOf(ScreenItem("Заметка: молоко", editable = true))
+        assertTrue(AppAgentRules.writeSatisfied("открой заметки и напиши молоко", note))
+        assertTrue(AppAgentRules.writeSatisfied("открой заметки и напиши молоко", listOf(ScreenItem("Молоко", editable = false))))
+        assertFalse(AppAgentRules.writeSatisfied("открой заметки и напиши молоко", listOf(ScreenItem("Пустая заметка", editable = true))))
+        assertFalse(AppAgentRules.writeSatisfied("напиши молоко и отправь", note))
+        assertFalse(
+            AppAgentRules.writeSatisfied(
+                "напиши молоко",
+                listOf(ScreenItem("Заметка: молоко", editable = true), ScreenItem("Отправить", editable = false)),
+            ),
+        )
+        assertTrue(
+            AppAgentRules.writeSatisfied(
+                "введи «Тест: A-12», но не отправляй",
+                listOf(ScreenItem("Сообщение: Тест: A-12", editable = true), ScreenItem("Отправить", editable = false)),
+            ),
+        )
+        val editor = listOf(
+            ScreenItem("Заголовок", editable = true),
+            ScreenItem("поле ввода", editable = true),
+        )
+        assertEquals(1, AppAgentRules.bodyField(editor, "молоко"))
+    }
+
     @Test fun parsesEveryStep() {
         assertEquals(AgentStep.Tap(3), AppAgentRules.parse("TAP 3"))
         assertEquals(AgentStep.Type(0, "привет мир"), AppAgentRules.parse("TYPE 0 привет мир"))
@@ -126,6 +166,29 @@ class AppAgentRulesTest {
     }
 
     @Test fun shortsOnlyWhenAsked() {
+        assertEquals(
+            427,
+            AppAgentRules.firstFullVideo(
+                listOf(
+                    RawNode("рецепт борща", 154, 133, 705, 222, true, false),
+                    RawNode("Shorts", 33, 427, 529, 1318, true, false),
+                    RawNode("", 0, 427, 1080, 1232, true, false),
+                    RawNode("", 0, 1298, 1080, 2103, true, false),
+                    RawNode("Главная", 0, 2224, 216, 2356, true, false),
+                    RawNode("Shorts", 216, 2224, 432, 2356, true, false),
+                ),
+            )?.top,
+        )
+        assertEquals(
+            460,
+            AppAgentRules.firstSearchResult(
+                listOf(
+                    RawNode("погода в казани", 40, 120, 900, 200, true, true),
+                    RawNode("Реклама Туту", 40, 320, 1000, 420, true, false),
+                    RawNode("Погода в Казани на неделю", 40, 460, 1000, 560, true, false),
+                ),
+            )?.top,
+        )
         assertTrue(AppAgentRules.unwantedShorts("найди котиков", "Котики Shorts"))
         assertFalse(AppAgentRules.unwantedShorts("найди шортс про котиков", "Котики Shorts"))
         assertFalse(AppAgentRules.unwantedShorts("найди котиков", "Котики 10 минут"))

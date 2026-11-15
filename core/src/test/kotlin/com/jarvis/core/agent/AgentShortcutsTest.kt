@@ -42,6 +42,43 @@ class AgentShortcutsTest {
     }
     @Test fun searchShortcutDoesNotSwallowPlaybackOrFollowUp() {
         assertNull(AgentShortcuts.match("включи на ютубе видео про котиков"))
-        assertNull(AgentShortcuts.match("открой ютуб и найди котиков потом выбери первый ролик"))
+        assertNull(AgentShortcuts.match("открой ютуб и подпишись на канал"))
+    }
+
+    @Test fun chainsStaySpecific() {
+        assertEquals(AgentShortcut.MapSearch("аптеку"), AgentShortcuts.match("открой карты и найди аптеку"))
+        assertEquals(AgentShortcut.WebSearch("курс доллара"), AgentShortcuts.match("открой браузер и найди курс доллара"))
+        assertEquals(
+            AgentShortcut.OpenFirstResult("погода в казани"),
+            AgentShortcuts.match("открой браузер и найди погода в казани и открой первый результат"),
+        )
+        assertEquals(AgentShortcut.DialDraft("12345"), AgentShortcuts.match("открой телефон и набери 12345 но не звони"))
+        assertNull(AgentShortcuts.match("открой телефон и набери 112 но не звони"))
+        assertEquals(AgentShortcut.Timer(60), AgentShortcuts.match("открой часы и поставь таймер на 1 минуту"))
+        assertEquals(AgentShortcut.CalculatorSum(15, 27), AgentShortcuts.match("открой калькулятор и посчитай 15 плюс 27"))
+        assertEquals(AgentShortcut.Setting("battery"), AgentShortcuts.match("открой настройки и найди батарею"))
+        assertNull(AgentShortcuts.match("открой часы и поставь таймер на 1 минуту потом выключи фонарик"))
+        assertNull(AgentShortcuts.match("открой телефон и набери 12345 но не звони потом открой карты"))
+        assertNull(AgentShortcuts.match("открой калькулятор и посчитай 15 плюс 27 потом открой заметки"))
+        assertNull(AgentShortcuts.match("открой ютуб и найди видео про котиков и включи первое видео потом подпишись на канал"))
+    }
+
+    @Test fun playFirstFullVideoKeepsTheTopic() {
+        assertEquals(
+            AgentShortcut.YouTubeSearch("котиков", playFirst = true),
+            AgentShortcuts.match("открой ютуб найди видео про котиков и включи первое видео"),
+        )
+        assertEquals(
+            AgentShortcut.YouTubeSearch("котиков", playFirst = true),
+            AgentShortcuts.match("открой ютуб и найди видео про котиков и включи первое видео"),
+        )
+        assertEquals(
+            AgentShortcut.YouTubeSearch("людей икс", playFirst = true),
+            AgentShortcuts.match("открой youtube и найди видео про людей икс и включи первый ролик"),
+        )
+        assertEquals(
+            AgentShortcut.YouTubeSearch("котиков", playFirst = true),
+            AgentShortcuts.match("открой ютуб и найди котиков потом выбери первый ролик"),
+        )
     }
 }

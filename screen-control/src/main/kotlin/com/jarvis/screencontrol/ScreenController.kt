@@ -468,15 +468,30 @@ object ScreenController {
         node: AccessibilityNodeInfo,
         text: String,
     ): Boolean {
+        node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
         node.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+        fun landed(): Boolean {
+            node.refresh()
+            return node.text?.toString().orEmpty().contains(text)
+        }
         val args = Bundle().apply {
             putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
         }
-        if (node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)) return true
-        // Fallback: paste via clipboard
+        node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+        if (landed()) return true
+        // Часть редакторов отвечает успехом и не меняет текст. Вставка после выделения срабатывает.
+        val length = node.text?.length ?: 0
+        if (length > 0) {
+            val selection = Bundle().apply {
+                putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_START_INT, 0)
+                putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_END_INT, length)
+            }
+            node.performAction(AccessibilityNodeInfo.ACTION_SET_SELECTION, selection)
+        }
         val cm = svc.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         cm.setPrimaryClip(ClipData.newPlainText("jarvis", text))
-        return node.performAction(AccessibilityNodeInfo.ACTION_PASTE)
+        if (!node.performAction(AccessibilityNodeInfo.ACTION_PASTE)) return false
+        return landed()
     }
 
     private fun findEditable(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {

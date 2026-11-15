@@ -97,6 +97,7 @@ class AssistantOrchestrator(
         isGenerationStale: () -> Boolean,
         onSentence: (sentence: String, first: Boolean) -> Boolean,
     ): AssistantResponse? {
+        if (com.jarvis.core.agent.AppAgentRules.requestedGoal(request.text) != null) return null
         val pipeline = chatStreamPipeline ?: return null
         if (!isOnlineForAi() || !preferCloudForAi()) return null
 
@@ -300,6 +301,12 @@ class AssistantOrchestrator(
             interactionLatency = latency,
         )
         lastTrace = trace
+        com.jarvis.core.agent.AppAgentRules.requestedGoal(request.text)?.let { goal ->
+            context.clearPending()
+            rememberUser(request.text)
+            val call = ToolCall(requestId = request.requestId, toolId = "agent.run", arguments = mapOf("goal" to goal))
+            return finalizeTrace(runTool(request, call, startedAt, trace = trace, routeReason = "explicit_agent"), trace, startedAt)
+        }
         latency.normalizeStartAt = wallStart
         val normalizedText = AsrPhraseNormalizer.normalize(request.text)
         latency.normalizeEndAt = com.jarvis.core.runtime.LatencyClock.elapsedMs()
