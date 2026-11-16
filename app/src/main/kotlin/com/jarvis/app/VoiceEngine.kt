@@ -323,9 +323,14 @@ class VoiceEngine(
             val handoff = bridge.beginTurn(
                 onPartial = { publishPartial(it) },
                 onFinal = { text, tel -> deliverHybridFinal(text, tel, liveRefine = true) },
+                onEndWithoutFinal = {
+                    pauseCaptureForCloudAsr = false
+                    if (audioCapture?.isRecording != true && !disposed) audioCapture?.start(scope)
+                    log("continuous cloud ASR ended without final → mic restored")
+                },
             )
-            pauseCaptureForCloudAsr = handoff
-            if (handoff) {
+            pauseCaptureForCloudAsr = handoff && bridge.isTurnActive()
+            if (pauseCaptureForCloudAsr) {
                 log("continuous cloud ASR mic handoff")
                 audioCapture?.stop()
                 return
@@ -382,10 +387,10 @@ class VoiceEngine(
     private fun secondCheckAllows(): Boolean {
         val future = secondCheck ?: return true
         secondCheck = null
-        if (SystemClock.elapsedRealtime() - secondCheckAtMs > SECOND_CHECK_FRESH_MS) return true
+        if (SystemClock.elapsedRealtime() - secondCheckAtMs > SECOND_CHECK_FRESH_MS) return !VoiceSecondCheck.active(app)
         val result = runCatching {
             future.get(SECOND_CHECK_WAIT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)
-        }.getOrNull() ?: return true
+        }.getOrNull() ?: return !VoiceSecondCheck.active(app)
         lastSecondResult = result
         if (!result.accepted) VoiceHealthLog.write(app, "command rejected by check2 ${"%.2f".format(result.score)}")
         return result.accepted
@@ -400,10 +405,10 @@ class VoiceEngine(
      */
     private suspend fun wakeVoiceConfirmed(): Boolean {
         val future = secondCheck ?: return true
-        if (SystemClock.elapsedRealtime() - secondCheckAtMs > SECOND_CHECK_FRESH_MS) return true
+        if (SystemClock.elapsedRealtime() - secondCheckAtMs > SECOND_CHECK_FRESH_MS) return !VoiceSecondCheck.active(app)
         val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             runCatching { future.get(WAKE_CHECK_WAIT_MS, java.util.concurrent.TimeUnit.MILLISECONDS) }.getOrNull()
-        } ?: return true
+        } ?: return !VoiceSecondCheck.active(app)
         return result.accepted
     }
 
@@ -860,16 +865,27 @@ class VoiceEngine(
             onFinal = { text, tel ->
                 pauseCaptureForCloudAsr = false
                 suppressLocalWakeFinals = false
+                wakeWordEngine?.cancelListening()
                 if (audioCapture?.isRecording != true && !disposed) {
                     audioCapture?.start(scope)
                 }
                 deliverHybridFinal(text, tel, liveRefine = false)
                 kwsSpotter?.armForNextWake()
+                keywordSpotter?.reset()
                 log("cloud command done → KWS re-armed")
             },
+            onEndWithoutFinal = {
+                pauseCaptureForCloudAsr = false
+                suppressLocalWakeFinals = false
+                wakeWordEngine?.cancelListening()
+                kwsSpotter?.armForNextWake()
+                keywordSpotter?.reset()
+                if (audioCapture?.isRecording != true && !disposed) audioCapture?.start(scope)
+                log("cloud command ended without final → wake restored")
+            },
         )
-        pauseCaptureForCloudAsr = handoff
-        if (handoff) {
+        pauseCaptureForCloudAsr = handoff && bridge.isTurnActive()
+        if (pauseCaptureForCloudAsr) {
             audioCapture?.stop()
         }
         log("wake→cloud command handoff=$handoff ${bridge.decisionLabel()}")

@@ -16,6 +16,7 @@ import com.jarvis.core.voice.VoiceProviderKind
 import com.jarvis.app.JarvisSettings
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * V2-08 glue between VoiceEngine AudioCapture and [HybridAsrController].
@@ -35,6 +36,7 @@ class HybridAsrBridge(
     }
 
     private val turnActive = AtomicBoolean(false)
+    private val turnGeneration = AtomicLong(0)
     @Volatile var lastTelemetry: AsrTelemetry? = null
         private set
     /** True when active cloud backend owns the mic (Android Speech) — pause AudioCapture. */
@@ -82,9 +84,12 @@ class HybridAsrBridge(
         onPartial: (String) -> Unit,
         onFinal: (text: String, telemetry: AsrTelemetry) -> Unit,
         privacyLocalRequired: Boolean = false,
+        onEndWithoutFinal: () -> Unit = {},
     ): Boolean {
         cancelTurn()
         refreshCloud()
+        val generation = turnGeneration.incrementAndGet()
+        val turnController = controller
         val ctx = routeContext(privacyLocalRequired)
         val decision = router.decide(ctx)
         Log.i(TAG, decisionLabel())
@@ -96,12 +101,13 @@ class HybridAsrBridge(
         cloudOwnsMic = needsMicHandoff
         turnActive.set(true)
         val listener = AsrSessionListener { result ->
+            if (turnGeneration.get() != generation) return@AsrSessionListener
             when (result.phase) {
                 AsrSessionPhase.PARTIAL -> {
                     if (result.text.isNotBlank()) onPartial(result.text)
                 }
                 AsrSessionPhase.FINAL -> {
-                    val tel = controller.currentTelemetry() ?: AsrTelemetry(
+                    val tel = turnController.currentTelemetry() ?: AsrTelemetry(
                         asrProvider = result.provider,
                         asrModel = result.model,
                         asrRoute = decision.kind.name.lowercase(),
@@ -124,11 +130,12 @@ class HybridAsrBridge(
                 AsrSessionPhase.ERROR, AsrSessionPhase.CANCEL -> {
                     turnActive.set(false)
                     cloudOwnsMic = false
+                    onEndWithoutFinal()
                 }
                 else -> Unit
             }
         }
-        lastTelemetry = controller.start(
+        lastTelemetry = turnController.start(
             config = AsrSessionConfig(
                 requestId = requestId,
                 sessionId = sessionId,
@@ -153,6 +160,7 @@ class HybridAsrBridge(
     }
 
     fun cancelTurn() {
+        turnGeneration.incrementAndGet()
         turnActive.set(false)
         cloudOwnsMic = false
         controller.cancel(com.jarvis.core.voice.AsrCancelReason.NEW_INTERACTION)
