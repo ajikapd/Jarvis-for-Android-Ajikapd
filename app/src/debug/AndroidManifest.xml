@@ -43,6 +43,9 @@
                 <action android:name="com.jarvis.assistant.DEBUG_KEYS" />
             </intent-filter>
             <intent-filter>
+                <action android:name="com.jarvis.assistant.DEBUG_VOICE_EVAL" />
+            </intent-filter>
+            <intent-filter>
                 <action android:name="com.jarvis.assistant.DEBUG_KEYS_SET" />
             </intent-filter>
             <intent-filter>

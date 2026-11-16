@@ -77,6 +77,7 @@ class DebugCommandReceiver : BroadcastReceiver() {
             ACTION_DEBUG_SANITIZE -> if (BuildConfig.DEBUG) handleSanitize(intent)
             ACTION_DEBUG_MEMORY -> if (BuildConfig.DEBUG) handleMemory(context, intent)
             ACTION_DEBUG_KEYS -> if (BuildConfig.DEBUG) handleKeys(context)
+            ACTION_DEBUG_VOICE_EVAL -> if (BuildConfig.DEBUG) handleVoiceEval(context, intent)
             ACTION_DEBUG_KEYS_SET -> if (BuildConfig.DEBUG) handleKeysSet(context, intent)
             ACTION_DEBUG_KEYS_CLEAR -> if (BuildConfig.DEBUG) handleKeysClear(context, intent)
             ACTION_DEBUG_PROACTIVE_STATE -> if (BuildConfig.DEBUG) handleProactiveState(context)
@@ -400,6 +401,33 @@ class DebugCommandReceiver : BroadcastReceiver() {
                 c.responseCode.also { c.disconnect() }.toString()
             }.getOrElse { it.javaClass.simpleName + ": " + it.message?.take(80) }
             Log.d(TAG, "gigachat chat probe $chat")
+        }.start()
+    }
+
+    /** Replay saved wake clips through the owner verifier without learning from the replay. */
+    private fun handleVoiceEval(context: Context, intent: Intent) {
+        val pending = goAsync()
+        val prefix = intent.getStringExtra("prefix").orEmpty()
+        val tailMs = intent.getIntExtra("tailMs", 0)
+        Thread {
+            try {
+                val dir = File(context.filesDir, "voice_clips")
+                dir.listFiles()?.filter { it.name.startsWith(prefix) && it.name.endsWith(".wav") }
+                    ?.sortedBy { it.name }?.take(40)?.forEach { file ->
+                        val data = file.readBytes()
+                        if (data.size < 46) return@forEach
+                        val pcm = java.nio.ByteBuffer.wrap(data, 44, data.size - 44)
+                            .order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                        val samples = FloatArray((data.size - 44) / 2) { pcm.short / 32768f }
+                        val evaluated = if (tailMs > 0) samples.takeLast(16 * tailMs).toFloatArray() else samples
+                        val result = VoiceSecondCheck.evaluateRecorded(context, evaluated)
+                        Log.d(TAG, "voice-eval ${file.name} tailMs=$tailMs score=${result?.score} impostor=${result?.impostor} accepted=${result?.accepted}")
+                    }
+            } catch (e: Exception) {
+                Log.d(TAG, "voice-eval failed ${e.javaClass.simpleName}")
+            } finally {
+                pending.finish()
+            }
         }.start()
     }
 
@@ -855,6 +883,7 @@ class DebugCommandReceiver : BroadcastReceiver() {
         const val ACTION_DEBUG_SANITIZE = "com.jarvis.assistant.DEBUG_SANITIZE"
         const val ACTION_DEBUG_CONTEXT = "com.jarvis.assistant.DEBUG_CONTEXT"
         const val ACTION_DEBUG_KEYS = "com.jarvis.assistant.DEBUG_KEYS"
+        const val ACTION_DEBUG_VOICE_EVAL = "com.jarvis.assistant.DEBUG_VOICE_EVAL"
         const val ACTION_DEBUG_MEMORY = "com.jarvis.assistant.DEBUG_MEMORY"
 
         const val ACTION_DEBUG_KEYS_SET = "com.jarvis.assistant.DEBUG_KEYS_SET"

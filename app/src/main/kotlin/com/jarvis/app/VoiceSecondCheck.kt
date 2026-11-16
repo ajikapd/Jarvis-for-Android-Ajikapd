@@ -99,7 +99,7 @@ object VoiceSecondCheck {
     }
 
     @Synchronized
-    private fun check(context: Context, pcm: FloatArray): Result? {
+    private fun check(context: Context, pcm: FloatArray, learnImpostor: Boolean = true): Result? {
         val started = SystemClock.elapsedRealtime()
         val gate = gate(context) ?: return null
         val engine = loadEmbedder(context) ?: return null
@@ -117,8 +117,19 @@ object VoiceSecondCheck {
             embedding = embedding,
         )
         // Заведомо чужое (шум, другой голос) запоминаем сразу.
-        if (!result.accepted && score.owner < REJECT_LEARN_BELOW) learn(context, embedding, owner = false)
+        if (learnImpostor && !result.accepted && score.owner < REJECT_LEARN_BELOW) learn(context, embedding, owner = false)
         return result
+    }
+
+    /** Диагностика на старых записях: только оценка, без обучения эталона. */
+    fun evaluateRecorded(context: Context, pcm: FloatArray): Result? = check(context, pcm, learnImpostor = false)
+
+    /** Вторая проверка длинной команды; не обучается на ещё не подтверждённой речи. */
+    fun checkCommandAsync(context: Context, pcm: FloatArray): CompletableFuture<Result?>? {
+        if (!active(context)) return null
+        val app = context.applicationContext
+        val copy = pcm.copyOf()
+        return CompletableFuture.supplyAsync({ runCatching { check(app, copy, learnImpostor = false) }.getOrNull() }, worker)
     }
 
     /** «Джарвис» оказался чужим: после него команду отклонила проверка голоса. */

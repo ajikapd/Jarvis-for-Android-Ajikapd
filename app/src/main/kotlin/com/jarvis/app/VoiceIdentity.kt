@@ -176,7 +176,8 @@ object VoiceIdentity {
         val score = owner.with(words(context).samples).score(embedding)
         val strong = owner.score(embedding) >= owner.threshold + LEARN_WORD_MARGIN
         if (strong) strongWakeAt = SystemClock.elapsedRealtime()
-        if (strong && clean) remember(context, words(context), WORD_MEMORY_FILE, embedding)
+        // Одной похожести на коротком слове недостаточно для обучения: чужой «Джарвис»
+        // иногда проходит этот порог. Эталон слова нельзя пополнять до второй проверки.
         val threshold = if (media) minOf(WAKE_OVER_MEDIA, owner.threshold) else owner.threshold
         return Check(score >= threshold, score, threshold)
     }
@@ -200,10 +201,8 @@ object VoiceIdentity {
         val top = pieces.maxByOrNull(known::score) ?: return null
         val best = known.score(top)
         val threshold = minOf(owner.threshold, if (awaited) COMMAND_AWAITED else COMMAND_AFTER_WAKE)
-        val afterStrongWake = !awaited && SystemClock.elapsedRealtime() - strongWakeAt < STRONG_WAKE_MS
-        if (clean && afterStrongWake && owner.score(top) >= LEARN_COMMAND_SCORE) {
-            remember(context, commands(context), PHRASE_MEMORY_FILE, top)
-        }
+        // Эта оценка ещё не прошла независимую ERes2NetV2-проверку команды.
+        // Не пополняем эталон на потенциально чужой речи.
         return Check(best >= threshold, best, threshold, speech.size / 16_000f)
     }
 

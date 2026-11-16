@@ -624,9 +624,26 @@ class VoiceEngine(
         val awaited = awaitedRaw &&
             SystemClock.elapsedRealtime() - ownerWakeAtMs > OWNER_WAKE_TRUST_MS
         val check = VoiceIdentity.checkCommand(app, pcm, awaited, clean = !mediaPlaying)
-        val allowed = check?.accepted ?: (!awaited || !VoiceIdentity.commandLocked(app))
+        var allowed = check?.accepted ?: (!awaited || !VoiceIdentity.commandLocked(app))
+        var strongOwnerCommand = false
+        if (allowed && pcm.size >= MIN_SECOND_COMMAND_SAMPLES && VoiceSecondCheck.active(app)) {
+            val second = VoiceSecondCheck.checkCommandAsync(app, pcm)?.let { future ->
+                runCatching { future.get(SECOND_CHECK_WAIT_MS, java.util.concurrent.TimeUnit.MILLISECONDS) }.getOrNull()
+            }
+            if (second?.accepted != true) {
+                allowed = false
+                log("command rejected by second voice check score=${second?.score ?: "unavailable"}")
+            } else {
+                strongOwnerCommand = second.score >= STRONG_COMMAND_LEARN_SCORE
+            }
+        }
         VoiceClips.save(app, "command", pcm, check?.score, "awaited=$awaited media=$mediaPlaying allowed=$allowed")
-        if (check != null) if (awaitedRaw) learnFromFollowUp(allowed) else learnFromCommand(allowed)
+        // Погранично принятую команду исполняем, но не добавляем в эталон владельца.
+        if (check != null && (!allowed || strongOwnerCommand)) {
+            if (awaitedRaw) learnFromFollowUp(allowed) else learnFromCommand(allowed)
+        } else {
+            lastSecondResult = null
+        }
         val score = check?.let { "${voiceLine(it)} ${"%.1f".format(it.seconds)}s" } ?: "none"
         VoiceHealthLog.write(app, "command voice=$score awaited=$awaited media=$mediaPlaying allowed=$allowed")
         if (!allowed) {
@@ -1172,6 +1189,8 @@ class VoiceEngine(
         private const val BARGE_WINDOW_MS = 1_000L
         private const val OWNER_WAKE_TRUST_MS = 10_000L
         private const val SECOND_CHECK_WAIT_MS = 1_500L
+        private const val MIN_SECOND_COMMAND_SAMPLES = 16_000 * 8 / 10
+        private const val STRONG_COMMAND_LEARN_SCORE = 0.55f
         // Первый запрос к ERes2NetV2 после запуска может занять около 0,9 с:
         // прежние 700 мс отклоняли владельца до положительного результата.
         private const val WAKE_CHECK_WAIT_MS = 1_500L
