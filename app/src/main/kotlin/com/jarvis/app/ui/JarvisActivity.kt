@@ -63,6 +63,7 @@ class JarvisActivity : AppCompatActivity() {
     private lateinit var navHost: View
     private lateinit var liveHost: FrameLayout
     private lateinit var sheetHost: FrameLayout
+    private lateinit var listeningBadge: TextView
     private lateinit var mic: FrameLayout
     private var smoke: SmokeView? = null
     private val tabs = LinkedHashMap<String, Pair<IconView, TextView>>()
@@ -235,6 +236,24 @@ class JarvisActivity : AppCompatActivity() {
         navHost = buildNav()
         col.addView(navHost, lp(h = dp(92)).apply { topMargin = -dp(24) })
         root.addView(col, FrameLayout.LayoutParams(-1, -1))
+        listeningBadge = TextView(this).apply {
+            text = "СЛУШАЮ · ГОВОРИТЕ"
+            textSize = 12f
+            setTextColor(skin.text)
+            gravity = Gravity.CENTER
+            setPadding(dp(16), dp(9), dp(16), dp(9))
+            background = GradientDrawable().apply {
+                cornerRadius = dp(18).toFloat()
+                setColor(mix(skin.bg, skin.accent, .28f))
+                setStroke(dp(1), skin.accent)
+            }
+            elevation = dp(6).toFloat()
+            visibility = View.GONE
+        }
+        root.addView(listeningBadge, FrameLayout.LayoutParams(-2, -2).apply {
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            topMargin = dp(8)
+        })
         liveHost = FrameLayout(this)
         root.addView(liveHost, FrameLayout.LayoutParams(-1, -1))
         sheetHost = FrameLayout(this)
@@ -484,6 +503,7 @@ class JarvisActivity : AppCompatActivity() {
 
     private fun onState(state: AssistantState) {
         assistantState = state
+        listeningBadge.visibility = if (state == AssistantState.LISTENING) View.VISIBLE else View.GONE
         if (state == AssistantState.IDLE || state == AssistantState.READY) answerStep = -1
         if (state == AssistantState.LISTENING) answerStep = 0
         if (state == AssistantState.SPEAKING) answerStep = 4

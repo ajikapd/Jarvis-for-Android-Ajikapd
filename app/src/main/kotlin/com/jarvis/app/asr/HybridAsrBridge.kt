@@ -125,6 +125,8 @@ class HybridAsrBridge(
                     cloudOwnsMic = false
                     if (result.text.isNotBlank()) {
                         onFinal(result.text, tel)
+                    } else {
+                        onEndWithoutFinal()
                     }
                 }
                 AsrSessionPhase.ERROR, AsrSessionPhase.CANCEL -> {

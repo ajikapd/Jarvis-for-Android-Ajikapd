@@ -215,11 +215,7 @@ class VoiceEngine(
                 val commandEngine = wakeWordEngine
 
                 if (!continuous && commandEngine != null) scope.launch {
-                    var lastWakeAtMs = 0L
                     commandEngine.wakeDetected.collect {
-                        val now = SystemClock.elapsedRealtime()
-                        if (now - lastWakeAtMs < 1000) return@collect
-                        lastWakeAtMs = now
                         log("wake detected")
                         // Откликаемся, только когда точная проверка признала голос: на чужое
                         // «Джарвис» и шум — молчим. Слушать команду при этом уже начали.
@@ -242,6 +238,10 @@ class VoiceEngine(
 
                 if (!continuous && commandEngine != null) scope.launch {
                     commandEngine.userRequests.collect { req ->
+                        if (commandEngine.state == WakeWordState.IDLE) {
+                            kwsSpotter?.armForNextWake()
+                            keywordSpotter?.reset()
+                        }
                         if (suppressLocalWakeFinals || hybridAsr?.isTurnActive() == true) {
                             log("suppress local wake final (cloud turn active)")
                             return@collect
@@ -270,7 +270,7 @@ class VoiceEngine(
                         reportBargeWindow()
                         syncLiveTalk()
                         if (VoiceController.liveMuted && VoiceController.liveTalk) return@collect
-                        if (processingBusy || disposed) return@collect
+                        if (disposed) return@collect
                         val sp = speaker ?: return@collect
                         // Глушим mic только под TTS-речь (не под wake-чим) + короткий хвост
                         // против самоподхвата. Раньше playing+400 мс резали команду после wake.
@@ -284,6 +284,14 @@ class VoiceEngine(
                         }
                         if (pauseCaptureForCloudAsr) {
                             // Android Speech owns mic; do not feed Sherpa/KWS.
+                            return@collect
+                        }
+                        if (processingBusy) {
+                            // Во время долгой задачи продолжаем слышать только слово активации:
+                            // пользователь может отменить зависший ответ новым «Джарвис».
+                            if (!talking && wakeWordEngine?.state == WakeWordState.IDLE) {
+                                handleWakeChunk(chunk.samples)
+                            }
                             return@collect
                         }
                         if (talking) {
@@ -1077,6 +1085,17 @@ class VoiceEngine(
     private fun refineCommandPcm(pcm: FloatArray, streamingRu: String = ""): CommandRefinePasses? {
         if (pcm.isEmpty()) return null
         val t0 = SystemClock.elapsedRealtime()
+        if (streamingRu.isBlank()) {
+            // Обычные RU-команды не замедляем. Когда RU вообще ничего не услышала,
+            // пробуем уже загруженную EN-модель на той же записи.
+            val english = enAsr?.let { eng ->
+                runCatching { eng.decode(CommandPcmRefiner.tailOf(pcm, 16_000 * 6)) }.getOrNull()
+            }
+            val hint = CommandPcmRefiner.bestLatinHint(english)
+            val usable = hint.split(' ').count { it.isNotBlank() } >= 2
+            log("refine empty-RU ${SystemClock.elapsedRealtime() - t0}ms en=$usable")
+            return hint.takeIf { usable }?.let { CommandRefinePasses(english = it) }
+        }
         if (!CommandPcmRefiner.needsLatinRefine(streamingRu)) {
             log("refine skip ${SystemClock.elapsedRealtime() - t0}ms (no EN needed)")
             return null
@@ -1153,7 +1172,9 @@ class VoiceEngine(
         private const val BARGE_WINDOW_MS = 1_000L
         private const val OWNER_WAKE_TRUST_MS = 10_000L
         private const val SECOND_CHECK_WAIT_MS = 1_500L
-        private const val WAKE_CHECK_WAIT_MS = 700L
+        // Первый запрос к ERes2NetV2 после запуска может занять около 0,9 с:
+        // прежние 700 мс отклоняли владельца до положительного результата.
+        private const val WAKE_CHECK_WAIT_MS = 1_500L
         private const val FOLLOW_UP_IMPOSTOR_MARGIN = 0.05f
         private const val SECOND_CHECK_FRESH_MS = 20_000L
         private const val ECHO_HOLD_MS = 700L

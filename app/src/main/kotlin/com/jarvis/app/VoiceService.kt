@@ -80,6 +80,9 @@ class VoiceService : Service() {
             BrainGraph.build(this@VoiceService).cancelActiveChatStream()
             VoiceController.stopSpeaking()
             ackJob?.cancel()
+            // Отменённый ответ может не вызвать onComplete (его поколение устарело).
+            // Иначе processingBusy навсегда глушит новые аудиочанки.
+            VoiceController.setProcessingBusy(false)
         }
 
         override fun onRequest(request: UserRequest) {

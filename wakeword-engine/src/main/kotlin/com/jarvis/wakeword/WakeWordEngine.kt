@@ -72,11 +72,11 @@ class WakeWordEngine(
         lastWeakMatchAtMs = 0L
         session.reset()
         state = WakeWordState.LISTENING
-        if (now - lastWakeAtMs >= WAKE_DEDUP_MS) {
-            lastWakeAtMs = now
-            if (!_wakeDetected.tryEmit(Unit)) {
-                scope.launch { _wakeDetected.emit(Unit) }
-            }
+        // Внешний KWS уже разоружён после HIT. Если подавить событие по времени,
+        // ASR начнёт слушать без сигнала и состояния LISTENING в интерфейсе.
+        lastWakeAtMs = now
+        if (!_wakeDetected.tryEmit(Unit)) {
+            scope.launch { _wakeDetected.emit(Unit) }
         }
         commandTimeoutJob?.cancel()
         commandTimeoutJob = scope.launch {

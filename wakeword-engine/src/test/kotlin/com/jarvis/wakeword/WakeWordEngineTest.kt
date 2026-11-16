@@ -455,6 +455,24 @@ class WakeWordEngineTest {
         }
 
     @Test
+    fun `repeated external wake always emits event when listening starts`() =
+        runBlocking(Dispatchers.Unconfined) {
+            val engine = WakeWordEngine(fakeSession(), CoroutineScope(Dispatchers.Unconfined))
+            var wakes = 0
+            val job = launch { engine.wakeDetected.collect { wakes++ } }
+            yield()
+
+            engine.notifyExternalWake()
+            engine.cancelListening()
+            engine.notifyExternalWake()
+            yield()
+
+            assertEquals(2, wakes)
+            assertEquals(WakeWordState.LISTENING, engine.state)
+            job.cancel()
+        }
+
+    @Test
     fun `single frame strong wake fires immediately`() = runBlocking(Dispatchers.Unconfined) {
         val session = fakeSession("джарвис" to false)
         val engine = WakeWordEngine(session, CoroutineScope(Dispatchers.Unconfined))
