@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.Jarvis" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">#F3BB58</item>
+        <item name="colorPrimaryDark">#D99738</item>
+        <item name="colorSecondary">#62E9F4</item>
+        <item name="colorAccent">#62E9F4</item>
+        <item name="android:statusBarColor">#03060B</item>
+        <item name="android:navigationBarColor">#03060B</item>
+        <item name="android:windowBackground">#03060B</item>
+        <item name="android:textColorPrimary">#F7F8FB</item>
+        <item name="android:textColorSecondary">#8F9BAE</item>
+    </style>
+
+    <style name="Theme.Jarvis.Splash" parent="Theme.Jarvis">
+        <item name="android:windowBackground">#03060B</item>
+    </style>
+
+    <style name="Theme.Jarvis.Arc" parent="Theme.Jarvis">
+        <item name="colorPrimary">#62E9F4</item>
+        <item name="android:statusBarColor">#020B12</item>
+        <item name="android:windowBackground">#020B12</item>
+    </style>
+
+    <style name="Theme.Jarvis.Stealth" parent="Theme.Jarvis">
+        <item name="colorPrimary">#A8B0BC</item>
+        <item name="android:statusBarColor">#0A0A0C</item>
+        <item name="android:windowBackground">#0A0A0C</item>
+    </style>
+
+    <style name="Theme.Jarvis.Light" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">#C4892A</item>
+        <item name="colorSecondary">#2FB9CA</item>
+        <item name="android:statusBarColor">#F4F1EA</item>
+        <item name="android:navigationBarColor">#F4F1EA</item>
+        <item name="android:windowBackground">#F4F1EA</item>
+        <item name="android:textColorPrimary">#1A1F28</item>
+        <item name="android:textColorSecondary">#5A6574</item>
+    </style>
+
+</resources>

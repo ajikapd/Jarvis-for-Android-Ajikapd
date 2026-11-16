@@ -1,0 +1,1502 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/jarvis_bg"
+    android:scrollbars="none">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="19dp"
+        android:paddingEnd="19dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="24dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Тема, персона и локальные модели"
+            android:textColor="@color/jarvis_muted"
+            android:textSize="12sp"
+            android:layout_marginTop="4dp" />
+
+        <!-- Вкладки: Основные | Модели -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="14dp"
+            android:layout_marginBottom="4dp">
+
+            <TextView
+                android:id="@+id/tabSettingsMain"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Общее"
+                android:textColor="#F4F0E7"
+                android:textSize="12sp"
+                android:gravity="center"
+                android:background="@drawable/bg_fui_active"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
+                android:layout_marginEnd="4dp" />
+
+            <TextView
+                android:id="@+id/tabSettingsCompanion"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Рядом"
+                android:textColor="#F4F0E7"
+                android:textSize="12sp"
+                android:gravity="center"
+                android:background="@drawable/bg_hud_panel"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
+                android:layout_marginEnd="4dp" />
+
+            <TextView
+                android:id="@+id/tabSettingsModels"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Модели"
+                android:textColor="#F4F0E7"
+                android:textSize="12sp"
+                android:gravity="center"
+                android:background="@drawable/bg_hud_panel"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
+                android:layout_marginStart="4dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/settingsMainPanel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/btnOpenUsageGuide"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Как пользоваться JARVIS (гид)"
+            android:textColor="@color/jarvis_cyan"
+            android:textSize="12sp"
+            android:fontFamily="monospace"
+            android:background="@drawable/bg_hud_panel"
+            android:padding="12dp"
+            android:gravity="center"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/btnSwitchModern"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="> СОВРЕМЕННЫЙ ИНТЕРФЕЙС"
+            android:textColor="@color/jarvis_primary"
+            android:textSize="12sp"
+            android:fontFamily="monospace"
+            android:background="@drawable/bg_hud_panel"
+            android:padding="12dp"
+            android:gravity="center"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/btnSendReport"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="> ОТПРАВИТЬ ОТЧЁТ ОБ ОШИБКЕ"
+            android:textColor="@color/jarvis_muted"
+            android:textSize="12sp"
+            android:fontFamily="monospace"
+            android:background="@drawable/bg_hud_panel"
+            android:padding="12dp"
+            android:gravity="center"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/btnMyCommands"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="> МОИ КОМАНДЫ"
+            android:textColor="@color/jarvis_cyan"
+            android:textSize="12sp"
+            android:fontFamily="monospace"
+            android:background="@drawable/bg_hud_panel"
+            android:padding="12dp"
+            android:gravity="center"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/btnAppSynonyms"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="> СИНОНИМЫ ПРИЛОЖЕНИЙ"
+            android:textColor="@color/jarvis_cyan"
+            android:textSize="12sp"
+            android:fontFamily="monospace"
+            android:background="@drawable/bg_hud_panel"
+            android:padding="12dp"
+            android:gravity="center"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/btnVoicePick"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="> ГОЛОС ДЖАРВИСА"
+            android:textColor="@color/jarvis_cyan"
+            android:textSize="12sp"
+            android:fontFamily="monospace"
+            android:background="@drawable/bg_hud_panel"
+            android:padding="12dp"
+            android:gravity="center"
+            android:layout_marginBottom="8dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/bg_hud_panel"
+            android:padding="12dp"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Звуковые эффекты HUD"
+                android:textColor="@color/jarvis_cyan"
+                android:textSize="12sp"
+                android:fontFamily="monospace" />
+
+            <com.jarvis.app.JarvisToggle
+                android:id="@+id/toggleHudSfx"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+        </LinearLayout>
+
+        <!-- ТЕМА -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ТЕМА"
+            android:textColor="#626B76"
+            android:textSize="11sp"
+            android:letterSpacing="0.06"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="9dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_hud_panel"
+            android:padding="15dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Оформление"
+                    android:textColor="#F4F0E7"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/themeTag"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="CLASSIC"
+                    android:textColor="#E0AD55"
+                    android:textSize="9sp"
+                    android:fontFamily="monospace"
+                    android:background="@drawable/bg_tag_gold"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:paddingTop="3dp"
+                    android:paddingBottom="3dp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="12dp">
+
+                <LinearLayout
+                    android:id="@+id/themeClassic"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:background="@drawable/bg_mini_tile_active"
+                    android:layout_marginEnd="4dp"
+                    android:layout_marginBottom="9dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Gold + Cyan"
+                        android:textColor="#626B76"
+                        android:textSize="9sp"
+                        android:layout_marginBottom="4dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="JARVIS Classic"
+                        android:textColor="#F4F0E7"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/themeArc"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:background="@drawable/bg_mini_tile"
+                    android:layout_marginStart="4dp"
+                    android:layout_marginBottom="9dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Cyan"
+                        android:textColor="#626B76"
+                        android:textSize="9sp"
+                        android:layout_marginBottom="4dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Arc Reactor"
+                        android:textColor="#F4F0E7"
+                        android:textSize="11sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:id="@+id/themeStealth"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:background="@drawable/bg_mini_tile"
+                    android:layout_marginEnd="4dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Neutral"
+                        android:textColor="#626B76"
+                        android:textSize="9sp"
+                        android:layout_marginBottom="4dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Stealth"
+                        android:textColor="#F4F0E7"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/themeLight"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:background="@drawable/bg_mini_tile"
+                    android:layout_marginStart="4dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Warm"
+                        android:textColor="#626B76"
+                        android:textSize="9sp"
+                        android:layout_marginBottom="4dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Light"
+                        android:textColor="#F4F0E7"
+                        android:textSize="11sp" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ЛИЧНОСТЬ -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ЛИЧНОСТЬ"
+            android:textColor="#626B76"
+            android:textSize="11sp"
+            android:letterSpacing="0.06"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="9dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_hud_panel"
+            android:padding="15dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="6dp">
+
+                <TextView
+                    android:id="@+id/personaClassic"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="JARVIS Classic"
+                    android:textColor="#F4F0E7"
+                    android:textSize="11sp"
+                    android:background="@drawable/bg_fui_active"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
+                    android:minHeight="36dp"
+                    android:gravity="center"
+                    android:layout_marginEnd="8dp"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/personaFriendly"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Friendly"
+                    android:textColor="#F4F0E7"
+                    android:textSize="11sp"
+                    android:background="@drawable/bg_hud_panel"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
+                    android:minHeight="36dp"
+                    android:gravity="center"
+                    android:layout_marginEnd="8dp"
+                    android:layout_marginBottom="8dp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/personaMinimal"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Minimal"
+                    android:textColor="#F4F0E7"
+                    android:textSize="11sp"
+                    android:background="@drawable/bg_hud_panel"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
+                    android:minHeight="36dp"
+                    android:gravity="center"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:id="@+id/personaDeveloper"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Developer"
+                    android:textColor="#F4F0E7"
+                    android:textSize="11sp"
+                    android:background="@drawable/bg_hud_panel"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
+                    android:minHeight="36dp"
+                    android:gravity="center" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ДИАЛОГ LLM -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ДИАЛОГ · СКОРОСТЬ / КАЧЕСТВО"
+            android:textColor="#626B76"
+            android:textSize="11sp"
+            android:letterSpacing="0.06"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="9dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_hud_panel"
+            android:padding="15dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Профиль генерации (низкая temperature = меньше «мусора»)"
+                android:textColor="#9DA5AE"
+                android:textSize="10sp"
+                android:layout_marginBottom="10dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="6dp">
+
+                <TextView
+                    android:id="@+id/chatProfileFast"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Быстро"
+                    android:textColor="#F4F0E7"
+                    android:textSize="11sp"
+                    android:background="@drawable/bg_hud_panel"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
+                    android:minHeight="36dp"
+                    android:gravity="center"
+                    android:layout_marginEnd="8dp"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/chatProfileBalanced"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Баланс"
+                    android:textColor="#F4F0E7"
+                    android:textSize="11sp"
+                    android:background="@drawable/bg_fui_active"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
+                    android:minHeight="36dp"
+                    android:gravity="center"
+                    android:layout_marginEnd="8dp"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/chatProfileQuality"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Качество"
+                    android:textColor="#F4F0E7"
+                    android:textSize="11sp"
+                    android:background="@drawable/bg_hud_panel"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
+                    android:minHeight="36dp"
+                    android:gravity="center"
+                    android:layout_marginBottom="8dp" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/chatProfileHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Баланс: ~3–5 с, ясные ответы без воды."
+                android:textColor="#626B76"
+                android:textSize="10sp"
+                android:layout_marginBottom="12dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Облачный LLM · OpenAI-compatible"
+                android:textColor="#9DA5AE"
+                android:textSize="10sp"
+                android:layout_marginBottom="6dp" />
+
+            <EditText
+                android:id="@+id/cloudApiKeyInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="API key (sk-nry-…)"
+                android:inputType="textPassword"
+                android:textColor="#F4F0E7"
+                android:textColorHint="#626B76"
+                android:textSize="12sp"
+                android:background="@drawable/bg_hud_panel"
+                android:padding="10dp"
+                android:layout_marginBottom="6dp" />
+
+            <TextView
+                android:id="@+id/cloudApiKeyHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Облачный endpoint не задан. Для custom укажите адрес в настройках."
+                android:textColor="#626B76"
+                android:textSize="10sp"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/cloud_models_title"
+                android:textColor="#9DA5AE"
+                android:textSize="14sp"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="6dp" />
+
+            <TextView
+                android:id="@+id/cloudPrivacyHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/cloud_privacy_no_personal_data"
+                android:textColor="#626B76"
+                android:textSize="14sp"
+                android:layout_marginBottom="8dp" />
+
+            <LinearLayout
+                android:id="@+id/groqKeyBlock"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_hud_panel"
+                android:padding="12dp"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cloud_groq_title"
+                    android:textColor="#F4F0E7"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <EditText
+                    android:id="@+id/groqKeyInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="@string/cloud_api_key_hint"
+                    android:inputType="textPassword"
+                    android:importantForAutofill="no"
+                    android:contentDescription="@string/cloud_groq_key_description"
+                    android:textColor="#F4F0E7"
+                    android:textColorHint="#626B76"
+                    android:textSize="14sp"
+                    android:background="@drawable/bg_hud_panel"
+                    android:padding="10dp"
+                    android:layout_marginTop="6dp" />
+
+                <TextView
+                    android:id="@+id/groqKeyStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cloud_key_missing"
+                    android:textColor="#626B76"
+                    android:textSize="14sp"
+                    android:layout_marginTop="4dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="6dp">
+
+                    <Button
+                        android:id="@+id/groqKeySave"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/cloud_save_key"
+                        android:contentDescription="@string/cloud_save_key_description"
+                        android:textSize="14sp" />
+
+                    <Button
+                        android:id="@+id/groqKeyClear"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/cloud_clear_key"
+                        android:contentDescription="@string/cloud_clear_key_description"
+                        android:textSize="14sp"
+                        android:layout_marginStart="8dp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/geminiKeyBlock"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_hud_panel"
+                android:padding="12dp"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cloud_gemini_title"
+                    android:textColor="#F4F0E7"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <EditText
+                    android:id="@+id/geminiKeyInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="@string/cloud_api_key_hint"
+                    android:inputType="textPassword"
+                    android:importantForAutofill="no"
+                    android:contentDescription="@string/cloud_gemini_key_description"
+                    android:textColor="#F4F0E7"
+                    android:textColorHint="#626B76"
+                    android:textSize="14sp"
+                    android:background="@drawable/bg_hud_panel"
+                    android:padding="10dp"
+                    android:layout_marginTop="6dp" />
+
+                <TextView
+                    android:id="@+id/geminiKeyStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cloud_key_missing"
+                    android:textColor="#626B76"
+                    android:textSize="14sp"
+                    android:layout_marginTop="4dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cloud_gemini_free_tier_notice"
+                    android:textColor="#626B76"
+                    android:textSize="14sp"
+                    android:layout_marginTop="4dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="6dp">
+
+                    <Button
+                        android:id="@+id/geminiKeySave"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/cloud_save_key"
+                        android:contentDescription="@string/cloud_save_key_description"
+                        android:textSize="14sp" />
+
+                    <Button
+                        android:id="@+id/geminiKeyClear"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/cloud_clear_key"
+                        android:contentDescription="@string/cloud_clear_key_description"
+                        android:textSize="14sp"
+                        android:layout_marginStart="8dp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/gigachatKeyBlock"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_hud_panel"
+                android:padding="12dp"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cloud_gigachat_title"
+                    android:textColor="#F4F0E7"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <EditText
+                    android:id="@+id/gigachatKeyInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="@string/cloud_api_key_hint"
+                    android:inputType="textPassword"
+                    android:importantForAutofill="no"
+                    android:contentDescription="@string/cloud_gigachat_key_description"
+                    android:textColor="#F4F0E7"
+                    android:textColorHint="#626B76"
+                    android:textSize="14sp"
+                    android:background="@drawable/bg_hud_panel"
+                    android:padding="10dp"
+                    android:layout_marginTop="6dp" />
+
+                <TextView
+                    android:id="@+id/gigachatKeyStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cloud_key_missing"
+                    android:textColor="#626B76"
+                    android:textSize="14sp"
+                    android:layout_marginTop="4dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cloud_gigachat_free_tier_notice"
+                    android:textColor="#626B76"
+                    android:textSize="14sp"
+                    android:layout_marginTop="4dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="6dp">
+
+                    <Button
+                        android:id="@+id/gigachatKeySave"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/cloud_save_key"
+                        android:contentDescription="@string/cloud_save_key_description"
+                        android:textSize="14sp" />
+
+                    <Button
+                        android:id="@+id/gigachatKeyClear"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/cloud_clear_key"
+                        android:contentDescription="@string/cloud_clear_key_description"
+                        android:textSize="14sp"
+                        android:layout_marginStart="8dp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Распознавание речи (ASR)"
+                android:textColor="#9DA5AE"
+                android:textSize="10sp"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="6dp" />
+
+
+            <Spinner
+                android:id="@+id/asrModeSpinner"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_hud_panel"
+                android:padding="8dp"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:id="@+id/asrModeHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Auto · Cloud preferred · Local only"
+                android:textColor="#626B76"
+                android:textSize="10sp"
+                android:layout_marginBottom="6dp" />
+
+            <EditText
+                android:id="@+id/asrCloudBaseUrlInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Whisper base URL (опц. https://api.openai.com/v1)"
+                android:inputType="textUri"
+                android:textColor="#F4F0E7"
+                android:textColorHint="#626B76"
+                android:textSize="12sp"
+                android:background="@drawable/bg_hud_panel"
+                android:padding="10dp"
+                android:layout_marginBottom="6dp" />
+
+            <EditText
+                android:id="@+id/asrCloudApiKeyInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Whisper API key (опц., иначе Android Speech)"
+                android:inputType="textPassword"
+                android:textColor="#F4F0E7"
+                android:textColorHint="#626B76"
+                android:textSize="12sp"
+                android:background="@drawable/bg_hud_panel"
+                android:padding="10dp"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Синтез речи (TTS)"
+                android:textColor="#9DA5AE"
+                android:textSize="10sp"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="6dp" />
+
+            <Spinner
+                android:id="@+id/ttsModeSpinner"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_hud_panel"
+                android:padding="8dp"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:id="@+id/ttsModeHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Auto · Cloud preferred · Local only"
+                android:textColor="#626B76"
+                android:textSize="10sp"
+                android:layout_marginBottom="6dp" />
+
+            <EditText
+                android:id="@+id/ttsCloudBaseUrlInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Speech base URL (опц. https://api.openai.com/v1)"
+                android:inputType="textUri"
+                android:textColor="#F4F0E7"
+                android:textColorHint="#626B76"
+                android:textSize="12sp"
+                android:background="@drawable/bg_hud_panel"
+                android:padding="10dp"
+                android:layout_marginBottom="6dp" />
+
+            <EditText
+                android:id="@+id/ttsCloudApiKeyInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Speech API key (опц., иначе Android TTS)"
+                android:inputType="textPassword"
+                android:textColor="#F4F0E7"
+                android:textColorHint="#626B76"
+                android:textSize="12sp"
+                android:background="@drawable/bg_hud_panel"
+                android:padding="10dp"
+                android:layout_marginBottom="8dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingTop="4dp"
+                android:paddingBottom="8dp"
+                android:layout_marginBottom="4dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Предпочитать облако"
+                        android:textColor="#F4F0E7"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Online + ключ → облако; иначе Local"
+                        android:textColor="#626B76"
+                        android:textSize="10sp" />
+                </LinearLayout>
+
+                <com.jarvis.app.JarvisToggle
+                    android:id="@+id/togglePreferCloud"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#2B333D"
+                android:layout_marginBottom="8dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Предзагрузка в RAM"
+                        android:textColor="#F4F0E7"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Модель готова до первой фразы"
+                        android:textColor="#9DA5AE"
+                        android:textSize="10sp"
+                        android:layout_marginTop="2dp" />
+                </LinearLayout>
+
+                <com.jarvis.app.JarvisToggle
+                    android:id="@+id/toggleChatPreload"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ПРОСЛУШИВАНИЕ -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ПРОСЛУШИВАНИЕ"
+            android:textColor="#626B76"
+            android:textSize="11sp"
+            android:letterSpacing="0.06"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="9dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_hud_panel"
+            android:paddingStart="15dp"
+            android:paddingEnd="15dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Adaptive Listening"
+                        android:textColor="#F4F0E7"
+                        android:textSize="12sp" />
+
+                    <com.jarvis.app.JarvisToggle
+                        android:id="@+id/toggleAdaptive"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#2B333D" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Low Power при &lt;20%"
+                        android:textColor="#F4F0E7"
+                        android:textSize="12sp" />
+
+                    <com.jarvis.app.JarvisToggle
+                        android:id="@+id/toggleLowPower"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- БЕЗОПАСНОСТЬ -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="БЕЗОПАСНОСТЬ"
+            android:textColor="#626B76"
+            android:textSize="11sp"
+            android:letterSpacing="0.06"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="9dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_hud_panel"
+            android:paddingStart="15dp"
+            android:paddingEnd="15dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Подтверждение sensitive actions"
+                            android:textColor="#F4F0E7"
+                            android:textSize="12sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="SMS · calls · delete"
+                            android:textColor="#9DA5AE"
+                            android:textSize="10sp"
+                            android:layout_marginTop="2dp" />
+                    </LinearLayout>
+
+                    <com.jarvis.app.JarvisToggle
+                        android:id="@+id/toggleSensitive"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#2B333D" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Шифрование данных"
+                    android:textColor="#F4F0E7"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="ON"
+                    android:textColor="#62D9DF"
+                    android:textSize="9sp"
+                    android:fontFamily="monospace"
+                    android:background="@drawable/bg_tag_cyan"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:paddingTop="3dp"
+                    android:paddingBottom="3dp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ИИ / BRAIN -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ИИ · PARAMETERS"
+            android:textColor="#626B76"
+            android:textSize="11sp"
+            android:letterSpacing="0.06"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="9dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_hud_panel"
+            android:paddingStart="15dp"
+            android:paddingEnd="15dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Вейк-ворд"
+                        android:textColor="#F4F0E7"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="«джарвис» перед командой"
+                        android:textColor="#9DA5AE"
+                        android:textSize="10sp"
+                        android:layout_marginTop="2dp" />
+                </LinearLayout>
+
+                <com.jarvis.app.JarvisToggle
+                    android:id="@+id/toggleWake"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#2B333D" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp">
+
+                <TextView
+                    android:id="@+id/wakeEngineStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Движок: openWakeWord · «Джарвис» (tflite KWS)"
+                    android:textColor="#9DA5AE"
+                    android:textSize="10sp"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Чувствительность вейк-ворда"
+                    android:textColor="#F4F0E7"
+                    android:textSize="12sp"
+                    android:layout_marginBottom="8dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/wakeLow"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Низкая"
+                        android:textColor="#F4F0E7"
+                        android:textSize="11sp"
+                        android:gravity="center"
+                        android:background="@drawable/bg_fui_active"
+                        android:layout_marginEnd="4dp" />
+
+                    <TextView
+                        android:id="@+id/wakeMedium"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Средняя"
+                        android:textColor="#F4F0E7"
+                        android:textSize="11sp"
+                        android:gravity="center"
+                        android:background="@drawable/bg_hud_panel"
+                        android:layout_marginEnd="4dp" />
+
+                    <TextView
+                        android:id="@+id/wakeHigh"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Высокая"
+                        android:textColor="#F4F0E7"
+                        android:textSize="11sp"
+                        android:gravity="center"
+                        android:background="@drawable/bg_hud_panel" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#2B333D" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Порог уверенности Брейна"
+                    android:textColor="#F4F0E7"
+                    android:textSize="12sp"
+                    android:layout_marginBottom="6dp" />
+
+                <TextView
+                    android:id="@+id/brainThreshold"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0.60"
+                    android:textColor="#E0AD55"
+                    android:textSize="16sp"
+                    android:fontFamily="monospace"
+                    android:layout_marginBottom="6dp" />
+
+                <com.jarvis.app.JarvisSlider
+                    android:id="@+id/sliderThreshold"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ПАМЯТЬ -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ПАМЯТЬ"
+            android:textColor="#626B76"
+            android:textSize="11sp"
+            android:letterSpacing="0.06"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="9dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_hud_panel"
+            android:paddingStart="15dp"
+            android:paddingEnd="15dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Запоминать факты о пользователе"
+                        android:textColor="#F4F0E7"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Долгосрочная память (local SQLite)"
+                        android:textColor="#9DA5AE"
+                        android:textSize="10sp"
+                        android:layout_marginTop="2dp" />
+                </LinearLayout>
+
+                <com.jarvis.app.JarvisToggle
+                    android:id="@+id/toggleMemory"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#2B333D" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Сохранено фактов"
+                    android:textColor="#F4F0E7"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/memoryCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0"
+                    android:textColor="#62D9DF"
+                    android:textSize="11sp"
+                    android:fontFamily="monospace"
+                    android:layout_marginEnd="12dp" />
+
+                <Button
+                    android:id="@+id/btnClearMemory"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Очистить"
+                    android:textSize="11sp"
+                    android:textColor="#F4F0E7"
+                    android:background="@drawable/bg_end_capsule"
+                    android:minWidth="0dp"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="6dp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- СИСТЕМА -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="СИСТЕМА"
+            android:textColor="#626B76"
+            android:textSize="11sp"
+            android:letterSpacing="0.06"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="9dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_hud_panel"
+            android:padding="15dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Diagnostics"
+                    android:textColor="#F4F0E7"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="HEALTHY"
+                    android:textColor="#62D9DF"
+                    android:textSize="9sp"
+                    android:fontFamily="monospace"
+                    android:background="@drawable/bg_tag_cyan"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:paddingTop="3dp"
+                    android:paddingBottom="3dp" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="ASR · TTS · Wake · LLM · Tools"
+                android:textColor="#9DA5AE"
+                android:textSize="12sp"
+                android:layout_marginTop="6dp" />
+        </LinearLayout>
+
+        </LinearLayout><!-- settingsMainPanel -->
+
+        <include
+            layout="@layout/screen_companion_panel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <include
+            layout="@layout/screen_models_panel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+    </LinearLayout>
+</ScrollView>

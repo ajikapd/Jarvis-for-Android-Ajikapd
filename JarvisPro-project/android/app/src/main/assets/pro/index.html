@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Джарвис Pro</title>
+<style>html,body{margin:0;height:100%;background:#020304}</style>
+<script>
+// первый запуск — ядро зажигается и экскурсия; потом — сразу главная. Страницы — в цвете выбранной темы.
+function get(k) { try { return window.JarvisNative ? JarvisNative.get(k) : (localStorage.getItem(k) || ''); } catch (e) { return ''; } }
+var done = get('firstDone');
+var th = get('theme');
+if (get('auto') === '1') { var h = new Date().getHours(); th = h >= 6 && h < 11 ? 'em' : h >= 11 && h < 17 ? 'az' : h >= 17 && h < 22 ? 'gold' : 'am'; }
+var suf = /^(az|am|ru|em)$/.test(th) ? '-' + th : '';
+try { sessionStorage.removeItem('launched'); sessionStorage.removeItem('st'); sessionStorage.removeItem('thx'); } catch (e) {}
+location.replace(done ? 'main' + suf + '.html#main' : 's11' + suf + '.html#boot');
+</script></head><body></body></html>

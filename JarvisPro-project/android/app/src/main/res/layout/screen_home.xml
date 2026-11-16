@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/jarvis_bg"
+    android:fillViewport="true"
+    android:scrollbars="none">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/homeRouterMode"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="● ROUTER"
+                android:textColor="@color/jarvis_green"
+                android:textSize="10sp"
+                android:fontFamily="monospace" />
+
+            <TextView
+                android:id="@+id/homeClock"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="RAM —"
+                android:textColor="@color/jarvis_primary"
+                android:textSize="11sp"
+                android:fontFamily="monospace"
+                android:background="@drawable/bg_hud_panel"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/assistantState"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="16dp"
+            android:text="● VOICE SERVICE: OFFLINE (TAP MIC TO START)"
+            android:textColor="@color/jarvis_cyan"
+            android:textSize="9sp"
+            android:fontFamily="monospace"
+            android:letterSpacing="0.04" />
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="268dp">
+
+            <com.jarvis.app.ReactorCoreView
+                android:id="@+id/homeOrb"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+        </FrameLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp">
+
+            <TextView
+                android:id="@+id/homeModelChip"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="MODEL  —"
+                android:textColor="@color/jarvis_cyan"
+                android:textSize="8sp"
+                android:fontFamily="monospace" />
+
+            <TextView
+                android:id="@+id/homeLatencyChip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="LAT  —"
+                android:textColor="@color/jarvis_cyan"
+                android:textSize="8sp"
+                android:fontFamily="monospace"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp" />
+
+            <TextView
+                android:id="@+id/homeCoreChip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="CORE  STANDBY"
+                android:textColor="@color/jarvis_cyan"
+                android:textSize="8sp"
+                android:fontFamily="monospace" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="10dp">
+
+            <TextView android:id="@+id/pipeWake" android:layout_width="0dp" android:layout_height="28dp" android:layout_weight="1" android:gravity="center" android:text="01 WAKE" android:textColor="@color/jarvis_faint" android:textSize="8sp" android:fontFamily="monospace" android:background="@drawable/bg_hud_panel" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="—" android:textColor="@color/jarvis_faint" android:textSize="8sp" android:paddingStart="2dp" android:paddingEnd="2dp" />
+            <TextView android:id="@+id/pipeAsr" android:layout_width="0dp" android:layout_height="28dp" android:layout_weight="1" android:gravity="center" android:text="02 ASR" android:textColor="@color/jarvis_faint" android:textSize="8sp" android:fontFamily="monospace" android:background="@drawable/bg_hud_panel" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="—" android:textColor="@color/jarvis_faint" android:textSize="8sp" android:paddingStart="2dp" android:paddingEnd="2dp" />
+            <TextView android:id="@+id/pipeRouter" android:layout_width="0dp" android:layout_height="28dp" android:layout_weight="1" android:gravity="center" android:text="03 ROUTER" android:textColor="@color/jarvis_faint" android:textSize="8sp" android:fontFamily="monospace" android:background="@drawable/bg_hud_panel" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="—" android:textColor="@color/jarvis_faint" android:textSize="8sp" android:paddingStart="2dp" android:paddingEnd="2dp" />
+            <TextView android:id="@+id/pipeLlm" android:layout_width="0dp" android:layout_height="28dp" android:layout_weight="1" android:gravity="center" android:text="04 LLM" android:textColor="@color/jarvis_faint" android:textSize="8sp" android:fontFamily="monospace" android:background="@drawable/bg_hud_panel" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="—" android:textColor="@color/jarvis_faint" android:textSize="8sp" android:paddingStart="2dp" android:paddingEnd="2dp" />
+            <TextView android:id="@+id/pipeTts" android:layout_width="0dp" android:layout_height="28dp" android:layout_weight="1" android:gravity="center" android:text="05 TTS" android:textColor="@color/jarvis_faint" android:textSize="8sp" android:fontFamily="monospace" android:background="@drawable/bg_hud_panel" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="10dp">
+
+            <TextView
+                android:id="@+id/homeRouterCycle"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="AI ROUTER\n● HYBRID"
+                android:textColor="@color/jarvis_cyan"
+                android:textSize="9sp"
+                android:fontFamily="monospace"
+                android:background="@drawable/bg_hud_panel"
+                android:layout_marginEnd="10dp" />
+
+            <TextView
+                android:id="@+id/homeWakeToggle"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="WAKE ENGINE\n● ARMED"
+                android:textColor="@color/jarvis_cyan"
+                android:textSize="9sp"
+                android:fontFamily="monospace"
+                android:background="@drawable/bg_hud_panel"
+                android:layout_marginEnd="10dp" />
+
+            <TextView
+                android:id="@+id/homeOverlayToggle"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="OVERLAY\n● LAUNCH ORB"
+                android:textColor="@color/jarvis_cyan"
+                android:textSize="9sp"
+                android:fontFamily="monospace"
+                android:background="@drawable/bg_hud_panel" />
+        </LinearLayout>
+
+        <TextView android:id="@+id/homeRouterShort" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+        <TextView android:id="@+id/homeSttShort" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+        <TextView android:id="@+id/homeWakeShort" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+        <TextView android:id="@+id/homeWakeStatus" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+        <TextView android:id="@+id/homeVoiceProviders" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/bg_hud_panel"
+            android:padding="8dp">
+
+            <ImageView
+                android:id="@+id/activateAssistant"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:src="@drawable/ic_fui_mic"
+                android:scaleType="center"
+                android:contentDescription="Микрофон"
+                android:background="@drawable/bg_mic_glow" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:paddingStart="10dp"
+                android:paddingEnd="8dp">
+
+                <TextView
+                    android:id="@+id/assistantStateDetail"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Фоновый сервис не запущен."
+                    android:textColor="@color/jarvis_text"
+                    android:textSize="12sp"
+                    android:fontFamily="monospace" />
+
+                <com.jarvis.app.EqualizerView
+                    android:id="@+id/homeEq"
+                    android:layout_width="match_parent"
+                    android:layout_height="28dp"
+                    android:layout_marginTop="4dp" />
+
+                <TextView
+                    android:id="@+id/currentTranscript"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="канал готов"
+                    android:textColor="@color/jarvis_muted"
+                    android:textSize="12sp"
+                    android:layout_marginTop="2dp" />
+
+                <TextView
+                    android:id="@+id/currentResponse"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textColor="@color/jarvis_faint"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/homeToChat"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_fui_keyboard"
+                android:scaleType="center"
+                android:contentDescription="Диалог"
+                android:background="@drawable/bg_hud_panel" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

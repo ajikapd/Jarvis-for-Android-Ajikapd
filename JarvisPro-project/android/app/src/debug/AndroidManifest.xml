@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+
+        <!-- Debug-консоль: доступна только внутри приложения -->
+        <activity
+            android:name="com.jarvis.app.TestConsoleActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Jarvis"
+            android:label="Jarvis Debug Console" />
+
+        <receiver
+            android:name="com.jarvis.app.DebugCommandReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="com.jarvis.assistant.DEBUG_COMMAND" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.jarvis.assistant.DEBUG_VOICE" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.jarvis.assistant.ASR_TEST" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.jarvis.assistant.DEBUG_AUTONOMY" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.jarvis.assistant.DEBUG_SETTINGS" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.jarvis.assistant.DEBUG_SANITIZE" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.jarvis.assistant.DEBUG_CONTEXT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.jarvis.assistant.DEBUG_MEMORY" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="com.jarvis.assistant.DEBUG_KEYS" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.jarvis.assistant.DEBUG_KEYS_SET" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.jarvis.assistant.DEBUG_KEYS_CLEAR" />
+            </intent-filter>
+        </receiver>
+
+    </application>
+
+</manifest>

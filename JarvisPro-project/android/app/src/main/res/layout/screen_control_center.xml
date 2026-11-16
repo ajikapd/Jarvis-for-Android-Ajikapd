@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/jarvis_bg"
+    android:scrollbars="none"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="28dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Память, сценарии, голос и вид. С главной сюда ничего не вынесено лишнего — здесь всё, чем управляешь."
+            android:textColor="@color/jarvis_muted"
+            android:textSize="13sp" />
+
+        <TextView android:id="@+id/tileMemory" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="01    Память" android:textColor="@color/jarvis_text" android:textSize="18sp" android:paddingTop="22dp" android:paddingBottom="14dp" />
+        <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/jarvis_border" />
+        <TextView android:id="@+id/tileCommands" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="02    Команды" android:textColor="@color/jarvis_text" android:textSize="18sp" android:paddingTop="14dp" android:paddingBottom="14dp" />
+        <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/jarvis_border" />
+        <TextView android:id="@+id/tileAutomations" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="03    Сценарии" android:textColor="@color/jarvis_text" android:textSize="18sp" android:paddingTop="14dp" android:paddingBottom="14dp" />
+        <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/jarvis_border" />
+        <TextView android:id="@+id/tileCompanion" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="04    Присутствие" android:textColor="@color/jarvis_text" android:textSize="18sp" android:paddingTop="14dp" android:paddingBottom="14dp" />
+        <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/jarvis_border" />
+        <TextView android:id="@+id/tileModels" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="05    Модели" android:textColor="@color/jarvis_text" android:textSize="18sp" android:paddingTop="14dp" android:paddingBottom="14dp" />
+        <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/jarvis_border" />
+        <TextView android:id="@+id/tileDeveloper" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="06    Консоль" android:textColor="@color/jarvis_text" android:textSize="18sp" android:paddingTop="14dp" android:paddingBottom="14dp" />
+        <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/jarvis_border" />
+
+        <TextView
+            android:id="@+id/btnOpenAdvancedSettings"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Тонкая настройка"
+            android:textColor="@color/jarvis_cyan"
+            android:textSize="14sp"
+            android:paddingTop="18dp"
+            android:paddingBottom="8dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Характер"
+            android:textColor="@color/jarvis_primary"
+            android:textSize="12sp"
+            android:layout_marginTop="18dp" />
+
+        <TextView android:id="@+id/personaCurrentLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="JARVIS Classic" android:textColor="@color/jarvis_muted" android:textSize="12sp" android:layout_marginTop="4dp" />
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="8dp">
+            <TextView android:id="@+id/personaClassic" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Classic" android:textColor="@color/jarvis_text" android:textSize="12sp" android:gravity="center" android:background="@drawable/bg_persona_active" android:paddingTop="10dp" android:paddingBottom="10dp" android:layout_marginEnd="6dp" />
+            <TextView android:id="@+id/personaFriendly" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Friendly" android:textColor="@color/jarvis_muted" android:textSize="12sp" android:gravity="center" android:background="@drawable/bg_persona" android:paddingTop="10dp" android:paddingBottom="10dp" android:layout_marginEnd="6dp" />
+            <TextView android:id="@+id/personaMinimal" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Minimal" android:textColor="@color/jarvis_muted" android:textSize="12sp" android:gravity="center" android:background="@drawable/bg_persona" android:paddingTop="10dp" android:paddingBottom="10dp" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Ответ"
+            android:textColor="@color/jarvis_primary"
+            android:textSize="12sp"
+            android:layout_marginTop="18dp" />
+
+        <TextView android:id="@+id/chatProfileHint" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Баланс · 3–5 с" android:textColor="@color/jarvis_muted" android:textSize="12sp" android:layout_marginTop="4dp" />
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="8dp">
+            <TextView android:id="@+id/chatProfileFast" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Быстро" android:textColor="@color/jarvis_muted" android:textSize="12sp" android:gravity="center" android:background="@drawable/bg_persona" android:paddingTop="10dp" android:paddingBottom="10dp" android:layout_marginEnd="6dp" />
+            <TextView android:id="@+id/chatProfileBalanced" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Баланс" android:textColor="@color/jarvis_text" android:textSize="12sp" android:gravity="center" android:background="@drawable/bg_persona_active" android:paddingTop="10dp" android:paddingBottom="10dp" android:layout_marginEnd="6dp" />
+            <TextView android:id="@+id/chatProfileQuality" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Качество" android:textColor="@color/jarvis_muted" android:textSize="12sp" android:gravity="center" android:background="@drawable/bg_persona" android:paddingTop="10dp" android:paddingBottom="10dp" />
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="16dp">
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Спрашивать перед чувствительным действием" android:textColor="@color/jarvis_text" android:textSize="14sp" />
+            <com.jarvis.app.JarvisToggle android:id="@+id/toggleSensitive" android:layout_width="48dp" android:layout_height="28dp" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Голос"
+            android:textColor="@color/jarvis_primary"
+            android:textSize="12sp"
+            android:layout_marginTop="22dp" />
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="8dp">
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="вейк" android:textColor="@color/jarvis_faint" android:textSize="11sp" />
+                <TextView android:id="@+id/statWake" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="READY" android:textColor="@color/jarvis_green" android:textSize="14sp" android:layout_marginTop="2dp" />
+            </LinearLayout>
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="слух" android:textColor="@color/jarvis_faint" android:textSize="11sp" />
+                <TextView android:id="@+id/statAsr" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="AUTO" android:textColor="@color/jarvis_green" android:textSize="14sp" android:layout_marginTop="2dp" />
+            </LinearLayout>
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="речь" android:textColor="@color/jarvis_faint" android:textSize="11sp" />
+                <TextView android:id="@+id/statTts" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="AUTO" android:textColor="@color/jarvis_green" android:textSize="14sp" android:layout_marginTop="2dp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="14dp">
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Подстраивать слух" android:textColor="@color/jarvis_text" android:textSize="14sp" />
+            <com.jarvis.app.JarvisToggle android:id="@+id/toggleAdaptive" android:layout_width="48dp" android:layout_height="28dp" />
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="12dp">
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Беречь батарею ниже 20%" android:textColor="@color/jarvis_text" android:textSize="14sp" />
+            <com.jarvis.app.JarvisToggle android:id="@+id/toggleLowPower" android:layout_width="48dp" android:layout_height="28dp" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Вид"
+            android:textColor="@color/jarvis_primary"
+            android:textSize="12sp"
+            android:layout_marginTop="22dp" />
+
+        <HorizontalScrollView android:layout_width="match_parent" android:layout_height="wrap_content" android:scrollbars="none" android:layout_marginTop="8dp">
+            <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal">
+                <TextView android:id="@+id/themeClassic" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Cinematic" android:textColor="@color/jarvis_text" android:textSize="12sp" android:background="@drawable/bg_persona_active" android:paddingStart="12dp" android:paddingEnd="12dp" android:paddingTop="10dp" android:paddingBottom="10dp" android:layout_marginEnd="6dp" />
+                <TextView android:id="@+id/themeStealth" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Stealth" android:textColor="@color/jarvis_muted" android:textSize="12sp" android:background="@drawable/bg_persona" android:paddingStart="12dp" android:paddingEnd="12dp" android:paddingTop="10dp" android:paddingBottom="10dp" android:layout_marginEnd="6dp" />
+                <TextView android:id="@+id/themeArc" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Arc" android:textColor="@color/jarvis_muted" android:textSize="12sp" android:background="@drawable/bg_persona" android:paddingStart="12dp" android:paddingEnd="12dp" android:paddingTop="10dp" android:paddingBottom="10dp" android:layout_marginEnd="6dp" />
+                <TextView android:id="@+id/themeLight" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Light" android:textColor="@color/jarvis_muted" android:textSize="12sp" android:background="@drawable/bg_persona" android:paddingStart="12dp" android:paddingEnd="12dp" android:paddingTop="10dp" android:paddingBottom="10dp" />
+            </LinearLayout>
+        </HorizontalScrollView>
+
+        <TextView android:id="@+id/themeTag" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Тема применяется ко всем окнам." android:textColor="@color/jarvis_muted" android:textSize="11sp" android:layout_marginTop="8dp" />
+
+        <TextView
+            android:id="@+id/btnOpenUsageGuide"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Как этим пользоваться"
+            android:textColor="@color/jarvis_primary"
+            android:textSize="14sp"
+            android:paddingTop="18dp" />
+
+        <TextView
+            android:id="@+id/btnSwitchModern"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Перейти на современный интерфейс"
+            android:textColor="@color/jarvis_cyan"
+            android:textSize="14sp"
+            android:paddingTop="14dp"
+            android:paddingBottom="8dp" />
+
+        <TextView
+            android:id="@+id/btnSendReport"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Отправить отчёт об ошибке"
+            android:textColor="@color/jarvis_muted"
+            android:textSize="14sp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp" />
+    </LinearLayout>
+</ScrollView>

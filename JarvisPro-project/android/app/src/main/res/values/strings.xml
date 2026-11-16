@@ -1,0 +1,44 @@
+<resources>
+    <string name="app_name">Джарвис Pro</string>
+    <string name="voice_channel_name">Голос ассистента</string>
+    <string name="voice_notification_title">Jarvis слушает</string>
+    <string name="voice_notification_text">Скажите «джарвис, …» для команды</string>
+    <!-- Экран «Память»: подтверждаемые действия удаления (Task 4) -->
+    <string name="memory_clear_chat">Стереть историю чата</string>
+    <string name="memory_clear_chat_desc">Удалить всю сохранённую историю диалога, включая избранное</string>
+    <string name="memory_clear_chat_title">Стереть историю чата?</string>
+    <string name="memory_clear_chat_message">Все сохранённые реплики диалога будут удалены безвозвратно, включая избранные. Факты о вас останутся.</string>
+    <string name="memory_clear_facts_title">Стереть все факты?</string>
+    <string name="memory_clear_facts_message">Все сохранённые факты о вас будут удалены безвозвратно.</string>
+    <string name="memory_confirm_yes">Да</string>
+    <string name="memory_confirm_no">Нет</string>
+    <!-- Проактивные предложения (Task 5, Б3) -->
+    <string name="proactive_channel_name">Предложения Jarvis</string>
+    <string name="proactive_channel_description">Тихие предложения без звука и вибрации</string>
+    <string name="proactive_action_yes">Да</string>
+    <string name="proactive_action_no">Нет</string>
+    <string name="proactive_action_later">Позже</string>
+    <string name="cloud_groq_title">Groq</string>
+    <string name="cloud_gemini_title">Google Gemini</string>
+    <string name="cloud_gigachat_title">GigaChat (Сбер), без VPN</string>
+    <string name="cloud_gigachat_free_tier_notice">Бесплатно для физлиц: вход через Сбер ID на developers.sber.ru → проект GigaChat API → «Настройки API» → «Получить ключ». Вставьте Authorization key.</string>
+    <string name="cloud_gigachat_key_description">Поле ключа GigaChat</string>
+    <string name="cloud_api_key_hint">API key</string>
+    <string name="cloud_models_title">Облачные модели</string>
+
+    <string name="cloud_privacy_no_personal_data">Личные данные и коды в облако не отправляются.</string>
+    <string name="cloud_gemini_free_tier_notice">Бесплатный тариф Google может использовать запросы для улучшения моделей.</string>
+    <string name="cloud_key_missing">Ключа нет</string>
+    <string name="cloud_key_set">Ключ задан</string>
+    <string name="cloud_save_key">Сохранить</string>
+    <string name="cloud_clear_key">Удалить ключ</string>
+    <string name="cloud_save_key_description">Сохранить ключ облачной модели</string>
+    <string name="cloud_clear_key_description">Удалить ключ облачной модели</string>
+    <string name="cloud_groq_key_description">Поле ключа Groq</string>
+    <string name="cloud_gemini_key_description">Поле ключа Google Gemini</string>
+    <string name="cloud_key_rejected">Введите настоящий ключ длиной не менее 20 символов.</string>
+    <string name="cloud_key_saved">Ключ сохранён</string>
+    <string name="cloud_key_deleted">Ключ удалён</string>
+    <string name="proactive_public_text">Jarvis: есть предложение</string>
+
+</resources>

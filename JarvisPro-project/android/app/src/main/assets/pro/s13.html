@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Jarvis Pro — остальные экраны</title>
+<link rel="icon" href="data:,">
+<style>
+:root{
+  --text:#EEF1F6;--text2:#9AA3B2;--text3:#6C7483;
+  --cy:#7FE8FF;--cy2:#3AA8FF;--gold:#FFC46B;--gold2:#FFE0A8;--ok:#3FE0B0;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;--ui:"Manrope","Segoe UI",system-ui,sans-serif;
+  --metal:linear-gradient(180deg,#fff,#cfd5de 45%,#7d8592 70%,#eef1f5);
+  --goldbtn:linear-gradient(180deg,#FFE9BF,#F0B45A 60%,#D9943A);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{color:var(--text);font-family:var(--ui);padding:34px 18px 90px;min-height:100vh;
+  background:radial-gradient(34% 30% at 10% 60%,#e89a3c12,transparent 70%),radial-gradient(34% 30% at 90% 6%,#3aa8ff10,transparent 70%),#030405}
+.wrap{max-width:1240px;margin:0 auto}
+header .k{font-family:var(--mono);font-size:12px;letter-spacing:.3em;color:var(--gold)}
+header h1{font-weight:600;font-size:32px;margin-top:10px;letter-spacing:-.01em}
+header p{color:var(--text2);font-size:15px;margin-top:12px;max-width:860px;line-height:1.62}
+h2{font-family:var(--mono);font-size:12px;letter-spacing:.3em;color:var(--text3);font-weight:400;margin:70px 0 18px}
+.gallery{display:flex;flex-wrap:wrap;gap:54px 26px;margin-top:40px;align-items:flex-start}
+.shot{width:392px;flex:none}
+.shot .ph{zoom:1.06}
+.shot h3{font-family:var(--mono);font-size:12px;letter-spacing:.24em;color:var(--gold);font-weight:400;margin-bottom:16px}
+.shot h3 span{color:var(--text3)}
+.shot p{color:var(--text2);font-size:13.5px;line-height:1.62;margin-top:16px}
+.shot p b{color:var(--text);font-weight:600}
+.shot .form{margin-top:12px;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;color:var(--text3);border-left:2px solid #ffc46b70;padding:2px 0 2px 12px;line-height:1.7}
+.shot .form b{color:var(--gold2);font-weight:400}
+.mini{font-family:var(--ui);font-size:12.5px;color:var(--text2);background:linear-gradient(#ffffff10,#ffffff04);border:1px solid #ffffff1a;border-radius:18px;padding:8px 14px;cursor:pointer;margin-top:14px}
+.mini:hover{color:var(--text);border-color:#ffffff38}
+
+/* ---------- телефон: общее ---------- */
+.phone{position:relative;width:370px;height:836px;border-radius:54px;overflow:hidden;background:#020304;
+  border:1.5px solid #3c434c;box-shadow:0 0 0 5px #0a0b0d,0 0 0 6.5px #ffffff1c,0 60px 110px -30px #000,-30px 30px 80px -40px #e89a3c40,30px -30px 80px -40px #3aa8ff40}
+.phone::after{content:"";position:absolute;inset:0;border-radius:54px;pointer-events:none;background:linear-gradient(115deg,#ffffff0e,transparent 28%,transparent 72%,#ffffff07)}
+.core{position:absolute;left:0;width:370px;height:330px;mix-blend-mode:screen;pointer-events:none;
+  -webkit-mask-image:radial-gradient(ellipse 54% 57% at 50% 50%,#000 80%,transparent 100%);mask-image:radial-gradient(ellipse 54% 57% at 50% 50%,#000 80%,transparent 100%)}
+.core video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+.vign{position:absolute;inset:0;pointer-events:none;background:radial-gradient(110% 70% at 50% 40%,transparent 55%,#000a 100%)}
+.ui{position:absolute;inset:0;padding:18px 20px 16px;display:flex;flex-direction:column}
+.sb{display:flex;justify-content:space-between;font-size:13px;font-weight:500;color:#dfe3ea;padding:2px 6px 0}
+.sb .r{display:flex;gap:10px;align-items:center}
+.tbar{display:flex;align-items:center;justify-content:space-between;margin-top:20px}
+.ttl{font-weight:600;font-size:17px;letter-spacing:.56em;background:var(--metal);-webkit-background-clip:text;background-clip:text;color:transparent}
+.badge{font-family:var(--mono);font-size:10px;letter-spacing:.24em;padding:4px 9px 4px 11px;border-radius:10px;color:var(--cy);border:1px solid #7fe8ff70;background:#3aa8ff14;box-shadow:0 0 12px #3aa8ff40,inset 0 0 8px #7fe8ff20}
+.chip{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:#dfe3ea;display:flex;align-items:center;gap:8px;padding:8px 13px;border-radius:18px;border:1px solid #ffffff22;background:linear-gradient(#ffffff0c,#ffffff03)}
+.chip i{width:7px;height:7px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
+.stage{position:relative;margin-left:-20px;margin-right:-20px}
+svg.ov{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.dat{position:absolute;font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:#8b95a6;line-height:1.9;white-space:nowrap}
+.dat::before{content:"";position:absolute;inset:-14px -20px;background:radial-gradient(closest-side,#020304 52%,transparent);z-index:-1}
+.dat b{display:block;font-size:12px;letter-spacing:.02em;color:#e4e8ee;font-weight:400;font-variant-numeric:tabular-nums}
+.dat b.gold,.dat.gold b{color:var(--gold)}
+.lead{stroke:var(--cy);stroke-width:.8;opacity:.78;stroke-dasharray:14 5;animation:dash 5s linear infinite;fill:none}
+@keyframes dash{to{stroke-dashoffset:-190}}
+.navw{margin-top:auto;position:relative;height:96px}
+.nav{position:absolute;left:-4px;right:-4px;bottom:0;height:78px;border-radius:34px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;
+  border:1px solid #ffffff22;background:linear-gradient(#ffffff0d,#ffffff03);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:inset 0 1px 0 #ffffff1a}
+.nav .it{width:58px;display:flex;flex-direction:column;align-items:center;gap:6px;font-size:10.5px;color:var(--text2);position:relative}
+.nav .it svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.4}
+.nav .it.on{color:#fff}
+.nav .it.on::after{content:"";position:absolute;bottom:-9px;width:40px;height:2px;border-radius:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);box-shadow:0 0 8px var(--gold)}
+.nav .gap{width:86px}
+.mic{position:absolute;left:50%;bottom:4px;transform:translateX(-50%);width:84px;height:84px;border-radius:50%;
+  background:conic-gradient(from 200deg,#2a2f36,#d5dae2,#4a5058,#1c1f24,#a4abb5,#2a2f36);box-shadow:0 0 0 1px #ffffff30,0 10px 30px -6px #000,0 0 34px #3aa8ff38}
+.mic::before{content:"";position:absolute;inset:7px;border-radius:50%;background:radial-gradient(circle at 50% 35%,#1a2026,#06080a 70%);box-shadow:inset 0 0 0 1px #000,inset 0 0 14px #3aa8ff50}
+.mic::after{content:"";position:absolute;inset:11px;border-radius:50%;border:1px solid #7fe8ff40;box-shadow:0 0 10px #3aa8ff50}
+.mic svg{position:absolute;inset:0;margin:auto;width:26px;height:26px;fill:none;stroke:#bff4ff;stroke-width:1.6;stroke-linecap:round;filter:drop-shadow(0 0 6px #3aa8ff);z-index:1}
+.btnP{display:block;width:100%;height:54px;border-radius:27px;border:0;font:600 15px var(--ui);color:#17110a;background:var(--goldbtn);cursor:pointer;
+  box-shadow:0 0 0 1px #ffe0a855,0 12px 32px -8px #f0a03c90,inset 0 1px 0 #ffffffa0}
+.btnS{display:block;width:100%;margin-top:12px;background:none;border:0;color:var(--text2);font:500 13px var(--ui);cursor:pointer}
+.glass{border-radius:18px;border:1px solid #ffffff1c;background:linear-gradient(#ffffff0b,#ffffff03);box-shadow:inset 0 1px 0 #ffffff14;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+
+/* ---------- 01 первый запуск ---------- */
+.boot .core{top:150px}
+.boot .core video{transition:opacity .25s}
+.boot .logoC{position:absolute;left:0;right:0;top:96px;display:flex;justify-content:center;align-items:center;gap:12px;opacity:0;transform:translateY(-6px);transition:opacity 1.1s,transform 1.1s}
+.boot .logoC .ttl{font-size:21px;letter-spacing:.62em;padding-left:.62em}
+.boot .checks{position:absolute;left:0;right:0;top:506px;display:flex;flex-direction:column;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--text3);transition:opacity .6s}
+.boot .checks div{display:flex;width:206px;justify-content:space-between;opacity:0;transform:translateY(5px);transition:opacity .45s,transform .45s}
+.boot .checks div.in{opacity:1;transform:none}
+.boot .checks b{color:var(--ok);font-weight:400}
+.boot .greet{position:absolute;left:24px;right:24px;top:500px;text-align:center;opacity:0;transform:translateY(8px);transition:opacity .9s,transform .9s}
+.boot .greet .g1{font-size:27px;font-weight:300;letter-spacing:-.01em;background:linear-gradient(180deg,#fff,#c7cdd6);-webkit-background-clip:text;background-clip:text;color:transparent}
+.boot .greet .g2{font-size:13.5px;color:var(--text2);margin-top:9px;line-height:1.5}
+.boot .cta{position:absolute;left:24px;right:24px;bottom:40px;opacity:0;transform:translateY(10px);transition:opacity .9s .25s,transform .9s .25s}
+.boot[data-step="1"] .logoC,.boot[data-step="2"] .logoC{opacity:1;transform:none}
+.boot[data-step="2"] .checks{opacity:0}
+.boot[data-step="2"] .greet,.boot[data-step="2"] .cta{opacity:1;transform:none}
+/* ================= общие детали новых экранов ================= */
+.sub2{font-family:var(--mono);font-size:9px;letter-spacing:.2em;color:var(--text3);margin:14px 2px 8px}
+.tg{position:relative;flex:none;width:40px;height:23px;border-radius:12px;background:#ffffff18;border:1px solid #ffffff22;cursor:pointer;transition:background .3s,border-color .3s}
+.tg::after{content:"";position:absolute;left:2px;top:2px;width:17px;height:17px;border-radius:50%;background:#9aa3b2;transition:transform .3s,background .3s,box-shadow .3s}
+.tg.on{background:#ffc46b30;border-color:#ffc46b90}.tg.on::after{transform:translateX(17px);background:var(--gold);box-shadow:0 0 8px var(--gold)}
+.seg{display:flex;gap:4px;padding:3px;border-radius:15px;border:1px solid #ffffff16;background:#ffffff07}
+.seg span{flex:1;text-align:center;font-size:11px;padding:6px 0;border-radius:12px;color:var(--text2);cursor:pointer;transition:background .3s,color .3s}
+.seg span.on{background:linear-gradient(#ffc46b30,#ffc46b14);color:#fff;box-shadow:inset 0 0 0 1px #ffc46b70}
+.sprite{position:absolute;mix-blend-mode:screen;pointer-events:none}
+.sprite video{width:100%;height:100%;object-fit:cover;display:block}
+
+/* ---------- Диалог ---------- */
+.dlg .vbar{display:flex;align-items:center;gap:12px;margin-top:12px;padding:8px 12px 8px 6px;border-radius:20px;border:1px solid #ffffff16;background:#0b0d10}
+.dlg .vbar .jv{position:relative;width:52px;height:52px;flex:none}
+.dlg .vbar .jv .sprite{inset:-14px}
+.dlg .vbar b{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.3em;color:var(--gold);font-weight:400}
+.dlg .vbar span{font-size:11.5px;color:var(--text2)}
+.dlg .vbar canvas{margin-left:auto;width:84px;height:28px}
+.dlg .chat{margin-top:12px;gap:9px;height:394px;overflow:hidden;justify-content:flex-end}
+.card2{margin-top:8px;border-radius:13px;border:1px solid #ffffff16;background:#ffffff07;padding:9px 10px;display:flex;gap:10px;align-items:center}
+.card2 .ic{width:34px;height:34px;border-radius:10px;flex:none;display:grid;place-items:center;font-size:17px;background:linear-gradient(135deg,#ffc46b40,#ff9d2e18)}
+.card2 b{display:block;font-size:12.5px;color:#fff;font-weight:600}
+.card2 span{font-size:11px;color:var(--text2)}
+.card2 .pl{margin-left:auto;display:flex;gap:4px;align-items:flex-end;height:16px}
+.card2 .pl i{width:3px;background:var(--gold);border-radius:2px;animation:eq 1s ease-in-out infinite}
+.card2 .pl i:nth-child(2){animation-delay:.2s}.card2 .pl i:nth-child(3){animation-delay:.45s}
+@keyframes eq{0%,100%{height:4px}50%{height:16px}}
+.typing{display:flex;gap:4px;padding:2px 0}.typing i{width:6px;height:6px;border-radius:50%;background:var(--gold);animation:dot 1.1s ease-in-out infinite}
+.typing i:nth-child(2){animation-delay:.18s}.typing i:nth-child(3){animation-delay:.36s}
+@keyframes dot{0%,100%{opacity:.25}40%{opacity:1}}
+.dlg .chips span{cursor:pointer}
+.msg{animation:msgIn .35s ease-out}
+@keyframes msgIn{from{opacity:0;transform:translateY(8px)}}
+
+/* ---------- Память ---------- */
+.mem .stage{height:226px;margin-top:4px}
+.mem .stage .sprite{left:100px;top:45px;width:170px;height:170px}
+.mem .cat{position:absolute;transform:translate(-50%,-50%);text-align:center;font-family:var(--mono);font-size:8.5px;letter-spacing:.12em;color:var(--text2);cursor:pointer;padding:6px 9px;border-radius:13px;border:1px solid #ffffff1c;background:#0b0d10e6;transition:border-color .3s,color .3s,box-shadow .3s}
+.mem .cat b{display:block;font-family:var(--ui);font-size:15px;letter-spacing:0;color:#fff;font-weight:500}
+.mem .cat.on{border-color:#ffc46b;color:var(--gold);box-shadow:0 0 18px -4px #ffb84d}
+.srch{display:flex;align-items:center;gap:9px;height:40px;border-radius:20px;border:1px solid #ffffff1e;background:#0b0d10;padding:0 14px;font-size:12.5px;color:var(--text3)}
+.srch svg{width:16px;height:16px;stroke:var(--text3);fill:none;stroke-width:1.6}
+.facts{margin-top:8px}
+.fact{display:flex;gap:11px;align-items:center;padding:9px 3px;border-bottom:1px solid #ffffff0c;transition:opacity .4s,transform .4s,max-height .4s,padding .4s;max-height:70px;overflow:hidden}
+.fact.del{opacity:0;transform:translateX(-30px);max-height:0;padding:0 3px}
+.fact .d{width:7px;height:7px;border-radius:50%;flex:none;background:var(--gold);box-shadow:0 0 6px var(--gold)}
+.fact b{display:block;font-size:13px;color:#fff;font-weight:500}
+.fact span{font-family:var(--mono);font-size:9px;letter-spacing:.06em;color:var(--text3)}
+.fact button{margin-left:auto;flex:none;font:500 10.5px var(--ui);color:var(--text2);background:none;border:1px solid #ffffff24;border-radius:12px;padding:5px 9px;cursor:pointer}
+.priv{display:flex;gap:9px;align-items:center;margin-top:9px;font-size:10.5px;color:var(--text3)}
+.priv svg{width:15px;height:15px;stroke:var(--ok);fill:none;stroke-width:1.6;flex:none}
+
+/* ---------- Сценарии ---------- */
+.scn{margin-top:12px;display:flex;flex-direction:column;gap:9px}
+.sc{border-radius:17px;border:1px solid #ffffff16;background:linear-gradient(#ffffff09,#ffffff03);padding:11px 12px 11px;transition:border-color .4s,box-shadow .4s}
+.sc.run{border-color:#ffc46b;box-shadow:0 0 30px -10px #ffb84d}
+.sc .h{display:flex;align-items:center;gap:10px}
+.sc .h b{font-size:14.5px;color:#fff;font-weight:600}
+.sc .h .tr{display:block;font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;color:var(--text3);margin-top:2px}
+.sc .h .tg{margin-left:auto}
+.sc .h .go{flex:none;font:600 10px var(--mono);letter-spacing:.14em;color:var(--gold);background:none;border:1px solid #ffc46b70;border-radius:11px;padding:5px 9px;cursor:pointer}
+.chain{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:9px}
+.chain span{font-size:10.5px;color:#d7dce4;padding:4px 8px;border-radius:9px;border:1px solid #ffffff1a;background:#0b0d10;transition:all .35s}
+.chain span.done{border-color:#3fe0b080;color:var(--ok)}
+.chain span.now{border-color:var(--gold);color:var(--gold);box-shadow:0 0 12px -2px #ffb84d}
+.chain i{font-style:normal;color:var(--text3);font-size:10px}
+.sc.off{opacity:.5}
+.addsc{margin-top:10px;display:flex;align-items:center;gap:10px;padding:11px 13px;border-radius:17px;border:1px dashed #ffc46b60;color:var(--gold2);font-size:12.5px}
+.addsc small{display:block;color:var(--text3);font-size:10.5px}
+
+/* ---------- Настройки ---------- */
+.prof{display:flex;align-items:center;gap:12px;margin-top:12px;padding:11px 12px;border-radius:17px;border:1px solid #ffc46b55;background:linear-gradient(#ffc46b14,#ffc46b04)}
+.prof .av{width:42px;height:42px;border-radius:50%;flex:none;position:relative;overflow:hidden;background:#000}
+.prof .av .sprite{inset:-8px}
+.prof b{display:block;font-size:14.5px;color:#fff;font-weight:600}
+.prof span{font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--gold)}
+.prof em{margin-left:auto;font-style:normal;font-size:11px;color:var(--text2)}
+.grp{border-radius:16px;border:1px solid #ffffff12;background:#ffffff05;padding:2px 12px}
+.row3{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #ffffff0b;font-size:12.5px;color:#e7eaef}
+.row3:last-child{border:0}
+.row3 small{display:block;font-size:10.5px;color:var(--text3)}
+.row3 .v{margin-left:auto;font-size:11.5px;color:var(--text2)}
+.row3 .tg{margin-left:auto}
+.row3 .sw{margin-left:auto;display:flex;gap:7px}
+.row3 .sw i{width:20px;height:20px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:border-color .3s}
+.row3 .sw i.on{border-color:#fff}
+.row3.col{flex-direction:column;align-items:stretch;gap:7px}
+
+/* ---------- Поверх приложений ---------- */
+.ovr .app{position:absolute;inset:0;background:#e9ecef}
+.ovr .app svg{position:absolute;inset:0;width:100%;height:100%}
+.ovr .apptop{position:absolute;left:14px;right:14px;top:46px;height:46px;border-radius:23px;background:#fff;box-shadow:0 4px 14px #0002;display:flex;align-items:center;padding:0 16px;font-size:13px;color:#555}
+.ovr .appbot{position:absolute;left:0;right:0;bottom:0;height:150px;border-radius:22px 22px 0 0;background:#fff;box-shadow:0 -4px 18px #0002;padding:18px 18px;color:#222;font-size:13px}
+.ovr .appbot b{display:block;font-size:17px;margin-bottom:4px}
+.ovr .bubble{position:absolute;right:10px;top:300px;width:76px;height:76px;border-radius:50%;background:#020304;cursor:pointer;
+  box-shadow:0 0 0 1px #ffc46b90,0 8px 24px #0006,0 0 26px #ffb84d70;overflow:hidden;transition:transform .3s}
+.ovr .bubble .sprite{inset:-12px;mix-blend-mode:normal}
+.ovr .pill{position:absolute;right:92px;top:322px;font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--cy);background:#020304e8;border:1px solid #7fe8ff60;border-radius:12px;padding:6px 10px;white-space:nowrap}
+.ovr .panel{position:absolute;left:12px;right:12px;bottom:14px;border-radius:22px;padding:13px 14px 12px;background:linear-gradient(#11141a,#0a0c10);border:1px solid #ffc46b70;box-shadow:0 0 34px -10px #ffb84d90,0 16px 40px -12px #000;color:#eef1f6;
+  transform:translateY(130%);transition:transform .45s cubic-bezier(.3,1.2,.4,1)}
+.ovr.open .panel{transform:none}
+.ovr .panel small{font-family:var(--mono);font-size:8.5px;letter-spacing:.2em;color:var(--gold)}
+.ovr .panel .q{font-size:12.5px;color:var(--text2);margin-top:5px}
+.ovr .panel .a{font-size:14px;margin-top:5px}
+.ovr .panel .bt{display:flex;gap:8px;margin-top:10px}
+.ovr .panel button{flex:1;height:34px;border-radius:17px;font:600 12px var(--ui);border:0;color:#17110a;background:var(--goldbtn)}
+.ovr .panel button.no{flex:.6;background:none;border:1px solid #ffffff30;color:var(--text2)}
+.ovr .sb{color:#222}.ovr .sb svg{fill:#222}
+/* ================= Диалог ================= */
+.chat{margin-top:16px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:84%;padding:10px 13px;border-radius:18px;font-size:13px;line-height:1.45}
+.msg.me{align-self:flex-end;background:linear-gradient(#ffffff16,#ffffff0a);border:1px solid #ffffff1c;border-bottom-right-radius:6px;color:#eef1f6}
+.msg.j{align-self:flex-start;background:linear-gradient(#ffc46b16,#ffc46b06);border:1px solid #ffc46b40;border-bottom-left-radius:6px;color:#f3ead9}
+.msg small{display:block;font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;color:var(--text3);margin-bottom:4px}
+.msg.j small{color:var(--gold)}
+.act{margin-top:7px;display:flex;flex-direction:column;gap:5px;font-family:var(--mono);font-size:10px;color:#c9cfd8}
+.act div{display:flex;gap:8px}.act i{font-style:normal;color:var(--ok)}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px}
+.chips span{font-size:11.5px;color:#dfe3ea;padding:7px 11px;border-radius:15px;border:1px solid #7fe8ff40;background:#3aa8ff10}
+.inp{margin-top:12px;display:flex;align-items:center;gap:10px;height:46px;border-radius:23px;border:1px solid #ffffff22;background:#0b0d10;padding:0 8px 0 16px;color:var(--text3);font-size:13px}
+.inp b{margin-left:auto;width:32px;height:32px;border-radius:50%;background:var(--goldbtn);display:grid;place-items:center;color:#17110a;font-size:15px}
+.mini-core{width:44px;height:44px;border-radius:50%;overflow:hidden;flex:none;position:relative}
+.mini-core video{position:absolute;inset:-30%;width:160%;height:160%;object-fit:cover;mix-blend-mode:screen}
+
+/* ================= Ещё ================= */
+.menu{margin-top:18px;display:flex;flex-direction:column;gap:9px}
+.mi{display:flex;align-items:center;gap:13px;padding:11px 13px;border-radius:16px;border:1px solid #ffffff14;background:linear-gradient(#ffffff09,#ffffff03)}
+.mi svg{flex:none;width:24px;height:24px;stroke:var(--gold);fill:none;stroke-width:1.3;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 4px #ffb84d80)}
+.mi b{display:block;font-size:14px;font-weight:600;color:#fff}
+.mi span{font-size:11.5px;color:var(--text2)}
+.mi em{margin-left:auto;font-style:normal;font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;color:var(--gold);border:1px solid #ffc46b55;border-radius:8px;padding:3px 7px;white-space:nowrap}
+.mi.cy svg{stroke:var(--cy);filter:drop-shadow(0 0 4px #3aa8ff90)}
+
+.gallery{gap:54px 26px}
+
+</style>
+<link rel="stylesheet" href="app.css?1794840632">
+<script src="app.js?1794840632"></script>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="k">JARVIS PRO · ОСТАЛЬНЫЕ ЭКРАНЫ</div>
+  <h1>Диалог, память, сценарии, настройки</h1>
+  <p>Всё, что открывается из нижнего меню и из «Ещё». На каждом экране что-то можно нажать: подсказки в диалоге, разделы памяти и «Забыть», «Пуск» у сценариев, переключатели в настройках и шар Джарвиса поверх карт.</p>
+</header>
+<div class="gallery">
+<div class="shot">
+  <h3>01 <span>·</span> ДИАЛОГ</h3>
+  <div class="ph"><div class="phone dlg" id="dlg">
+    <div class="vign"></div>
+    <div class="ui">
+      <div class="sb"><span>21:47</span><span class="r">5G <svg width="26" height="12" viewBox="0 0 26 12" fill="#dfe3ea"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="16" y="1" width="9" height="11" rx="2" fill="none" stroke="#dfe3ea"/><rect x="18" y="3" width="5" height="7" rx="1"/></svg> 84%</span></div>
+      <div class="tbar"><span class="ttl">ДИАЛОГ</span><div class="chip"><i style="background:var(--ok);box-shadow:0 0 8px var(--ok)"></i>ГОЛОС · ТЕКСТ</div></div>
+      <div class="vbar"><div class="jv"><div class="sprite"><video data-v="talk" class="loop"></video></div></div>
+        <div><b id="dState">ГОТОВ</b><span id="dHint">Говори или пиши — я пойму</span></div><canvas id="dWave" width="168" height="56"></canvas></div>
+      <div class="chat" id="dChat">
+        <div class="msg me"><small>ТЫ · 21:44</small>Позвони маме и включи фонарик</div>
+        <div class="msg j"><small>ДЖАРВИС · ДЕЛАЮ САМ</small>Готово, сэр.
+          <div class="act"><div><i>✓</i>Звонок: «Мама» · 2 мин</div><div><i>✓</i>Фонарик включён</div></div></div>
+        <div class="msg me"><small>ТЫ · 21:46</small>Какая погода завтра?</div>
+        <div class="msg j"><small>ДЖАРВИС · ИНТЕРНЕТ · 0,4 С</small>Завтра без осадков, зонт не нужен.
+          <div class="card2"><div class="ic">☀</div><div><b>+4° · ясно</b><span>ветер 3 м/с · утром −1°</span></div></div></div>
+      </div>
+      <div class="chips" id="dChips"><span data-q="m">Включи музыку</span><span data-q="n">Прочитай уведомления</span><span data-q="f">Найди фото с моря</span></div>
+      <div class="inp">Напиши или скажи «Джарвис»…<b>↑</b></div>
+      <div class="navw">
+        <div class="nav">
+          <div class="it"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><circle cx="17" cy="7" r="3"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg>Главная</div>
+          <div class="it on"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg>Диалог</div>
+          <div class="gap"></div>
+          <div class="it"><svg viewBox="0 0 24 24"><path d="M12 4 21 20H3z"/><path d="M12 10v4M12 17h.01"/></svg>Агент</div>
+          <div class="it"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg>Ещё</div>
+        </div>
+        <div class="mic"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div>
+      </div>
+    </div>
+  </div></div>
+  <p><b>Переписка, где Джарвис не только отвечает, но и делает.</b> Сверху — сам Джарвис, маленький: видно, слушает он, думает или говорит. Ответы — карточками: что сделал, погода, что играет. <b>Нажми подсказку внизу</b> — пройдёт целый обмен.</p>
+  <div class="form">ДЖАРВИС: <b>ЛЕТАЮЩАЯ ФОРМА</b> · тот же, что в экскурсии<br>ЗОЛОТАЯ РАМКА — ответы Джарвиса, СЕРАЯ — твои</div>
+</div>
+
+<div class="shot">
+  <h3>02 <span>·</span> ПАМЯТЬ</h3>
+  <div class="ph"><div class="phone mem" id="mem">
+    <div class="vign"></div>
+    <div class="ui">
+      <div class="sb"><span>21:47</span><span class="r">5G <svg width="26" height="12" viewBox="0 0 26 12" fill="#dfe3ea"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="16" y="1" width="9" height="11" rx="2" fill="none" stroke="#dfe3ea"/><rect x="18" y="3" width="5" height="7" rx="1"/></svg> 84%</span></div>
+      <div class="tbar"><span class="ttl">ПАМЯТЬ</span><div class="chip"><i></i>2 418 ФАКТОВ</div></div>
+      <div class="stage">
+        <div class="sprite"><video data-v="fly" class="loop"></video></div>
+        <svg class="ov" viewBox="0 0 370 262"><g id="memLines" stroke="#FFC46B" stroke-opacity=".35" stroke-width=".8" stroke-dasharray="3 4" fill="none"></g></svg>
+        <div class="cat" data-c="Люди" style="left:62px;top:70px"><b>214</b>ЛЮДИ</div>
+        <div class="cat" data-c="Привычки" style="left:308px;top:70px"><b>96</b>ПРИВЫЧКИ</div>
+        <div class="cat" data-c="Места" style="left:52px;top:180px"><b>41</b>МЕСТА</div>
+        <div class="cat" data-c="Вкусы" style="left:318px;top:180px"><b>58</b>ВКУСЫ</div>
+        <div class="cat" data-c="Договорённости" style="left:185px;top:20px"><b>37</b>ДОГОВОРЁННОСТИ</div>
+      </div>
+      <div class="srch"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><span id="memQ">Что я помню про…</span></div>
+      <div class="facts" id="facts">
+        <div class="fact" data-c="Привычки"><i class="d"></i><div><b>Зал по вторникам, 18:00</b><span>ПРИВЫЧКИ · ИЗ РАЗГОВОРА 11 НОЯ</span></div><button>Забыть</button></div>
+        <div class="fact" data-c="Люди"><i class="d"></i><div><b>Мама — день рождения 4 марта</b><span>ЛЮДИ · ИЗ КАЛЕНДАРЯ</span></div><button>Забыть</button></div>
+        <div class="fact" data-c="Вкусы"><i class="d"></i><div><b>В такси — всегда «Комфорт»</b><span>ВКУСЫ · ЗАМЕТИЛ САМ · 6 РАЗ</span></div><button>Забыть</button></div>
+        <div class="fact" data-c="Места"><i class="d"></i><div><b>Адреса «Дом» и «Работа»</b><span>МЕСТА · ТЫ ПОПРОСИЛ</span></div><button>Забыть</button></div>
+        <div class="fact" data-c="Договорённости"><i class="d"></i><div><b>Вернуть Саше книгу до пятницы</b><span>ДОГОВОРЁННОСТИ · ИЗ ДИАЛОГА</span></div><button>Забыть</button></div>
+      </div>
+      <div class="priv"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>Память хранится только на телефоне · «Джарвис, забудь…» — сотру</div>
+      <div class="navw">
+        <div class="nav">
+          <div class="it"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><circle cx="17" cy="7" r="3"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg>Главная</div>
+          <div class="it"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg>Диалог</div>
+          <div class="gap"></div>
+          <div class="it"><svg viewBox="0 0 24 24"><path d="M12 4 21 20H3z"/><path d="M12 10v4M12 17h.01"/></svg>Агент</div>
+          <div class="it on"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg>Ещё</div>
+        </div>
+        <div class="mic"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div>
+      </div>
+    </div>
+  </div></div>
+  <p><b>Всё, что Джарвис о тебе знает — на одном экране.</b> Вокруг ядра — пять разделов, нажми любой, и список ниже отфильтруется. Каждый факт подписан: откуда он взялся. <b>«Забыть»</b> — и факт исчезнет.</p>
+  <div class="form">ДЖАРВИС: <b>ЛЕТАЮЩАЯ ФОРМА</b> в центре, разделы рисует приложение<br>ОТКРЫВАЕТСЯ: «Ещё → Память» или «Джарвис, что ты обо мне знаешь?»</div>
+</div>
+
+<div class="shot">
+  <h3>03 <span>·</span> СЦЕНАРИИ</h3>
+  <div class="ph"><div class="phone" id="scen">
+    <div class="vign"></div>
+    <div class="ui">
+      <div class="sb"><span>21:47</span><span class="r">5G <svg width="26" height="12" viewBox="0 0 26 12" fill="#dfe3ea"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="16" y="1" width="9" height="11" rx="2" fill="none" stroke="#dfe3ea"/><rect x="18" y="3" width="5" height="7" rx="1"/></svg> 84%</span></div>
+      <div class="tbar"><span class="ttl">СЦЕНАРИИ</span><div class="chip"><i></i><span id="scCount">3 ВКЛЮЧЕНО</span></div></div>
+      <div class="scn">
+        <div class="sc" data-k="focus"><div class="h"><div><b>Фокус</b><span class="tr">ПО ФРАЗЕ · «ДЖАРВИС, ФОКУС»</span></div><button class="go">ПУСК</button><i class="tg on"></i></div>
+          <div class="chain"><span>Не беспокоить</span><i>›</i><span>Скрыть соцсети</span><i>›</i><span>Таймер 50 мин</span><i>›</i><span>Тихая музыка</span></div></div>
+        <div class="sc" data-k="morning"><div class="h"><div><b>Утро</b><span class="tr">ПО БУДИЛЬНИКУ · 06:30</span></div><button class="go">ПУСК</button><i class="tg on"></i></div>
+          <div class="chain"><span>Погода</span><i>›</i><span>Пробки до работы</span><i>›</i><span>Дела на день</span><i>›</i><span>Новости 2 мин</span></div></div>
+        <div class="sc" data-k="road"><div class="h"><div><b>В дороге</b><span class="tr">ПРИ ПОДКЛЮЧЕНИИ К МАШИНЕ</span></div><button class="go">ПУСК</button><i class="tg on"></i></div>
+          <div class="chain"><span>Навигатор домой</span><i>›</i><span>Сообщения вслух</span><i>›</i><span>Мой плейлист</span></div></div>
+        <div class="sc off" data-k="eco"><div class="h"><div><b>Экономия</b><span class="tr">ЗАРЯД НИЖЕ 20%</span></div><button class="go">ПУСК</button><i class="tg"></i></div>
+          <div class="chain"><span>Лёгкая модель</span><i>›</i><span>Облегчённые анимации</span><i>›</i><span>Тёмный экран</span></div></div>
+      </div>
+      <div class="addsc"><b style="font-size:20px;font-weight:300">+</b><div>Новый сценарий<small>Просто скажи: «Джарвис, когда прихожу домой — включи свет и музыку»</small></div></div>
+      <div class="navw">
+        <div class="nav">
+          <div class="it"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><circle cx="17" cy="7" r="3"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg>Главная</div>
+          <div class="it"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg>Диалог</div>
+          <div class="gap"></div>
+          <div class="it"><svg viewBox="0 0 24 24"><path d="M12 4 21 20H3z"/><path d="M12 10v4M12 17h.01"/></svg>Агент</div>
+          <div class="it on"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg>Ещё</div>
+        </div>
+        <div class="mic"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div>
+      </div>
+    </div>
+  </div></div>
+  <p><b>Одна фраза или событие — и Джарвис делает цепочку дел.</b> Сценарий можно запустить кнопкой <b>«Пуск»</b> — шаги загорятся по очереди, как будто он их выполняет. Переключатель справа включает и выключает сценарий.</p>
+  <div class="form">ЗАПУСК: <b>ФРАЗА · ВРЕМЯ · СОБЫТИЕ</b> (машина, заряд, дом)<br>НОВЫЙ СЦЕНАРИЙ — ГОЛОСОМ, БЕЗ НАСТРОЕК</div>
+</div>
+
+<div class="shot">
+  <h3>04 <span>·</span> НАСТРОЙКИ</h3>
+  <div class="ph"><div class="phone" id="set">
+    <div class="vign"></div>
+    <div class="ui">
+      <div class="sb"><span>21:47</span><span class="r">5G <svg width="26" height="12" viewBox="0 0 26 12" fill="#dfe3ea"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="16" y="1" width="9" height="11" rx="2" fill="none" stroke="#dfe3ea"/><rect x="18" y="3" width="5" height="7" rx="1"/></svg> 84%</span></div>
+      <div class="tbar"><span class="ttl">НАСТРОЙКИ</span></div>
+      <div class="prof"><div class="av"><div class="sprite"><video data-v="fly" class="loop"></video></div></div><div><b>Сэр</b><span>JARVIS PRO · ДО 13.11.2027</span></div><em>Подписка ›</em></div>
+      <div class="sub2">ГОЛОС И СЛУХ</div>
+      <div class="grp">
+        <div class="row3"><div>Слово «Джарвис»<small>Слушаю, даже когда экран погашен</small></div><i class="tg on"></i></div>
+        <div class="row3"><div>Голос Джарвиса</div><span class="v">Мужской · спокойный ›</span></div>
+        <div class="row3"><div>Отвечать вслух</div><i class="tg on"></i></div>
+      </div>
+      <div class="sub2">УМ</div>
+      <div class="grp"><div class="row3 col"><div>Модель<small id="mdlHint">Баланс: ответ за 3–5 с, думает хорошо</small></div>
+        <div class="seg" id="mdl"><span data-h="Быстро: ответ за 2–4 с, для простых команд">Быстро</span><span class="on" data-h="Баланс: ответ за 3–5 с, думает хорошо">Баланс</span><span data-h="Качество: ответ за 4–7 с, для сложных вопросов">Качество</span></div></div></div>
+      <div class="sub2">ПРИВАТНОСТЬ</div>
+      <div class="grp">
+        <div class="row3"><div>Память только на телефоне</div><i class="tg on"></i></div>
+        <div class="row3"><div>Интернет — только для сложных вопросов<small>Простые команды — без сети</small></div><i class="tg on"></i></div>
+      </div>
+      <div class="sub2">ВИД</div>
+      <div class="grp">
+        <div class="row3"><div>Тема</div><!--/*NOMAP*/--><div class="sw"><i class="on" data-th="gold" style="background:radial-gradient(circle at 40% 35%,#fff 0,#ffc46b 38%,#000 110%)"></i><i data-th="az" style="background:radial-gradient(circle at 40% 35%,#fff 0,#52b4ff 38%,#000 110%)"></i><i data-th="am" style="background:radial-gradient(circle at 40% 35%,#fff 0,#c49cff 38%,#000 110%)"></i><i data-th="ru" style="background:radial-gradient(circle at 40% 35%,#fff 0,#ff5e62 38%,#000 110%)"></i><i data-th="em" style="background:radial-gradient(circle at 40% 35%,#fff 0,#45eb9c 38%,#000 110%)"></i></div><!--/*/NOMAP*/--></div>
+        <div class="row3"><div>Облегчённые анимации<small>Для слабых телефонов и экономии заряда</small></div><i class="tg"></i></div>
+      </div>
+      <div class="navw">
+        <div class="nav">
+          <div class="it"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><circle cx="17" cy="7" r="3"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg>Главная</div>
+          <div class="it"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg>Диалог</div>
+          <div class="gap"></div>
+          <div class="it"><svg viewBox="0 0 24 24"><path d="M12 4 21 20H3z"/><path d="M12 10v4M12 17h.01"/></svg>Агент</div>
+          <div class="it on"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg>Ещё</div>
+        </div>
+        <div class="mic"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div>
+      </div>
+    </div>
+  </div></div>
+  <p><b>Всё, что можно поменять, — в четыре блока.</b> Голос и слово «Джарвис», «ум» (быстрее или глубже), приватность и вид. Переключатели и выбор модели нажимаются. <b>«Облегчённые анимации»</b> — те самые настройки, что мы проверили на твоём телефоне.</p>
+  <div class="form">ПО УМОЛЧАНИЮ: <b>БАЛАНС · ПАМЯТЬ НА ТЕЛЕФОНЕ</b><br>ОБЛЕГЧЁННЫЕ АНИМАЦИИ ВКЛЮЧАЮТСЯ САМИ НА СЛАБЫХ ТЕЛЕФОНАХ</div>
+</div>
+
+<div class="shot">
+  <h3>05 <span>·</span> ПОВЕРХ ПРИЛОЖЕНИЙ</h3>
+  <div class="ph"><div class="phone ovr" id="ovr">
+    <div class="app">
+      <svg viewBox="0 0 370 836" preserveAspectRatio="none"><rect width="370" height="836" fill="#eceff2"/>
+        <g fill="#dfe7d6"><rect x="20" y="130" width="120" height="90" rx="8"/><rect x="230" y="420" width="120" height="110" rx="8"/><rect x="40" y="560" width="90" height="70" rx="8"/></g>
+        <g fill="#cfe3f3"><path d="M250 120 q60 40 120 20 v90 q-70 10-120-40z"/></g>
+        <g stroke="#fff" stroke-width="16" fill="none" stroke-linecap="round"><path d="M-10 300 L380 260"/><path d="M180 100 L200 760"/><path d="M-10 520 Q160 470 380 600"/></g>
+        <g stroke="#f6d36b" stroke-width="10" fill="none" stroke-linecap="round"><path d="M-10 410 L380 380"/></g>
+        <path d="M110 640 L120 470 L196 455 L205 300 L290 290" stroke="#3a7bff" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="110" cy="640" r="9" fill="#3a7bff" stroke="#fff" stroke-width="4"/><circle cx="290" cy="290" r="9" fill="#e5484d" stroke="#fff" stroke-width="4"/></svg>
+      <div class="apptop">⌕  Куда поедем?</div>
+      <div class="appbot"><b>24 мин · 11 км</b>Через Ленинский проспект, пробки 3 балла<div style="margin-top:14px;height:42px;border-radius:21px;background:#3a7bff;color:#fff;display:grid;place-items:center;font-weight:600">Поехали</div></div>
+    </div>
+    <div class="ui" style="pointer-events:none"><div class="sb"><span>21:47</span><span class="r">5G <svg width="26" height="12" viewBox="0 0 26 12" fill="#dfe3ea"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="16" y="1" width="9" height="11" rx="2" fill="none" stroke="#dfe3ea"/><rect x="18" y="3" width="5" height="7" rx="1"/></svg> 84%</span></div></div>
+    <div class="pill" id="ovPill">НАЖМИ НА МЕНЯ</div>
+    <div class="bubble" id="ovBub"><div class="sprite"><video data-v="talk" class="loop"></video></div></div>
+    <div class="panel"><small>ДЖАРВИС · ПОВЕРХ «КАРТ»</small><div class="q">«Построй маршрут домой и скажи Саше, что буду через полчаса»</div>
+      <div class="a">Маршрут готов — 24 минуты. Написать Саше: «Буду через 30 минут»?</div>
+      <div class="bt"><button class="no" id="ovNo">Не надо</button><button id="ovYes">Отправить</button></div></div>
+  </div></div>
+  <p><b>Джарвис висит маленьким шаром поверх любого приложения</b> — тут, например, поверх карт. Шар можно перетащить к любому краю. Нажми на него — откроется панель: он видит, что на экране, и помогает прямо здесь, не выкидывая из приложения.</p>
+  <div class="form">ВКЛЮЧАЕТСЯ: <b>«ЕЩЁ → ПОВЕРХ ПРИЛОЖЕНИЙ»</b> · нужно разрешение Android «Поверх других окон»<br>ШАР: 76 dp · прилипает к краю · голубое кольцо, когда слушает</div>
+</div>
+
+<div class="shot">
+  <h3>06 <span>·</span> ЕЩЁ</h3>
+  <div class="ph"><div class="phone" id="more">
+    <div class="vign"></div>
+    <div class="ui">
+      <div class="sb"><span>21:47</span><span class="r">5G <svg width="26" height="12" viewBox="0 0 26 12" fill="#dfe3ea"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="16" y="1" width="9" height="11" rx="2" fill="none" stroke="#dfe3ea"/><rect x="18" y="3" width="5" height="7" rx="1"/></svg> 84%</span></div>
+      <div class="tbar"><span class="ttl">ЕЩЁ</span><div class="chip"><i></i>PRO</div></div>
+  <div class="menu">
+    <div class="mi" data-t="m_plans"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2"/></svg><div><b>Планы</b><span>Будильники, напоминания, сводка дня</span></div><em>3 В ФОНЕ</em></div>
+    <div class="mi" data-t="m_mem"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2.5"/><path d="M10 10h4v4h-4zM3 9.5h3M3 14.5h3M18 9.5h3M18 14.5h3M9.5 3v3M14.5 3v3M9.5 18v3M14.5 18v3"/></svg><div><b>Память</b><span>Привычки, люди, договорённости</span></div><em>2 418</em></div>
+    <div class="mi" data-t="m_scen"><svg viewBox="0 0 24 24"><path d="M5 6h9M5 12h14M5 18h7"/><circle cx="17" cy="6" r="2"/><circle cx="15" cy="18" r="2"/></svg><div><b>Сценарии</b><span>«Фокус», «Утро», «В дороге»</span></div></div>
+    <div class="mi cy" data-t="m_over"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="3"/><circle cx="15" cy="9" r="2.6"/></svg><div><b>Поверх приложений</b><span>Шар Джарвиса на любом экране</span></div></div>
+    <div class="mi cy" data-t="m_voice"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><div><b>Голос и слух</b><span>Слово «Джарвис», голос, скорость</span></div></div>
+    <div class="mi" data-t="m_tour"><svg viewBox="0 0 24 24"><path d="M12 3l2 6.5 6.5 2.5-6.5 2.5L12 21l-2-6.5L3.5 12 10 9.5z"/></svg><div><b>Что я умею</b><span>Экскурсия по возможностям</span></div></div>
+    <div class="mi" data-t="m_set"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M21.5 12h-3M5.5 12h-3M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1M18.7 18.7l-2.1-2.1M7.4 7.4 5.3 5.3"/></svg><div><b>Настройки</b><span>Модель, приватность, подписка</span></div></div>
+  </div>
+      <div class="navw">
+        <div class="nav">
+          <div class="it"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><circle cx="17" cy="7" r="3"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg>Главная</div>
+          <div class="it"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg>Диалог</div>
+          <div class="gap"></div>
+          <div class="it"><svg viewBox="0 0 24 24"><path d="M12 4 21 20H3z"/><path d="M12 10v4M12 17h.01"/></svg>Агент</div>
+          <div class="it on"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg>Ещё</div>
+        </div>
+        <div class="mic"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div>
+      </div>
+    </div>
+  </div></div>
+  <p><b>Всё, что не влезло в нижнее меню.</b> Планы, память, сценарии, шар поверх приложений, голос, экскурсия «Что я умею» и настройки. Золотым помечено то, что работает прямо сейчас.</p>
+  <div class="form">ОТСЮДА ОТКРЫВАЮТСЯ: <b>ПЛАНЫ · ПАМЯТЬ · СЦЕНАРИИ · НАСТРОЙКИ</b></div>
+</div>
+
+</div>
+</div>
+<script>
+const DATA={"v": {"talk": "v/1166e769b6.mp4", "fly": "v/4a098588e1.mp4"}};
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+function blobUrl(x){return x}
+const U={};for(const k in DATA.v)U[k]=blobUrl(DATA.v[k]);
+$$('video[data-v]').forEach(v=>{v.src=U[v.dataset.v];v.muted=true;v.loop=true;v.playsInline=true});
+const io=new IntersectionObserver(es=>es.forEach(e=>e.target.querySelectorAll('video').forEach(v=>{if(e.isIntersecting)v.play().catch(()=>{});else v.pause()})),{threshold:.05});
+$$('.phone').forEach(p=>io.observe(p));
+$$('.tg').forEach(t=>t.addEventListener('click',()=>t.classList.toggle('on')));
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+
+// ---------- Диалог ----------
+const chat=$('#dChat'),dS=$('#dState'),dH=$('#dHint');let dMode='idle',dBusy=false;
+const ST={idle:['ГОТОВ','Говори или пиши — я пойму'],listen:['СЛУШАЮ','…'],think:['ДУМАЮ','Секунду'],speak:['ГОВОРЮ','']};
+function dSet(m,h){dMode=m;dS.textContent=ST[m][0];dS.style.color=m==='listen'||m==='think'?'var(--cy)':'var(--gold)';dH.textContent=h||ST[m][1]}
+function add(cls,html){const d=document.createElement('div');d.className='msg '+cls;d.innerHTML=html;chat.appendChild(d);while(chat.children.length>7)chat.firstElementChild.remove();return d}
+const Q={m:{q:'Включи музыку',l:'ДЖАРВИС · МУЗЫКА',a:'Включаю твой плейлист «Вечер».',c:'<div class="card2"><div class="ic">♫</div><div><b>Вечер · 34 трека</b><span>Сейчас: Hans Zimmer — Time</span></div><div class="pl"><i></i><i></i><i></i></div></div>'},
+ n:{q:'Прочитай уведомления',l:'ДЖАРВИС · УВЕДОМЛЕНИЯ',a:'Три новых: Саша спрашивает про книгу, банк — списание 340 ₽ за такси, и напоминание про зал.',c:'<div class="act"><div><i>●</i>Ответить Саше?</div></div>'},
+ f:{q:'Найди фото с моря',l:'ДЖАРВИС · ФАЙЛЫ',a:'Нашёл 48 фото из Сочи, август 2025. Открыть альбом?',c:'<div class="card2"><div class="ic">▦</div><div><b>Сочи · 48 фото</b><span>12–19 августа 2025</span></div></div>'}};
+$$('#dChips span').forEach(c=>c.onclick=async()=>{if(dBusy)return;dBusy=true;const x=Q[c.dataset.q];
+  dSet('listen','«'+x.q+'»');await wait(1300);add('me','<small>ТЫ · СЕЙЧАС</small>'+x.q);dSet('think');
+  const t=add('j','<small>'+x.l+'</small><div class="typing"><i></i><i></i><i></i></div>');await wait(1100);
+  t.innerHTML='<small>'+x.l+'</small>'+x.a+x.c;dSet('speak',x.a.split('.')[0]);await wait(2600);dSet('idle');dBusy=false});
+const dw=$('#dWave').getContext('2d');
+(function wave(now){requestAnimationFrame(wave);if(!wave.l||now-wave.l>40){wave.l=now;const t=now/1000;dw.clearRect(0,0,168,56);
+  const amp=dMode==='idle'?.08:dMode==='think'?.25:1,col=dMode==='speak'?'255,196,107':'127,232,255';
+  for(let i=0;i<28;i++){const u=(i-14)/14,env=Math.exp(-u*u*3),a=amp*env*(.3+.7*Math.abs(Math.sin(i*1.7+t*9)*Math.sin(i*.6-t*5.3))),h=Math.max(1.5,a*44);
+    dw.fillStyle=`rgba(${col},${(.35+.6*env).toFixed(2)})`;dw.fillRect(4+i*5.8,28-h/2,3,h)}}})(0);
+
+// ---------- Память ----------
+(function(){const g=$('#memLines');$$('.mem .cat').forEach(c=>{const x=parseFloat(c.style.left),y=parseFloat(c.style.top);
+  g.insertAdjacentHTML('beforeend',`<line x1="185" y1="130" x2="${x}" y2="${y}"/>`)})})();
+let memCat=null;
+$$('.mem .cat').forEach(c=>c.onclick=()=>{memCat=memCat===c.dataset.c?null:c.dataset.c;
+  $$('.mem .cat').forEach(x=>x.classList.toggle('on',x.dataset.c===memCat));$('#memQ').textContent=memCat?'Раздел: '+memCat:'Что я помню про…';
+  $$('.fact').forEach(f=>{if(!f.classList.contains('gone'))f.style.display=!memCat||f.dataset.c===memCat?'':'none'})});
+$$('.fact button').forEach(b=>b.onclick=()=>{const f=b.closest('.fact');b.textContent='Забыл';f.classList.add('del');setTimeout(()=>{f.classList.add('gone');f.style.display='none'},450)});
+
+// ---------- Сценарии ----------
+$$('.sc').forEach(sc=>{const tg=sc.querySelector('.tg');tg.addEventListener('click',()=>{sc.classList.toggle('off',!tg.classList.contains('on'));
+    $('#scCount').textContent=$$('.sc .tg.on').length+' ВКЛЮЧЕНО'});
+  sc.querySelector('.go').onclick=async()=>{if(sc.classList.contains('run'))return;sc.classList.add('run');const st=[...sc.querySelectorAll('.chain span')];
+    st.forEach(s=>s.className='');for(const s of st){s.className='now';await wait(750);s.className='done'}await wait(1600);st.forEach(s=>s.className='');sc.classList.remove('run')}});
+
+// ---------- Настройки ----------
+$$('#mdl span').forEach(s=>s.onclick=()=>{$$('#mdl span').forEach(x=>x.classList.toggle('on',x===s));$('#mdlHint').textContent=s.dataset.h});
+$$('.sw i').forEach(s=>s.onclick=()=>{$$('.sw i').forEach(x=>x.classList.toggle('on',x===s))});
+
+// ---------- Поверх приложений ----------
+const ov=$('#ovr');
+$('#ovBub').onclick=()=>{ov.classList.toggle('open');$('#ovPill').textContent=ov.classList.contains('open')?'СЛУШАЮ':'НАЖМИ НА МЕНЯ'};
+$('#ovYes').onclick=()=>{$('#ovr .panel .a').textContent='Отправил Саше: «Буду через 30 минут». Ведём домой.';setTimeout(()=>{ov.classList.remove('open');$('#ovPill').textContent='НАЖМИ НА МЕНЯ'},2200)};
+$('#ovNo').onclick=()=>{ov.classList.remove('open');$('#ovPill').textContent='НАЖМИ НА МЕНЯ'};
+setTimeout(()=>{ov.classList.add('open');$('#ovPill').textContent='СЛУШАЮ'},1500);
+</script>
+<script src="real.js?1794840632"></script>
+</body>
+</html>

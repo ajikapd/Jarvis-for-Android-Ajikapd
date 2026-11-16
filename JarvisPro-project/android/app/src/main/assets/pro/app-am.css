@@ -1,0 +1,152 @@
+/* Джарвис Pro — демо-приложение: общий слой поверх макетов */
+@font-face{font-family:"Manrope";src:url(fonts/manrope.ttf) format("truetype");font-weight:200 800;font-display:block}
+html.app,html.app body{margin:0!important;padding:0!important;overflow:hidden!important;background:#04010a!important;
+  height:100%;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;overscroll-behavior:none}
+html.app body>*:not(#appHost):not(#host):not(#wn):not(.appui){display:none!important}
+html.app body{opacity:0;transition:opacity .2s ease}
+html.app.ready body{opacity:1}
+#appHost{position:fixed;left:0;top:0;width:370px;height:836px;transform-origin:0 0;display:block!important;transition:opacity .14s ease}
+#appHost.swap{opacity:0}
+#appHost .phone,#host .phone{border:0!important;border-radius:0!important;box-shadow:none!important;margin:0!important}
+#appHost .phone::after,#host .phone::after{display:none!important}
+html.app img,html.app video{-webkit-user-drag:none;pointer-events:auto}
+html.app #tapfs{display:none!important}
+/* сверху — настоящая строка уведомлений телефона, нарисованная в макетах не нужна (место под неё остаётся) */
+html.app .sb,html.app .hsb,html.app .nsb{visibility:hidden!important}
+/* видео Джарвиса без серой заглушки: до первого кадра — неподвижная картинка (poster), фон прозрачный */
+html.app video{background:transparent!important}
+
+/* ---------- тост ---------- */
+.app-toast{position:fixed;left:50%;bottom:112px;transform:translate(-50%,10px);max-width:86vw;padding:11px 16px;border-radius:14px;
+  background:#130e1bf2;border:1px solid #3fe0b055;color:#f3effa;font:500 13px/1.35 Manrope,system-ui,sans-serif;opacity:0;
+  transition:opacity .25s,transform .25s;z-index:60;pointer-events:none;text-align:center}
+.app-toast.on{opacity:1;transform:translate(-50%,0)}
+
+/* ---------- примеры (виджеты, уведомления, поверх приложений) ---------- */
+.ex-cap{position:fixed;left:54px;right:54px;bottom:14px;z-index:50;padding:7px 12px 8px;border-radius:14px;background:#0d0815e6;
+  border:1px solid #C49CFF40;color:#F1F0F3;font:500 12px/1.3 Manrope,system-ui,sans-serif;text-align:center;transition:opacity .5s,transform .5s;pointer-events:none}
+.ex-cap small{display:block;font:500 8.5px/1 "JetBrains Mono",monospace;letter-spacing:.2em;color:#C49CFF;margin-bottom:3px}
+.ex-cap b{display:block;font-weight:600;font-size:12.5px}
+.ex-cap span{display:none}
+.ex-cap.off{opacity:0;transform:translateY(8px)}
+.ex-a{position:fixed;bottom:16px;z-index:50;width:34px;height:34px;border-radius:50%;border:1px solid #C49CFF55;
+  background:#0d0815cc;color:#C49CFF;font:400 20px/30px Manrope,system-ui,sans-serif;text-align:center;padding:0;opacity:.8}
+.ex-a:active{opacity:1;background:#C49CFF33}
+.ex-a.p{left:12px}.ex-a.n{right:12px}
+.ex-a{transition:opacity .5s}
+.ex-a.off{opacity:0;pointer-events:none}
+
+/* ---------- «Что нового» ---------- */
+#wn{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:58px 16px 24px;
+  font-family:Manrope,system-ui,sans-serif;color:#F1F0F3}
+#wn .wn-bg{position:absolute;inset:0;background:#030107;opacity:0;transition:opacity .35s ease}
+#wn.on .wn-bg{opacity:.8}
+#wn .wn-card{position:relative;width:100%;max-width:390px;max-height:100%;display:flex;flex-direction:column;border-radius:26px;
+  background:linear-gradient(180deg,#130e1b,#0a0512 70%);border:1px solid #C49CFF38;
+  box-shadow:0 0 0 1px #00000080,0 0 70px #C49CFF14,inset 0 1px 0 #ffffff12;
+  opacity:0;transform:translateY(18px) scale(.97);transition:opacity .4s ease,transform .45s cubic-bezier(.2,.8,.2,1)}
+#wn.on .wn-card{opacity:1;transform:none}
+#wn .wn-j{position:absolute;left:50%;top:-62px;width:124px;height:124px;margin-left:-62px;mix-blend-mode:screen;pointer-events:none}
+#wn .wn-j video{width:100%;height:100%;object-fit:cover;-webkit-mask:radial-gradient(circle at 50% 50%,#000 52%,transparent 70%);
+  mask:radial-gradient(circle at 50% 50%,#000 52%,transparent 70%)}
+#wn .wn-h{padding:56px 22px 0;text-align:center}
+#wn .wn-k{font:500 10px/1 "JetBrains Mono",monospace;letter-spacing:.3em;color:#C49CFF}
+#wn *{box-sizing:border-box}
+#wn h2{margin:10px 0 0;font:600 23px/1.2 Manrope,system-ui,sans-serif;letter-spacing:-.01em;color:#F1F0F3;text-transform:none}
+#wn .wn-lead{margin:6px 0 0;color:#A4A1A9;font:400 13px/1.45 Manrope,system-ui,sans-serif;max-width:none}
+#wn .wn-bar{height:2px;margin:16px 22px 0;border-radius:2px;background:#ffffff12;overflow:hidden}
+#wn .wn-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#E2CCFF,#C49CFF);transition:width .25s linear}
+#wn .wn-list{flex:1 1 auto;min-height:0;overflow-y:auto;padding:8px 16px 4px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+#wn .wn-list::-webkit-scrollbar{display:none}
+#wn .it{display:flex;gap:12px;align-items:flex-start;padding:11px 6px;border-bottom:1px solid #ffffff0d;
+  opacity:0;transform:translateY(8px);transition:opacity .4s ease,transform .4s ease}
+#wn .it:last-child{border-bottom:0}
+#wn .it.in{opacity:1;transform:none}
+#wn .it .ic{flex:none;width:34px;height:34px;border-radius:11px;display:flex;align-items:center;justify-content:center;
+  border:1px solid currentColor;background:#ffffff06}
+#wn .it .ic svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+#wn .it b{display:block;font-size:14.5px;font-weight:600;color:#F1F0F3}
+#wn .it span{display:block;font-size:12.5px;line-height:1.42;color:#A4A1A9;margin-top:2px}
+#wn .it.demo b{color:#A4A1A9;font-weight:500;font-size:13px}
+#wn .wn-f{padding:12px 18px 16px;border-top:1px solid #ffffff0d}
+#wn .wn-ok{display:block;width:100%;height:50px;border:0;border-radius:16px;font:600 15.5px Manrope,system-ui,sans-serif;color:#130d1c;
+  background:linear-gradient(180deg,#ECD5FF,#B68FF2 60%,#9678DE);box-shadow:0 6px 22px #B68FF230,inset 0 1px 0 #ffffffa0;transition:box-shadow .4s,transform .12s}
+#wn .wn-ok:active{transform:scale(.98)}
+#wn .wn-ok.lit{animation:wnLit 1.8s ease-in-out infinite}
+@keyframes wnLit{50%{box-shadow:0 6px 34px #B68FF270,0 0 0 4px #C49CFF22,inset 0 1px 0 #ffffffa0}}
+#wn .wn-f small{display:block;margin-top:10px;text-align:center;font:500 9px/1.4 "JetBrains Mono",monospace;letter-spacing:.18em;color:#74727E}
+/* исчезает как голограмма: схлопывается в линию, линия гаснет */
+#wn.out .wn-card{animation:wnOut .56s cubic-bezier(.5,0,.6,1) forwards}
+#wn.out .wn-j{transition:opacity .2s;opacity:0}
+#wn.out .wn-bg{transition:opacity .5s .15s;opacity:0}
+@keyframes wnOut{0%{opacity:1;transform:none;filter:none}
+  42%{opacity:1;transform:scaleX(1) scaleY(.014);filter:brightness(2.4)}
+  100%{opacity:0;transform:scaleX(0) scaleY(.014);filter:brightness(3)}}
+
+/* меню «Ещё» стало длиннее — листается, нижние вкладки остаются на месте */
+.menu.app-scroll{flex:1 1 0;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-top:4px;padding-bottom:14px;margin-bottom:6px;
+  -webkit-mask:linear-gradient(#000 calc(100% - 18px),transparent);mask:linear-gradient(#000 calc(100% - 18px),transparent)}
+.menu.app-scroll::-webkit-scrollbar{display:none}
+.menu.app-scroll .mi{flex:none}
+
+/* разделы в меню «Ещё» */
+.menu .app-sec{flex:none;font:500 9px/1 "JetBrains Mono",monospace;letter-spacing:.24em;color:#74727E;margin:10px 4px 0}
+.menu .app-sec:first-child{margin-top:0}
+
+/* ---------- темы: смена цвета волной ---------- */
+@property --r{syntax:'<length>';inherits:true;initial-value:0px}
+#thx{position:fixed;inset:0;z-index:200;--r:0px;transition:--r .85s cubic-bezier(.65,0,.35,1);font-family:Manrope,system-ui,sans-serif;color:#F1F0F3;overflow:hidden}
+#thx.grow,#thx.full{--r:160vmax}
+#thx .thx-fill{position:absolute;inset:0;background:radial-gradient(circle at var(--x) var(--y),#0a0512 0,#04010a 65%);clip-path:circle(var(--r) at var(--x) var(--y))}
+#thx .thx-ring{position:absolute;left:calc(var(--x) - var(--r));top:calc(var(--y) - var(--r));width:calc(var(--r) * 2);height:calc(var(--r) * 2);border-radius:50%;
+  border:2px solid var(--tc);box-shadow:0 0 34px 6px var(--tc),inset 0 0 50px var(--tc);opacity:0;pointer-events:none}
+#thx.grow .thx-ring{animation:thxRing .85s linear forwards}
+@keyframes thxRing{0%,75%{opacity:1}100%{opacity:0}}
+#thx .thx-core{position:absolute;left:50%;top:40%;width:230px;height:230px;margin:-115px 0 0 -115px;mix-blend-mode:screen;opacity:0;transform:scale(.55);
+  transition:opacity .5s .3s,transform 1s .25s cubic-bezier(.2,.8,.2,1)}
+#thx .thx-core video{width:100%;height:100%;object-fit:cover;-webkit-mask:radial-gradient(circle,#000 50%,transparent 70%);mask:radial-gradient(circle,#000 50%,transparent 70%)}
+#thx.grow .thx-core,#thx.full .thx-core{opacity:1;transform:none}
+#thx .thx-t{position:absolute;left:24px;right:24px;top:calc(40% + 112px);text-align:center;opacity:0;transform:translateY(12px);transition:opacity .45s .55s,transform .5s .55s}
+#thx.grow .thx-t,#thx.full .thx-t{opacity:1;transform:none}
+#thx .thx-t small{display:block;font:500 9.5px/1 "JetBrains Mono",monospace;letter-spacing:.34em;color:var(--tc)}
+#thx .thx-t b{display:block;margin-top:9px;font-size:31px;font-weight:600;letter-spacing:-.01em;color:#fff;text-shadow:0 0 26px var(--tc)}
+#thx .thx-t span{display:block;margin-top:8px;font-size:13.5px;line-height:1.4;color:#A4A1A9}
+#thx .thx-scan{position:absolute;left:0;right:0;top:0;height:2px;background:var(--tc);box-shadow:0 0 18px 3px var(--tc),0 0 70px 10px var(--tc);opacity:0}
+#thx.full .thx-fill{clip-path:inset(0 0 0 0)}
+#thx.out .thx-core,#thx.out .thx-t{opacity:0;transform:scale(1.06);transition:opacity .3s,transform .5s}
+#thx.out .thx-fill{clip-path:inset(100% 0 0 0);transition:clip-path .9s .2s cubic-bezier(.65,0,.35,1)}
+#thx.out .thx-scan{opacity:1;top:100%;transition:top .9s .2s cubic-bezier(.65,0,.35,1),opacity .15s .2s}
+#thx.out{pointer-events:none}
+
+/* ---------- «Что нового» 1.3: выбор цвета прямо в окне ---------- */
+#wn .wn-j video{position:absolute;inset:0;transition:opacity .8s ease}
+#wn .wn-sw{display:flex;justify-content:center;gap:6px;margin:14px -6px 0}
+#wn .wn-sw button{flex:1;max-width:66px;padding:0;border:0;background:none;color:#A4A1A9;font:500 10.5px/1.2 Manrope,system-ui,sans-serif;cursor:pointer}
+#wn .wn-sw button i{display:block;width:34px;height:34px;margin:0 auto 5px;border-radius:50%;border:2px solid transparent;
+  background:radial-gradient(circle at 40% 35%,#fff 0,var(--c) 36%,#000 105%);box-shadow:inset 0 0 0 3px #0a0512,0 0 14px -4px var(--c);transition:transform .2s,border-color .3s}
+#wn .wn-sw button.on i{border-color:#fff}
+#wn .wn-sw button.on{color:#fff}
+#wn .wn-sw button:active i{transform:scale(.92)}
+
+/* ---------- настоящий Джарвис: подтверждение и поле ввода ---------- */
+.real-cf{position:fixed;inset:0;z-index:120;display:flex;align-items:flex-end;font-family:Manrope,system-ui,sans-serif}
+.real-cf .cf-bg{position:absolute;inset:0;background:#030107;opacity:0;transition:opacity .3s}
+.real-cf.on .cf-bg{opacity:.6}
+.real-cf .cf-card{position:relative;width:100%;padding:18px 18px 22px;border-radius:24px 24px 0 0;background:linear-gradient(180deg,#130e1b,#0a0512);
+  border:1px solid #C49CFF55;border-bottom:0;transform:translateY(100%);transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+.real-cf.on .cf-card{transform:none}
+.real-cf small{font:500 9.5px/1 "JetBrains Mono",monospace;letter-spacing:.3em;color:#C49CFF}
+.real-cf p{margin:10px 0 16px;color:#F1F0F3;font-size:15px;line-height:1.45}
+.real-cf .cf-b{display:flex;gap:10px}
+.real-cf button{flex:1;height:50px;border-radius:16px;font:600 15px Manrope,system-ui,sans-serif;border:1px solid #ffffff22;background:#ffffff08;color:#F1F0F3}
+.real-cf button.yes{border:0;color:#130d1c;background:linear-gradient(180deg,#ECD5FF,#B68FF2 60%,#9678DE)}
+html.real #dlg .inp{display:flex;align-items:center;gap:8px}
+html.real #dlg .inp .real-in{flex:1;min-width:0;background:none;border:0;outline:0;color:#F1F0F3;font:500 13px Manrope,system-ui,sans-serif;-webkit-user-select:text;user-select:text}
+html.real #dlg .inp .real-in::placeholder{color:#74727E}
+html.real #dlg .chat{overflow-y:auto;-webkit-overflow-scrolling:touch}
+
+/* настоящие данные: просьба о разрешении и пустые состояния */
+.real-need{margin:10px 2px;padding:14px;border-radius:16px;background:rgba(196,156,255,.08);border:1px solid rgba(196,156,255,.35);display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--text2,#adaab2)}
+.real-need b{color:var(--text,#F1F0F3);font-size:14px}
+.real-need button{align-self:flex-start;margin-top:4px;padding:8px 16px;border-radius:12px;border:0;background:#C49CFF;color:#120c1a;font-weight:700;font-size:13px}
+.real-empty{padding:18px 6px;text-align:center;color:var(--text2,#adaab2);font-size:12.5px;line-height:1.45}

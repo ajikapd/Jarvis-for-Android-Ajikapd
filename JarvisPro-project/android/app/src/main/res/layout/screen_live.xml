@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/jarvis_bg"
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp"
+    android:paddingBottom="8dp">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <com.jarvis.app.ConsciousnessView
+            android:id="@+id/liveOrb"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="6dp"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="4dp">
+
+            <TextView
+                android:id="@+id/liveState"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="DUPLEX STANDBY"
+                android:textColor="@color/jarvis_cyan"
+                android:textSize="11sp"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.08" />
+
+            <TextView
+                android:id="@+id/liveTimer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="00:00"
+                android:textColor="@color/jarvis_primary"
+                android:textSize="11sp"
+                android:fontFamily="monospace"
+                android:layout_marginEnd="8dp" />
+
+            <TextView
+                android:id="@+id/liveOpenAssistant"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="К ДИАЛОГУ ↗"
+                android:textColor="@color/jarvis_cyan"
+                android:textSize="10sp"
+                android:fontFamily="monospace"
+                android:background="@drawable/bg_hud_panel"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:background="@drawable/bg_caption_plaque">
+
+            <TextView
+                android:id="@+id/liveTranscriptSaid"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="«ожидание сессии»"
+                android:textColor="@color/jarvis_text"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/liveTranscript"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="Дуплексный канал. Говорите без вейк-ворда."
+                android:textColor="@color/jarvis_muted"
+                android:textSize="12sp"
+                android:layout_marginTop="4dp" />
+
+            <TextView
+                android:id="@+id/liveToolChip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:text=""
+                android:textColor="@color/jarvis_primary"
+                android:textSize="10sp"
+                android:fontFamily="monospace"
+                android:layout_marginTop="4dp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/liveCamThumb"
+            android:layout_width="72dp"
+            android:layout_height="40dp"
+            android:layout_gravity="top|start"
+            android:layout_marginTop="32dp"
+            android:layout_marginStart="4dp"
+            android:gravity="center"
+            android:visibility="gone"
+            android:text="cam"
+            android:textSize="9sp"
+            android:textColor="@color/jarvis_faint" />
+
+        <com.jarvis.app.HudViewfinderView
+            android:id="@+id/liveViewfinder"
+            android:layout_width="110dp"
+            android:layout_height="150dp"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="36dp"
+            android:layout_marginEnd="4dp"
+            android:visibility="gone"
+            android:background="@drawable/bg_hud_panel" />
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginTop="8dp">
+
+        <TextView
+            android:id="@+id/liveCam"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:gravity="center"
+            android:text="КАМЕРА"
+            android:drawableStart="@drawable/ic_fui_camera"
+            android:drawablePadding="6dp"
+            android:drawableTint="@color/jarvis_cyan"
+            android:textColor="@color/jarvis_cyan"
+            android:textSize="9sp"
+            android:fontFamily="monospace"
+            android:background="@drawable/bg_hud_panel"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:layout_marginEnd="8dp" />
+
+        <TextView
+            android:id="@+id/liveScreen"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:gravity="center"
+            android:text="ЭКРАН"
+            android:drawableStart="@drawable/ic_fui_monitor"
+            android:drawablePadding="6dp"
+            android:drawableTint="@color/jarvis_cyan"
+            android:textColor="@color/jarvis_cyan"
+            android:textSize="9sp"
+            android:fontFamily="monospace"
+            android:background="@drawable/bg_hud_panel"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginTop="8dp">
+
+        <ImageView
+            android:id="@+id/liveInterrupt"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:scaleType="center"
+            android:src="@drawable/ic_fui_interrupt"
+            android:contentDescription="Прервать речь"
+            android:background="@drawable/bg_hud_panel"
+            android:layout_marginEnd="8dp" />
+
+        <ImageView
+            android:id="@+id/liveCaps"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:scaleType="center"
+            android:src="@drawable/ic_fui_cc"
+            android:contentDescription="Субтитры"
+            android:background="@drawable/bg_fui_active"
+            android:layout_marginEnd="10dp" />
+
+        <ImageView
+            android:id="@+id/liveMic"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:scaleType="center"
+            android:src="@drawable/ic_fui_mic"
+            android:contentDescription="Микрофон"
+            android:background="@drawable/bg_mic_glow"
+            android:layout_marginEnd="10dp" />
+
+        <ImageView
+            android:id="@+id/liveMinimize"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:scaleType="center"
+            android:src="@drawable/ic_fui_orb"
+            android:contentDescription="Свернуть в орб"
+            android:background="@drawable/bg_hud_panel"
+            android:layout_marginEnd="8dp" />
+
+        <ImageView
+            android:id="@+id/liveStop"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:scaleType="center"
+            android:src="@drawable/ic_fui_stop"
+            app:tint="@color/jarvis_danger"
+            android:contentDescription="Завершить"
+            android:background="@drawable/bg_hud_panel" />
+    </LinearLayout>
+
+    <TextView android:id="@+id/liveActivate" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" android:text="СТАРТ" />
+    <TextView android:id="@+id/livePersonaChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:visibility="gone" />
+    <TextView android:id="@+id/liveTimerDot" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <TextView android:id="@+id/liveIntent" android:layout_width="wrap_content" android:layout_height="wrap_content" android:visibility="gone" />
+    <TextView android:id="@+id/liveTool" android:layout_width="wrap_content" android:layout_height="wrap_content" android:visibility="gone" />
+    <TextView android:id="@+id/liveModelChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:visibility="gone" />
+    <TextView android:id="@+id/liveNetChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:visibility="gone" />
+    <TextView android:id="@+id/liveVoiceBadge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:visibility="gone" />
+    <LinearLayout android:id="@+id/liveShareCard" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:visibility="gone" android:padding="8dp" android:background="@drawable/bg_hud_panel" android:layout_marginTop="6dp">
+        <TextView android:id="@+id/liveScreenBadge" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="SCREEN CONTEXT: LINKED" android:textColor="@color/jarvis_cyan" android:textSize="10sp" android:fontFamily="monospace" />
+        <TextView android:id="@+id/liveShareStop" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="СТОП" android:textColor="@color/jarvis_danger" android:textSize="11sp" />
+    </LinearLayout>
+    <Button android:id="@+id/liveMenu" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+</LinearLayout>

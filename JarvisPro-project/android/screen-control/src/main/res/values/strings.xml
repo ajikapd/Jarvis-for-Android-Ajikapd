@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_service_description">Jarvis использует службу спец. возможностей, чтобы видеть экран и выполнять тапы, свайпы и ввод текста по вашей голосовой команде. Данные не покидают устройство.</string>
+    <string name="accessibility_service_summary">Управление экраном для голосового ассистента Jarvis</string>
+    <string name="notification_listener_description">Jarvis читает уведомления, чтобы отвечать на них и сообщать, что пришло. Данные остаются на устройстве.</string>
+</resources>

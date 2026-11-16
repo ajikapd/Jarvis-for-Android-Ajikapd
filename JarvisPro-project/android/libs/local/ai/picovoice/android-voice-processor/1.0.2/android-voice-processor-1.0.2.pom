@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>ai.picovoice</groupId>
+  <artifactId>android-voice-processor</artifactId>
+  <version>1.0.2</version>
+  <packaging>aar</packaging>
+  <name>android-voice-processor</name>
+  <description>Android SDK for Picovoice's Android Voice Processor</description>
+  <url>https://github.com/Picovoice/android-voice-processor</url>
+  <licenses>
+    <license>
+      <name>Apache License - v2.0</name>
+      <url>https://github.com/Picovoice/android-voice-processor/blob/main/LICENSE</url>
+    </license>
+  </licenses>
+  <developers>
+    <developer>
+      <id>ilavery</id>
+      <name>Ian Lavery</name>
+      <email>ian@picovoice.ai</email>
+    </developer>
+  </developers>
+  <scm>
+    <connection>scm:git:github.com/Picovoice/android-voice-processor.git</connection>
+    <developerConnection>scm:git:ssh://github.com/Picovoice/android-voice-processor.git</developerConnection>
+    <url>https://github.com/Picovoice/android-voice-processor/tree/main</url>
+  </scm>
+  <dependencies>
+    <dependency>
+      <groupId>androidx.core</groupId>
+      <artifactId>core</artifactId>
+      <version>1.6.0</version>
+    </dependency>
+  </dependencies>
+</project>
