@@ -273,8 +273,10 @@ class ProData(private val ctx: Context) {
         val sel = VoiceCatalog.selectedId(ctx)
         val arr = JSONArray()
         VoiceCatalog.ALL.forEach { v ->
+            // Вшитые (downloadId == null): фирменный и «из фильма» — всегда выбираемы; clips в APK.
+            val ready = VoiceCatalog.isReady(ctx, v) || v.downloadId == null
             arr.put(JSONObject().put("id", v.id).put("name", v.title).put("about", v.about).put("on", v.id == sel)
-                .put("ready", VoiceCatalog.isReady(ctx, v)).put("download", v.downloadId ?: ""))
+                .put("ready", ready).put("download", v.downloadId ?: ""))
         }
         return JSONObject().put("items", arr)
     }

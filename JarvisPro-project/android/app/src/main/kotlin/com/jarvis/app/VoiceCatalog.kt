@@ -28,10 +28,14 @@ object VoiceCatalog {
 
     val ALL = listOf(
         Voice("jarvis", "Джарвис", "Фирменный голос, вшит в приложение", "jarvis-voice-ru", "jarvis.onnx", 1.12f, null),
+        Voice("cinema", "Джарвис из фильма", "Фразы из фильма, остальное фирменным голосом", "jarvis-voice-ru", "jarvis.onnx", 1.12f, null),
         Voice("dmitri", "Дмитрий", "Спокойный мужской голос, ~63 МБ", "vits-piper-ru_RU-dmitri-medium", "ru_RU-dmitri-medium.onnx", 1.08f, "tts_dmitri"),
         Voice("denis", "Денис", "Мягкий мужской голос, ~21 МБ", "vits-piper-ru_RU-denis-medium-int8", "ru_RU-denis-medium.onnx", 1.05f, "tts_denis"),
         Voice("ruslan", "Руслан", "Низкий мужской голос, ~21 МБ", "vits-piper-ru_RU-ruslan-medium-int8", "ru_RU-ruslan-medium.onnx", 1.05f, "tts_ruslan"),
     )
+
+    /** Голос «из фильма»: записи из саундпака там, где они подходят по смыслу. */
+    fun cinema(context: Context): Boolean = selectedId(context) == "cinema"
 
     fun selectedId(context: Context): String = JarvisSettings.prefs(context).getString(PREF, "jarvis") ?: "jarvis"
 

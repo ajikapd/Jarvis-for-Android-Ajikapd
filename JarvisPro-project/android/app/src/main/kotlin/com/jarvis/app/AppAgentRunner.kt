@@ -236,9 +236,9 @@ class AppAgentRunner(
         val latch = CountDownLatch(1)
         val answer = Answer(latch)
         pending = answer
-        VoiceController.speak(question) {
+        VoiceController.speak(question, onComplete = {
             VoiceController.listenForFollowUp(CONFIRM_WAIT_MS)
-        }
+        })
         latch.await(CONFIRM_WAIT_MS + SPEECH_MARGIN_MS, TimeUnit.MILLISECONDS)
         pending = null
         return answer.yes
