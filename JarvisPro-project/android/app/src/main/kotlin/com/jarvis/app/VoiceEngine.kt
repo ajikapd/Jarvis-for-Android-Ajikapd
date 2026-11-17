@@ -38,6 +38,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 /**
  * Единственный голосовой пайплайн процесса. И DebugCommandReceiver, и TestConsoleActivity
@@ -115,6 +116,10 @@ class VoiceEngine(
             return false
         }
 
+        scope.launch {
+            JarvisEvents.events.collect { event ->
+            }
+        }
         scope.launch {
             try {
                 // TTS раньше ASR — иначе ранние DEBUG_COMMAND получают «TTS not ready».
@@ -223,6 +228,15 @@ class VoiceEngine(
                         if (now - lastWakeAtMs < 1000) return@collect
                         lastWakeAtMs = now
                         log("wake detected")
+                        if (!wakeVoiceConfirmed()) {
+                            log("wake suppressed: second voice check")
+                            wakeWordEngine?.cancelListening()
+                            kwsSpotter?.armForNextWake(cooldownMs = 0)
+                            keywordSpotter?.reset()
+                            JarvisEvents.publish(AssistantEvent.StateChanged(AssistantState.READY))
+                            bargeWake = false
+                            return@collect
+                        }
                         JarvisEvents.publish(AssistantEvent.WakeDetected)
                         JarvisEvents.publish(AssistantEvent.StateChanged(AssistantState.LISTENING))
                         speaker?.onWakeDetected(chime = !bargeWake)
@@ -346,6 +360,75 @@ class VoiceEngine(
     private var bargeKeywordAt = 0L
     private var bargePeak = 0f
     @Volatile private var bargeWake = false
+    /** Фоновая проверка ERes2NetV2 последнего «Джарвис»: команда ждёт её итога. */
+    @Volatile private var secondCheck: java.util.concurrent.CompletableFuture<VoiceSecondCheck.Result?>? = null
+    @Volatile private var secondCheckAtMs = 0L
+
+    private fun startSecondCheck(pcm: FloatArray, source: String) {
+        val future = VoiceSecondCheck.checkAsync(app, pcm) ?: run {
+            secondCheck = null
+            return
+        }
+        secondCheck = future
+        secondCheckAtMs = SystemClock.elapsedRealtime()
+        future.thenAccept { r ->
+            VoiceHealthLog.write(
+                app,
+                "check2 $source " + (r?.let { "${"%.2f".format(it.score)}/${"%.2f".format(VoiceSecondCheck.THRESHOLD)} imp=${it.impostor?.let { v -> "%.2f".format(v) } ?: "-"} ${it.ms}ms ok=${it.accepted}" } ?: "none"),
+            )
+        }
+    }
+
+    private fun secondCheckAllows(): Boolean {
+        val future = secondCheck ?: return true
+        secondCheck = null
+        if (SystemClock.elapsedRealtime() - secondCheckAtMs > SECOND_CHECK_FRESH_MS) return !VoiceSecondCheck.active(app)
+        val result = runCatching {
+            future.get(SECOND_CHECK_WAIT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)
+        }.getOrNull() ?: return !VoiceSecondCheck.active(app)
+        lastSecondResult = result
+        if (!result.accepted) VoiceHealthLog.write(app, "command rejected by check2 ${"%.2f".format(result.score)}")
+        return result.accepted
+    }
+
+    /** Итог проверки последнего «Джарвис», к которому относится текущая команда. */
+    @Volatile private var lastSecondResult: VoiceSecondCheck.Result? = null
+
+    private suspend fun wakeVoiceConfirmed(): Boolean {
+        val future = secondCheck ?: return true
+        if (SystemClock.elapsedRealtime() - secondCheckAtMs > SECOND_CHECK_FRESH_MS) return !VoiceSecondCheck.active(app)
+        val result = withContext(Dispatchers.IO) {
+            runCatching { future.get(WAKE_CHECK_WAIT_MS, java.util.concurrent.TimeUnit.MILLISECONDS) }.getOrNull()
+        } ?: return !VoiceSecondCheck.active(app)
+        return result.accepted
+    }
+
+    private fun learnFromCommand(allowed: Boolean) {
+        val result = lastSecondResult ?: return
+        lastSecondResult = null
+        learnFrom(result, allowed)
+    }
+
+    private fun learnFromFollowUp(allowed: Boolean) {
+        val future = secondCheck ?: return
+        if (SystemClock.elapsedRealtime() - secondCheckAtMs > OWNER_WAKE_TRUST_MS) return
+        val result = future.getNow(null) ?: return
+        secondCheck = null
+        if (!allowed && result.score >= VoiceSecondCheck.THRESHOLD + FOLLOW_UP_IMPOSTOR_MARGIN) return
+        learnFrom(result, allowed)
+    }
+
+    private fun learnFrom(result: VoiceSecondCheck.Result, allowed: Boolean) {
+        if (!allowed) {
+            VoiceSecondCheck.learnImpostor(app, result)
+            VoiceHealthLog.write(app, "check2 learn impostor ${"%.2f".format(result.score)}")
+        } else if (result.accepted) {
+            VoiceSecondCheck.learnOwner(app, result)
+        }
+    }
+
+    /** Когда слово активации последний раз подтвердилось голосом владельца. */
+    @Volatile private var ownerWakeAtMs = 0L
     private var wasSpeaking = false
     private val audioManager = app.getSystemService(android.media.AudioManager::class.java)
     /** Звук видео или музыки: подавление эха убирает его из микрофона, как и свою речь. */
@@ -425,6 +508,11 @@ class VoiceEngine(
         syncHush(speaking)
         audioCapture?.echoCancel = speaking || mediaPlaying ||
             (sp != null && SystemClock.elapsedRealtime() - sp.lastPlayEndAtMs < ECHO_HOLD_MS)
+        if (!wasSpeaking && speaking) {
+            recentAudio.clear()
+            bargeOwwAt = 0L
+            bargeKeywordAt = 0L
+        }
         if (wasSpeaking && !speaking) {
             VoiceHealthLog.write(app, "speech end owwPeak=${"%.3f".format(bargePeak)}")
             bargePeak = 0f
@@ -462,13 +550,21 @@ class VoiceEngine(
         if (!heard || !speechGate.speechPresent()) return
         bargeOwwAt = 0L
         bargeKeywordAt = 0L
-        val voice = VoiceIdentity.check(app, recentAudio.snapshot())
+        val bargeAudio = recentAudio.snapshot()
+        val voice = VoiceIdentity.check(app, bargeAudio)
+        VoiceClips.save(app, "barge", bargeAudio, voice?.score, "oww=$oww sherpa=$sherpa accepted=${voice?.accepted}")
+        if (!oww && voice?.accepted != true) {
+            VoiceHealthLog.write(app, "barge rejected: sherpa only, voice ${voice?.let(::voiceLine) ?: "off"}")
+            return
+        }
         if (voice?.accepted == false) {
             VoiceHealthLog.write(app, "barge rejected: voice ${voiceLine(voice)}")
             bargeOwwAt = 0L
             bargeKeywordAt = 0L
             return
         }
+        if (voice?.accepted == true) ownerWakeAtMs = now
+        startSecondCheck(bargeAudio, "barge")
         VoiceHealthLog.write(app, "barge-in voice=${voice?.let(::voiceLine) ?: "off"}")
         bargeWake = true
         kws.disarm()
@@ -485,9 +581,34 @@ class VoiceEngine(
      * команде сразу после слова активации, а в ожидании без него не верим: «да» из видео
      * не должно подтверждать действие.
      */
-    private fun commandVoiceAllowed(pcm: FloatArray, awaited: Boolean): Boolean {
+    private fun commandVoiceAllowed(pcm: FloatArray, awaitedRaw: Boolean): Boolean {
+        if (!awaitedRaw && !secondCheckAllows()) {
+            log("command rejected: second voice check")
+            JarvisEvents.publish(AssistantEvent.StateChanged(AssistantState.READY))
+            return false
+        }
+        val awaited = awaitedRaw &&
+            SystemClock.elapsedRealtime() - ownerWakeAtMs > OWNER_WAKE_TRUST_MS
         val check = VoiceIdentity.checkCommand(app, pcm, awaited, clean = !mediaPlaying)
-        val allowed = check?.accepted ?: (!awaited || !VoiceIdentity.commandLocked(app))
+        var allowed = check?.accepted ?: (!awaited || !VoiceIdentity.commandLocked(app))
+        var strongOwnerCommand = false
+        if (allowed && pcm.size >= MIN_SECOND_COMMAND_SAMPLES && VoiceSecondCheck.active(app)) {
+            val second = VoiceSecondCheck.checkCommandAsync(app, pcm)?.let { future ->
+                runCatching { future.get(SECOND_CHECK_WAIT_MS, java.util.concurrent.TimeUnit.MILLISECONDS) }.getOrNull()
+            }
+            if (second?.accepted != true) {
+                allowed = false
+                log("command rejected by second voice check score=${second?.score ?: "unavailable"}")
+            } else {
+                strongOwnerCommand = second.score >= STRONG_COMMAND_LEARN_SCORE
+            }
+        }
+        VoiceClips.save(app, "command", pcm, check?.score, "awaited=$awaited media=$mediaPlaying allowed=$allowed")
+        if (check != null && (!allowed || strongOwnerCommand)) {
+            if (awaitedRaw) learnFromFollowUp(allowed) else learnFromCommand(allowed)
+        } else {
+            lastSecondResult = null
+        }
         val score = check?.let { "${voiceLine(it)} ${"%.1f".format(it.seconds)}s" } ?: "none"
         VoiceHealthLog.write(app, "command voice=$score awaited=$awaited media=$mediaPlaying allowed=$allowed")
         if (!allowed) {
@@ -633,11 +754,19 @@ class VoiceEngine(
                     keywordSpotter?.reset()
                     return
                 }
+                val wakeAudio = recentAudio.snapshot()
                 val voice = VoiceIdentity.check(
                     app,
-                    recentAudio.snapshot(),
+                    wakeAudio,
                     clean = !mediaPlaying,
                     media = mediaPlaying,
+                )
+                VoiceClips.save(
+                    app,
+                    if (voice?.accepted == false) "wake_rejected" else "wake",
+                    wakeAudio,
+                    voice?.score,
+                    "media=$mediaPlaying oww=$owwHit sherpa=$keywordHit",
                 )
                 if (voice?.accepted == false) {
                     VoiceHealthLog.write(app, "wake rejected: voice ${voiceLine(voice)} media=$mediaPlaying")
@@ -645,6 +774,8 @@ class VoiceEngine(
                     keywordSpotter?.reset()
                     return
                 }
+                if (voice?.accepted == true) ownerWakeAtMs = SystemClock.elapsedRealtime()
+                startSecondCheck(wakeAudio, "wake")
                 VoiceHealthLog.write(
                     app,
                     "wake hit voice=${voice?.let(::voiceLine) ?: "off"} oww=$owwHit sherpa=$keywordHit score=${"%.3f".format(kws.lastScoreValue)} " +
@@ -772,7 +903,7 @@ class VoiceEngine(
             }
             var out = text.trim()
             val heard = synchronized(livePcmLock) { FloatArray(livePcm.size) { i -> livePcm[i] } }
-            if (out.isNotBlank() && heard.isNotEmpty() && !commandVoiceAllowed(heard, awaited = liveRefine)) {
+            if (out.isNotBlank() && heard.isNotEmpty() && !commandVoiceAllowed(heard, awaitedRaw = liveRefine)) {
                 synchronized(livePcmLock) { livePcm.clear() }
                 pendingLivePrefix = ""
                 return@launch
@@ -1008,6 +1139,13 @@ class VoiceEngine(
     companion object {
         private const val TAG = "Jarvis.Debug"
         private const val BARGE_WINDOW_MS = 1_000L
+        private const val OWNER_WAKE_TRUST_MS = 10_000L
+        private const val SECOND_CHECK_WAIT_MS = 1_500L
+        private const val MIN_SECOND_COMMAND_SAMPLES = 16_000 * 8 / 10
+        private const val STRONG_COMMAND_LEARN_SCORE = 0.55f
+        private const val WAKE_CHECK_WAIT_MS = 1_500L
+        private const val FOLLOW_UP_IMPOSTOR_MARGIN = 0.05f
+        private const val SECOND_CHECK_FRESH_MS = 20_000L
         private const val ECHO_HOLD_MS = 700L
         private const val HUSH_MIN_MS = 1_500L
         private const val HUSH_AFTER_SPEECH_MS = 800L

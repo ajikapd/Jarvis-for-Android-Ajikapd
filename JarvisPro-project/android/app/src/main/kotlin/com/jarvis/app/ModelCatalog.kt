@@ -126,6 +126,17 @@ object ModelCatalog {
             readyMarker = "speaker/campplus_zh_en.onnx",
             sizeBytes = 28_281_164L,
         ),
+        Entry(
+            id = VoiceSecondCheck.MODEL_ID,
+            title = "Точная проверка голоса · ERes2NetV2",
+            subtitle = "Вторая проверка слова «Джарвис» в режиме «Только мой голос»",
+            kind = Kind.SPEAKER,
+            packageKind = PackageKind.SINGLE_FILE,
+            url = "https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/3dspeaker_speech_eres2netv2_sv_zh-cn_16k-common.onnx",
+            relativePath = "speaker/eres2netv2.onnx",
+            readyMarker = "speaker/eres2netv2.onnx",
+            sizeBytes = 71_441_526L,
+        ),
     )
 
     fun byId(id: String): Entry? = ALL.find { it.id == id }
