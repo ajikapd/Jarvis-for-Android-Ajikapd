@@ -40,6 +40,9 @@ class ProData(private val ctx: Context) {
     private fun has(p: String) = ContextCompat.checkSelfPermission(ctx, p) == PackageManager.PERMISSION_GRANTED
     private fun need(p: String) = JSONObject().put("need", p)
     private fun ok(msg: String? = null) = JSONObject().put("ok", true).apply { if (msg != null) put("msg", msg) }
+    private fun fail(msg: String) = JSONObject().put("ok", false).put("err", msg)
+    private fun result(flag: String, success: Boolean, failMsg: String) =
+        if (success) ok().put(flag, true) else fail(failMsg).put(flag, false)
     private val zone get() = ZoneId.systemDefault()
 
     fun handle(kind: String, a: JSONObject): JSONObject = try {
@@ -47,29 +50,44 @@ class ProData(private val ctx: Context) {
             "status" -> status()
             "reminders" -> reminders()
             "reminderAdd" -> reminderAdd(a)
-            "reminderDel" -> ok().put("removed", AndroidReminderBook(ctx).remove(a.optLong("id")))
+            "reminderDel" -> result("removed", AndroidReminderBook(ctx).remove(a.optLong("id")), "Не удалось удалить напоминание")
             "calendar" -> calendar(a.optInt("days", 7))
             "notes" -> notes()
             "noteAdd" -> { PrefsNoteBook(ctx).add(a.optString("list", "дела"), listOf(a.optString("item"))); ok() }
-            "noteDel" -> ok().put("removed", PrefsNoteBook(ctx).remove(a.optString("list", "дела"), a.optString("item")))
+            "noteDel" -> result("removed", PrefsNoteBook(ctx).remove(a.optString("list", "дела"), a.optString("item")), "Не удалось удалить заметку")
             "notifs" -> notifs()
-            "notifReply" -> ok().put("sent", JarvisNotificationListenerService.instanceReply(a.optString("key"), a.optString("text")))
-            "notifDismiss" -> ok().put("done", JarvisNotificationListenerService.instanceDismiss(a.optString("key")))
-            "notifAction" -> ok().put("done", JarvisNotificationListenerService.instanceAction(a.optString("key"), a.optInt("i")))
+            "notifReply" -> result("sent", JarvisNotificationListenerService.instanceReply(a.optString("key"), a.optString("text")), "Не удалось ответить")
+            "notifDismiss" -> result("done", JarvisNotificationListenerService.instanceDismiss(a.optString("key")), "Не удалось смахнуть")
+            "notifAction" -> result("done", JarvisNotificationListenerService.instanceAction(a.optString("key"), a.optInt("i")), "Не удалось выполнить действие")
             "contacts" -> contacts()
             "routines" -> routines()
             "routineAdd" -> {
                 PrefsCustomRoutines(ctx).put(a.optString("name"), a.optJSONArray("steps")?.let { j -> (0 until j.length()).map { j.optString(it) } }.orEmpty()); ok()
             }
-            "routineDel" -> ok().put("removed", PrefsCustomRoutines(ctx).remove(a.optString("name")))
+            "routineDel" -> result("removed", PrefsCustomRoutines(ctx).remove(a.optString("name")), "Не удалось удалить команду")
             "memory" -> memory()
-            "memoryDel" -> ok().put("removed", CompanionMemory.get(ctx).repository().delete(a.optString("id")))
+            "memoryDel" -> memoryDel(a.optString("id"))
             "modes" -> modes()
             "modeSet" -> modeSet(a.optString("mode"))
             "voices" -> voices()
             "voiceSet" -> { VoiceCatalog.select(ctx, a.optString("id")); ok("Голос выбран. Он включится при следующем ответе.") }
             "bt" -> bluetooth()
             "spend" -> spend(a.optInt("days", 30))
+            "briefGet" -> com.jarvis.app.BriefingSchedule.get(ctx)
+            "briefSet" -> com.jarvis.app.BriefingSchedule.set(
+                ctx, a.optBoolean("on", true), a.optString("morning", "08:00"), a.optString("evening", "21:00"),
+            )
+            "pricesWatch" -> com.jarvis.app.PriceWatch.list(ctx)
+            "pricesAdd" -> com.jarvis.app.PriceWatch.add(ctx, a.optString("name"), a.optString("query", a.optString("name")), a.optDouble("target"))
+            "pricesDel" -> com.jarvis.app.PriceWatch.remove(ctx, a.optString("id"))
+            "pricesCheck" -> com.jarvis.app.PriceWatch.checkNow(ctx)
+            "reminderSnooze" -> {
+                val text = a.optString("text")
+                if (text.isBlank()) fail("Нет текста") else {
+                    val r = AndroidReminderBook(ctx).snooze(text, a.optLong("minutes", 10L))
+                    ok().put("id", r.id)
+                }
+            }
             "tool" -> {
                 val id = a.optString("id")
                 // Только инструменты «на чтение»: SMS, звонки, Telegram, клики по экрану — через Джарвиса с подтверждением.
@@ -79,6 +97,7 @@ class ProData(private val ctx: Context) {
             "dial" -> { start(Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", a.optString("phone"), null))); ok() }
             "smsTo" -> { start(Intent(Intent.ACTION_SENDTO, Uri.fromParts("smsto", a.optString("phone"), null)).putExtra("sms_body", a.optString("text"))); ok() }
             "web" -> { val u = webUri(a.optString("url")) ?: return JSONObject().put("err", "Плохая ссылка"); start(Intent(Intent.ACTION_VIEW, u)); ok() }
+            "pinWidget" -> pinWidget()
             else -> JSONObject().put("err", "unknown $kind")
         }
     } catch (e: SecurityException) {
@@ -229,10 +248,50 @@ class ProData(private val ctx: Context) {
 
     private fun memory(): JSONObject {
         val arr = JSONArray()
-        CompanionMemory.get(ctx).repository().query(MemoryQuery(limit = 100)).sortedByDescending { it.updatedAtMillis }.forEach {
-            arr.put(JSONObject().put("id", it.id).put("text", it.content).put("kind", it.type.name).put("at", it.updatedAtMillis))
+        // Голосовая/мозговая память — основной источник фактов для Pro.
+        BrainGraph.memory(ctx).all().sortedByDescending { it.createdAt }.forEach { f ->
+            arr.put(
+                JSONObject()
+                    .put("id", "b:${f.id}")
+                    .put("text", f.text)
+                    .put("kind", f.category.ifBlank { f.source })
+                    .put("at", f.createdAt)
+                    .put("src", "brain"),
+            )
         }
+        // Заметки companion (если есть) — без дублей по тексту.
+        val seen = HashSet<String>()
+        for (i in 0 until arr.length()) {
+            seen += arr.getJSONObject(i).optString("text").trim().lowercase()
+        }
+        CompanionMemory.get(ctx).repository().query(MemoryQuery(limit = 100))
+            .sortedByDescending { it.updatedAtMillis }
+            .forEach { item ->
+                val text = item.content.trim()
+                if (text.isBlank() || !seen.add(text.lowercase())) return@forEach
+                arr.put(
+                    JSONObject()
+                        .put("id", "c:${item.id}")
+                        .put("text", text)
+                        .put("kind", item.type.name)
+                        .put("at", item.updatedAtMillis)
+                        .put("src", "companion"),
+                )
+            }
         return JSONObject().put("items", arr)
+    }
+
+    private fun memoryDel(rawId: String): JSONObject {
+        val id = rawId.trim()
+        if (id.isEmpty()) return fail("Нет факта")
+        val ok = when {
+            id.startsWith("b:") -> id.removePrefix("b:").toLongOrNull()
+                ?.let { BrainGraph.memory(ctx).remove(it) } == true
+            id.startsWith("c:") -> CompanionMemory.get(ctx).repository().delete(id.removePrefix("c:"))
+            else -> CompanionMemory.get(ctx).repository().delete(id) ||
+                (id.toLongOrNull()?.let { BrainGraph.memory(ctx).remove(it) } == true)
+        }
+        return result("removed", ok, "Не удалось удалить факт")
     }
 
     private fun modes(): JSONObject {
@@ -261,7 +320,7 @@ class ProData(private val ctx: Context) {
             "work" -> { nm.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY); am.ringerMode = AudioManager.RINGER_MODE_VIBRATE }
             "drive" -> { if (nm.isNotificationPolicyAccessGranted) nm.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL); am.ringerMode = AudioManager.RINGER_MODE_NORMAL
                 am.setStreamVolume(AudioManager.STREAM_MUSIC, (am.getStreamMaxVolume(AudioManager.STREAM_MUSIC) * 0.7).toInt(), 0) }
-            "focus" -> { nm.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_NONE) }
+            "focus" -> { nm.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY) }
             // без доступа к «Не беспокоить» смена звонка при включённой тишине бросает SecurityException
             else -> { if (nm.isNotificationPolicyAccessGranted) nm.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL); runCatching { am.ringerMode = AudioManager.RINGER_MODE_NORMAL } }
         }
@@ -273,8 +332,10 @@ class ProData(private val ctx: Context) {
         val sel = VoiceCatalog.selectedId(ctx)
         val arr = JSONArray()
         VoiceCatalog.ALL.forEach { v ->
+            // Вшитые (downloadId == null): фирменный и «из фильма» — всегда выбираемы; clips в APK.
+            val ready = VoiceCatalog.isReady(ctx, v) || v.downloadId == null
             arr.put(JSONObject().put("id", v.id).put("name", v.title).put("about", v.about).put("on", v.id == sel)
-                .put("ready", VoiceCatalog.isReady(ctx, v)).put("download", v.downloadId ?: ""))
+                .put("ready", ready).put("download", v.downloadId ?: ""))
         }
         return JSONObject().put("items", arr)
     }
@@ -341,6 +402,20 @@ class ProData(private val ctx: Context) {
         val url = a.optString("url")
         webUri(url)?.let { start(Intent(Intent.ACTION_VIEW, it)); return ok().put("opened", url) }
         return JSONObject().put("err", "Приложение не установлено")
+    }
+
+    /** Предложить системе закрепить виджет Pro на рабочий стол. */
+    private fun pinWidget(): JSONObject {
+        val mgr = android.appwidget.AppWidgetManager.getInstance(ctx)
+        if (!mgr.isRequestPinAppWidgetSupported) {
+            return fail("На этом телефоне виджеты добавляются вручную: удержи экран → Виджеты → «Джарвис Pro»")
+        }
+        val pinned = mgr.requestPinAppWidget(
+            android.content.ComponentName(ctx, com.jarvis.app.JarvisWidgetProvider::class.java),
+            null,
+            null,
+        )
+        return if (pinned) ok("Выбери место на рабочем столе") else fail("Не удалось предложить виджет")
     }
 
     companion object {

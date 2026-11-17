@@ -708,8 +708,10 @@ object Sections {
                 c.startActivity(com.jarvis.app.CrashReports.shareIntent(c))
             })
             b.addView(link("Текущая ситуация", "Что он сейчас видит") { c.show(JarvisActivity.SCAN) })
-            b.addView(head("Для разработчика"))
-            b.addView(link("Консоль", "Проверка команд") { c.startActivity(Intent(c, TestConsoleActivity::class.java)) })
+            if (com.jarvis.app.BuildConfig.DEBUG) {
+                b.addView(head("Для разработчика"))
+                b.addView(link("Консоль", "Проверка команд") { c.startActivity(Intent(c, TestConsoleActivity::class.java)) })
+            }
         },
     )
 }

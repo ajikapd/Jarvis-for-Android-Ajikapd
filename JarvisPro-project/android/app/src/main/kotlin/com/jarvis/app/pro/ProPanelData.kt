@@ -10,16 +10,26 @@ import com.jarvis.app.BrainGraph
 import com.jarvis.app.JarvisSettings
 import com.jarvis.app.ModelCatalog
 import com.jarvis.app.ModelManager
+import com.jarvis.app.NativeGuard
 import com.jarvis.app.PrefsCustomRoutines
+import com.jarvis.app.PrefsEventRoutines
 import com.jarvis.app.SecureKeyStore
 import com.jarvis.app.VoiceController
 import com.jarvis.app.VoiceIdentity
+import com.jarvis.app.VoiceSecondCheck
 import com.jarvis.app.companion.CompanionMemory
 import com.jarvis.app.ui.Device
+import com.jarvis.core.common.model.ToolCall
 import com.jarvis.core.llm.CloudKeyValidator
 import com.jarvis.core.routines.CommandBuilder
+import com.jarvis.core.routines.EventRule
+import com.jarvis.core.routines.EventTrigger
+import com.jarvis.core.runtime.LatencyStatsStore
+import com.jarvis.screencontrol.JarvisNotificationListenerService
 import com.jarvis.tools.AppAliases
+import com.jarvis.tools.CalendarTool
 import com.jarvis.tools.LauncherTool
+import com.jarvis.tools.WeatherTool
 import com.jarvis.tools.HOME_CITY_PREF
 import org.json.JSONArray
 import org.json.JSONObject
@@ -29,6 +39,7 @@ class ProPanelData(private val ctx: Context) {
     private val settings get() = JarvisSettings.prefs(ctx)
     private val models get() = ModelManager.get(ctx)
     private val routines get() = PrefsCustomRoutines(ctx)
+    private val events get() = PrefsEventRoutines(ctx)
     private val keys get() = SecureKeyStore(ctx)
 
     fun handle(kind: String, a: JSONObject): JSONObject = try {
@@ -43,19 +54,41 @@ class ProPanelData(private val ctx: Context) {
             "panelKey" -> keyAction(a)
             "panelRoutines" -> routineList()
             "panelRoutine" -> routineAction(a)
+            "panelEvents" -> eventList()
+            "panelEvent" -> eventAction(a)
             "panelAliases" -> aliases()
             "panelAlias" -> aliasAction(a)
             "panelSkills" -> skills()
             "panelSystem" -> system()
+            "panelScan" -> scan()
             "panelMemoryClear" -> {
                 CompanionMemory.get(ctx).repository().clearAll()
                 BrainGraph.memory(ctx).clear()
                 ok()
             }
-            "panelVoice" -> JSONObject().put("ready", VoiceIdentity.modelReady(ctx))
-                .put("enrolled", VoiceIdentity.enrolled(ctx))
-                .put("phrases", VoiceIdentity.phrasesEnrolled(ctx))
-                .put("learned", VoiceIdentity.learnedCount(ctx))
+            "panelMemoryFacts" -> JSONObject().put("items", JSONArray().apply {
+                BrainGraph.memory(ctx).all().take(40).forEach { f ->
+                    put(JSONObject().put("text", f.text).put("category", f.category))
+                }
+            }).put("count", BrainGraph.memory(ctx).count())
+            "panelLlamaReset" -> {
+                NativeGuard.reset(ctx, NativeGuard.LLAMA)
+                BrainGraph.invalidateChatLlm()
+                BrainGraph.invalidate()
+                ok()
+            }
+            "panelVoice" -> {
+                val (own, imp) = VoiceSecondCheck.learnedCounts(ctx)
+                JSONObject().put("ready", VoiceIdentity.modelReady(ctx))
+                    .put("enrolled", VoiceIdentity.enrolled(ctx))
+                    .put("phrases", VoiceIdentity.phrasesEnrolled(ctx))
+                    .put("learned", VoiceIdentity.learnedCount(ctx))
+                    .put("secondReady", VoiceSecondCheck.modelReady(ctx))
+                    .put("secondActive", VoiceSecondCheck.active(ctx))
+                    .put("secondModel", VoiceSecondCheck.MODEL_ID)
+                    .put("secondOwn", own)
+                    .put("secondImp", imp)
+            }
             "panelVoiceForget" -> { VoiceIdentity.forget(ctx); ok() }
             else -> JSONObject().put("err", "Неизвестный запрос")
         }
@@ -101,6 +134,8 @@ class ProPanelData(private val ctx: Context) {
         put("micGranted", ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
         put("notificationsGranted", Build.VERSION.SDK_INT < 33 ||
             ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED)
+        put("llamaOff", NativeGuard.isOff(ctx, NativeGuard.LLAMA))
+        put("facts", runCatching { BrainGraph.memory(ctx).count() }.getOrDefault(0))
     })
 
     private fun set(key: String, raw: Any?): JSONObject {
@@ -253,9 +288,78 @@ class ProPanelData(private val ctx: Context) {
         .put("temperature", Device.temperature(ctx)).put("network", Device.network(ctx))
         .put("storage", Device.freeStorageGb()).put("voice", VoiceController.isRunning)
         .put("live", VoiceController.liveTalk)
+        .put("latency", JSONArray(LatencyStatsStore.summaryLines()))
+
+    private fun eventList() = JSONObject()
+        .put("items", JSONArray().apply {
+            events.rules().forEach { r ->
+                put(
+                    JSONObject()
+                        .put("trigger", r.trigger.name)
+                        .put("title", r.trigger.title)
+                        .put("arg", r.arg)
+                        .put("name", r.name)
+                        .put("hasSteps", routines.steps(r.name) != null),
+                )
+            }
+        })
+        .put("triggers", JSONArray().apply {
+            EventTrigger.entries.forEach { t ->
+                put(JSONObject().put("id", t.name).put("title", t.title))
+            }
+        })
+
+    private fun eventAction(a: JSONObject): JSONObject {
+        val trigger = EventTrigger.entries.firstOrNull { it.name == a.optString("trigger") } ?: return invalid()
+        val arg = a.optString("arg").trim()
+        val rule = EventRule(trigger, arg)
+        return when (a.optString("action")) {
+            "delete" -> {
+                events.remove(rule)
+                ok()
+            }
+            "save" -> {
+                val body = a.optString("body").trim()
+                if (body.isNotBlank()) {
+                    val built = CommandBuilder.build(rule.name, CommandBuilder.Mode.CHAIN, body, emptySet())
+                    if (built is CommandBuilder.Result.Error) return JSONObject().put("err", built.message)
+                    if (built is CommandBuilder.Result.Ok) routines.put(built.trigger, built.steps)
+                } else if (routines.steps(rule.name) == null) {
+                    return JSONObject().put("err", "Сначала укажи шаги или создай команду с именем «${rule.name}»")
+                }
+                events.put(rule)
+                ok().put("name", rule.name)
+            }
+            else -> invalid()
+        }
+    }
+
+    private fun scan(): JSONObject {
+        val weather = runCatching {
+            WeatherTool(ctx).execute(ToolCall(requestId = "scan", toolId = "weather", arguments = emptyMap())).message.orEmpty()
+        }.getOrDefault("")
+        val cal = runCatching {
+            CalendarTool(ctx).execute(
+                ToolCall(requestId = "scan", toolId = "calendar", arguments = mapOf("action" to "list", "day" to 0)),
+            ).message.orEmpty()
+        }.getOrDefault("")
+        val notifs = runCatching {
+            if (!JarvisNotificationListenerService.isConnected()) 0
+            else JarvisNotificationListenerService.snapshot().count {
+                it.packageName != ctx.packageName && it.title.isNotBlank()
+            }
+        }.getOrDefault(0)
+        val temp = Regex("сейчас (-?\\d+)°").find(weather)?.groupValues?.get(1)
+        return JSONObject()
+            .put("weather", weather)
+            .put("temp", temp ?: "")
+            .put("calendar", cal)
+            .put("calendarEmpty", cal.isBlank() || cal.contains("нет", ignoreCase = true))
+            .put("notifs", notifs)
+    }
 
     companion object {
-        private val KEY_IDS = setOf("groq", "gemini", "gigachat", "custom", "custom_asr", "custom_tts")
+        private val KEY_IDS = setOf("groq", "gemini", "gigachat", "custom", "custom_asr", "custom_tts", "safev")
         private val RESTART_KEYS = setOf("wake", "sensitivity")
         private val BRAIN_KEYS = setOf("asrMode", "asrUrl", "ttsMode", "ttsUrl", "persona", "router", "llm", "preferCloud", "cloudUrl")
     }

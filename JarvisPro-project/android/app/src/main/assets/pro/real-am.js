@@ -73,24 +73,36 @@
   function ru(n, a, b, c) { var m = n % 10, h = n % 100; return m === 1 && h !== 11 ? a : (m >= 2 && m <= 4 && (h < 12 || h > 14) ? b : c); }
 
   // ---------- Память ----------
-  var CATS = { 'Люди': /люд|people|person|contact|семь|family/i, 'Привычки': /привыч|habit|routine/i, 'Места': /мест|place|addr|адрес|loc/i,
-    'Вкусы': /вкус|taste|pref|like|любит/i, 'Договорённости': /догов|promise|agree|обещ|task|дел/i };
-  function cat(kind) { for (var c in CATS) if (CATS[c].test(kind || '')) return c; return ''; }
+  var CATS = { 'Люди': /люд|people|person|contact|семь|family|мам|пап|друг/i, 'Привычки': /привыч|habit|routine|кажд|по вторн|зал|кофе/i, 'Места': /мест|place|addr|адрес|loc|дом|работ/i,
+    'Вкусы': /вкус|taste|pref|like|любит|предпочит/i, 'Договорённости': /догов|promise|agree|обещ|task|дел|напомн|вернуть/i };
+  function cat(kind, text) {
+    var blob = (kind || '') + ' ' + (text || '');
+    for (var c in CATS) if (CATS[c].test(blob)) return c;
+    return '';
+  }
   PRO.bind('memory', function (el) {
     var ph = phone(el, 'mem'), box = $('#facts', ph); if (!box) return;
     PRO.q('memory').then(function (j) {
-      var items = (j && j.items) || [], cnt = {};
+      var items = (j && j.items) || [], cnt = {}, filter = ph.dataset.memFilter || '';
       $$('.tbar .chip', ph).forEach(function (c) { c.innerHTML = '<i></i>' + items.length + ' ' + ru(items.length, 'ФАКТ', 'ФАКТА', 'ФАКТОВ'); });
-      items.forEach(function (f) { var c = cat(f.kind); cnt[c] = (cnt[c] || 0) + 1; });
-      $$('.cat', ph).forEach(function (c) { var b = c.querySelector('b'); if (b) b.textContent = cnt[c.dataset.c] || 0; });
-      var h = items.map(function (f) {
-        var c = cat(f.kind), lab = (c || f.kind || 'ФАКТ') + (f.at ? ' · ' + PRO.day(f.at) : '');
+      items.forEach(function (f) { var c = cat(f.kind, f.text); cnt[c] = (cnt[c] || 0) + 1; });
+      $$('.cat', ph).forEach(function (c) {
+        var b = c.querySelector('b'); if (b) b.textContent = cnt[c.dataset.c] || 0;
+        c.classList.toggle('on', filter && filter === c.dataset.c);
+        if (c.dataset.wired) return; c.dataset.wired = '1';
+        c.addEventListener('click', function () {
+          ph.dataset.memFilter = (ph.dataset.memFilter === c.dataset.c) ? '' : (c.dataset.c || '');
+          PRO.refresh();
+        });
+      });
+      var shown = filter ? items.filter(function (f) { return cat(f.kind, f.text) === filter; }) : items;
+      var h = shown.map(function (f) {
+        var c = cat(f.kind, f.text), lab = (c || f.kind || 'ФАКТ') + (f.at ? ' · ' + PRO.day(f.at) : '');
         return '<div class="fact" data-c="' + E(c) + '" data-id="' + E(f.id) + '"><i class="d"></i><div><b>' + E(f.text) + '</b><span>' + E(lab.toUpperCase()) + '</span></div><button>Забыть</button></div>';
       }).join('');
       if (!items.length) h = empty('Пока ничего не помню.<br>Скажи: «Джарвис, запомни, что я пью кофе без сахара».');
-      h += '<div class="real-empty" data-all style="cursor:pointer;color:var(--gold,#C49CFF);padding:10px 6px">Все настройки памяти ›</div>';
+      else if (!shown.length) h = empty('В категории «' + E(filter) + '» пока пусто.');
       box.innerHTML = h;
-      $('[data-all]', box).onclick = function () { open('screen:memory'); };
       $$('.fact button', box).forEach(function (b) {
         b.onclick = function (e) {
           e.stopPropagation(); var f = b.closest('.fact'); b.textContent = 'Забываю…'; b.disabled = true;
@@ -108,28 +120,44 @@
     var ph = phone(el, 'scen'), box = $('.scn', ph); if (!box) return;
     var add = $('.addsc', ph);
     if (add) {
-      add.onclick = function () { open('screen:routines'); };
-      var sm = add.querySelector('small'); if (sm) sm.textContent = 'Или голосом: «Джарвис, создай команду "Я дома": включи музыку и напомни про ужин»';
+      add.onclick = function () {
+        var ed = ph.querySelector('.real-editor');
+        if (ed) ed.scrollIntoView({ block: 'nearest' });
+      };
+      var sm = add.querySelector('small'); if (sm) sm.textContent = 'Фраза и шаги — внизу этого же экрана';
     }
     PRO.q('routines').then(function (j) {
       var items = (j && j.items) || [], cc = $('#scCount', ph);
       if (cc) cc.textContent = items.length + ' ' + ru(items.length, 'СЦЕНАРИЙ', 'СЦЕНАРИЯ', 'СЦЕНАРИЕВ');
-      if (!items.length) { box.innerHTML = empty('Сценариев пока нет.<br>Нажми «Новый сценарий» ниже или скажи: «Джарвис, создай команду…»'); return; }
+      if (!items.length) { box.innerHTML = empty('Своих команд пока нет.<br>Добавь фразу ниже — или запусти готовую цепочку.'); if (window.proScenMore) window.proScenMore(ph, []); return; }
       box.innerHTML = items.map(function (r, i) {
         var st = (r.steps || []).map(function (s) { return '<span>' + E(s) + '</span>'; }).join('<i>›</i>');
         return '<div class="sc" data-i="' + i + '"><div class="h"><div><b>' + E(r.name) + '</b><span class="tr">ПО ФРАЗЕ · «' + E(String(r.name).toUpperCase()) + '»</span></div>' +
-          '<button class="go">ПУСК</button><button class="go" data-del style="margin-left:6px;opacity:.7">✕</button></div><div class="chain">' + st + '</div></div>';
+          '<button class="go">ПУСК</button><button class="go" data-edit style="margin-left:6px;opacity:.85">ИЗМ</button><button class="go" data-del style="margin-left:6px;opacity:.7">✕</button></div><div class="chain">' + st + '</div></div>';
       }).join('');
       $$('.sc', box).forEach(function (sc) {
         var r = items[+sc.dataset.i];
-        sc.querySelector('.go:not([data-del])').onclick = function () {
-          if (sc.classList.contains('run')) return; sc.classList.add('run'); PRO.send(r.name);
-          var st = $$('.chain span', sc), k = 0;
-          (function step() {
-            if (k > 0) st[k - 1].className = 'done';
-            if (k < st.length) { st[k++].className = 'now'; setTimeout(step, 750); }
-            else setTimeout(function () { st.forEach(function (s) { s.className = ''; }); sc.classList.remove('run'); }, 1600);
-          })();
+        sc.querySelector('.go:not([data-del]):not([data-edit])').onclick = function () {
+          if (sc.classList.contains('run')) return;
+          sc.classList.add('run'); PRO.send(r.name);
+          var st = $$('.chain span', sc), k = 0, done = false;
+          function mark(i) { st.forEach(function (s, j) { s.className = j < i ? 'done' : (j === i ? 'now' : ''); }); }
+          mark(0);
+          function finish() {
+            if (done) return; done = true; PRO._scenWait = null;
+            st.forEach(function (s) { s.className = 'done'; });
+            setTimeout(function () { st.forEach(function (s) { s.className = ''; }); sc.classList.remove('run'); }, 900);
+          }
+          PRO._scenWait = function (ev) {
+            if (!ev || done) return;
+            if (ev.t === 'tool' && !ev.failed) { k = Math.min(k + 1, st.length - 1); mark(k); }
+            if (ev.t === 'response' || (ev.t === 'tool' && ev.failed)) finish();
+          };
+          setTimeout(function () { if (!done) finish(); }, 45000);
+        };
+        var editBtn = sc.querySelector('[data-edit]');
+        if (editBtn) editBtn.onclick = function () {
+          if (window.proScenEdit) window.proScenEdit(ph, r);
         };
         sc.querySelector('[data-del]').onclick = function () {
           var b = this; // первый тап — спросить, второй — удалить (confirm() в WebView ненадёжен)
@@ -137,6 +165,7 @@
           PRO.q('routineDel', { name: r.name }).then(function (x) { if (x && x.ok) PRO.refresh(); else PRO.toast('Не получилось удалить'); });
         };
       });
+      if (window.proScenMore) window.proScenMore(ph, items);
     });
   });
 
@@ -149,28 +178,48 @@
     $('.a', p).textContent = 'Начни Live — и сверни Джарвиса: шар останется на экране, нажми на него, чтобы говорить.';
     var yes = $('#ovYes', ph), no = $('#ovNo', ph);
     yes.textContent = 'Попробовать';
-    yes.onclick = function (e) { e.stopPropagation(); open('live'); };
+    yes.onclick = function (e) {
+      e.stopPropagation();
+      PRO.q('status').then(function (st) {
+        // без overlay Live-шар не появится поверх приложений
+        PRO.q('panelSet', { key: 'live', value: true }).then(function (r) {
+          if (r && r.err) { PRO.toast(r.err); return; }
+          try { JarvisNative.perm('overlay'); } catch (x) {}
+          PRO.toast('Live включён. Разреши «поверх приложений», если ещё не дал');
+        });
+      });
+    };
     no.onclick = function (e) { e.stopPropagation(); ph.classList.remove('open'); var pl = $('#ovPill', ph); if (pl) pl.textContent = 'НАЖМИ НА МЕНЯ'; };
   });
 
   // ---------- Голоса ----------
   PRO.bind('voices', function (el) {
     var ph = phone(el, 'vox'), list = $('#vList', ph); if (!list) return;
-    var mk = $('#vMake', ph); if (mk) mk.onclick = function () { open('section:Голос и слух'); };
+    var mk = $('#vMake', ph); if (mk) mk.onclick = function () { var o = $('#vOwn', ph); if (o) o.scrollIntoView({ block: 'nearest' }); };
     PRO.q('voices').then(function (j) {
       var items = (j && j.items) || [];
-      if (!items.length) { list.innerHTML = empty('Голоса не найдены.<br>Открой «Настройки → Голос и слух», чтобы скачать голос.'); return; }
+      if (!items.length) { list.innerHTML = empty('Голоса не найдены.<br>Скачай голос кнопкой ниже или проверь сеть.'); return; }
       var cur = items.filter(function (v) { return v.on; })[0];
       if (cur) { $('#vChip', ph).textContent = String(cur.name).toUpperCase(); $('#vState', ph).textContent = 'ГОЛОС ВЫБРАН'; $('#vLine', ph).textContent = 'Сейчас я говорю голосом «' + cur.name + '».'; }
       list.innerHTML = items.map(function (v, i) {
         var right = v.ready ? '<div class="wv">' + '<i></i>'.repeat(14) + '</div>' :
-          '<button data-dl style="margin-left:auto;padding:6px 12px;border-radius:10px;border:1px solid var(--gold,#C49CFF);background:transparent;color:var(--gold,#C49CFF);font-size:12px">Скачать</button>';
+          '<button data-dl style="margin-left:auto;padding:6px 12px;border-radius:10px;border:1px solid var(--gold,#FFC46B);background:transparent;color:var(--gold,#FFC46B);font-size:12px">Скачать</button>';
         return '<div class="vc ' + (v.on ? 'on' : '') + '" data-i="' + i + '"><div class="pl">' + (v.on ? '✓' : '▶') + '</div><div><b>' + E(v.name) + '</b><span>' + E(v.about || (v.ready ? '' : 'Нужно скачать')) + '</span></div>' + right + '</div>';
       }).join('');
       $$('.vc', list).forEach(function (c) {
         var v = items[+c.dataset.i];
+        var dl = c.querySelector('[data-dl]');
+        if (dl) dl.onclick = function (e) {
+          e.stopPropagation();
+          if (!v.download) { PRO.toast('Этот голос уже в приложении'); return; }
+          dl.textContent = 'Качаю…';
+          PRO.q('panelModel', { id: v.download, action: 'download' }).then(function (r) {
+            if (r && r.err) { dl.textContent = 'Скачать'; PRO.toast(r.err); return; }
+            PRO.toast('Загрузка началась'); setTimeout(PRO.refresh, 1200);
+          });
+        };
         c.onclick = function () {
-          if (!v.ready) { open('section:Голос и слух'); return; }
+          if (!v.ready) { if (dl) dl.click(); return; }
           if (v.on) return;
           $('#vState', ph).textContent = 'ПЕРЕКЛЮЧАЮ…';
           PRO.q('voiceSet', { id: v.id }).then(function (r) { if (r && r.msg) PRO.toast(r.msg); PRO.refresh(); });
@@ -184,7 +233,7 @@
   PRO.bind('devices', function (el) {
     var ph = phone(el, 'dev'), dl = $('.dl', ph); if (!dl) return;
     var chip = $('.tbar .chip', ph);
-    function setChip(on) { if (chip) chip.innerHTML = '<i style="background:' + (on ? 'var(--ok)' : 'var(--text2,#8b8892)') + ';box-shadow:' + (on ? '0 0 8px var(--ok)' : 'none') + '"></i>' + (on ? 'ОНЛАЙН' : 'НЕТ СВЯЗИ'); }
+    function setChip(on) { if (chip) chip.innerHTML = '<i style="background:' + (on ? 'var(--ok)' : 'var(--text2,#889)') + ';box-shadow:' + (on ? '0 0 8px var(--ok)' : 'none') + '"></i>' + (on ? 'ОНЛАЙН' : 'НЕТ СВЯЗИ'); }
     PRO.q('bt').then(function (j) {
       if (PRO.need(dl, j)) { setChip(false); return; }
       if (j && j.on === false) { setChip(false); dl.innerHTML = empty('Bluetooth выключен.<br>Включи его в шторке — и Джарвис увидит часы, машину и наушники.'); return; }
@@ -205,24 +254,88 @@
 
   // ---------- Агент «Сделай сам» ----------
   var TIPS = ['Закажи такси домой', 'Найди в Озоне зарядку USB-C до 1000 ₽', 'Включи в YouTube музыку для работы'];
-  PRO.bind('agent', function (el) {
-    var ph = phone(el, 'agent'); if (!ph) return;
-    var chip = $('#agChip', ph); if (chip) chip.textContent = 'ГОТОВ';
-    // гнёзда — пустые, демо-прогресс убираем
+  var agBusy = false, agTools = 0, agUi = null;
+  function agResetSlots(ph) {
     $$('.stage .ov .arc, .stage .ov .wait, .stage .ov .flow', ph).forEach(function (x) { x.style.opacity = 0; });
     $$('.stage .sk', ph).forEach(function (s, i) { s.classList.remove('act'); s.textContent = '0' + (i + 1) + ' · СВОБОДНО'; });
-    var ok = $('#okbar', ph); if (ok) ok.style.display = 'none';
+  }
+  function agPaint(st) {
+    if (!agUi) return;
+    var chip = agUi.chip, sk = agUi.sk, ok = agUi.ok;
+    if (st === 'start') {
+      agBusy = true; agTools = 0;
+      if (chip) chip.textContent = 'В РАБОТЕ';
+      agResetSlots(agUi.ph);
+      if (sk[0]) { sk[0].classList.add('act'); sk[0].textContent = '01 · СЛУШАЮ'; }
+      if (ok) ok.style.display = 'none';
+      return;
+    }
+    if (st === 'think') {
+      if (chip) chip.textContent = 'ДУМАЮ';
+      if (sk[0]) { sk[0].classList.remove('act'); sk[0].textContent = '01 · ПРИНЯЛ'; }
+      if (sk[1]) { sk[1].classList.add('act'); sk[1].textContent = '02 · ДУМАЮ'; }
+      return;
+    }
+    if (st === 'tool') {
+      agTools++;
+      if (chip) chip.textContent = agTools + ' ШАГ' + (agTools === 1 ? '' : (agTools < 5 ? 'А' : 'ОВ'));
+      if (sk[1]) { sk[1].classList.remove('act'); sk[1].textContent = '02 · ПЛАН'; }
+      var slot = sk[Math.min(1 + agTools, sk.length - 1)];
+      if (slot) { slot.classList.add('act'); slot.textContent = '0' + (Math.min(2 + agTools, 5)) + ' · ДЕЛАЮ'; }
+      return;
+    }
+    if (st === 'confirm') {
+      if (chip) chip.textContent = 'ЖДУ «ОК»';
+      if (ok) { ok.style.display = ''; ok.textContent = 'Нужно подтверждение — скажи «да» или нажми внизу'; }
+      return;
+    }
+    if (st === 'fail') {
+      agBusy = false;
+      if (chip) chip.textContent = 'СБОЙ';
+      if (ok) { ok.style.display = ''; ok.textContent = 'Шаг не удался — смотри ответ в диалоге'; }
+      return;
+    }
+    if (st === 'done') {
+      agBusy = false;
+      if (chip) chip.textContent = agTools ? ('ГОТОВО · ' + agTools) : 'ГОТОВО';
+      sk.forEach(function (s) { s.classList.remove('act'); });
+      if (ok) { ok.style.display = ''; ok.textContent = 'Задание закрыто — ответ в диалоге'; }
+    }
+  }
+  PRO.agentTick = function (ev) {
+    if (!agBusy && !(ev && (ev.t === 'request' || ev.t === 'wake'))) return;
+    if (!ev) return;
+    if (ev.t === 'request' || ev.t === 'wake') agPaint('start');
+    else if (ev.t === 'intent') agPaint('think');
+    else if (ev.t === 'tool') {
+      if (ev.pending) agPaint('confirm');
+      else if (ev.failed) agPaint('fail');
+      else agPaint('tool');
+    }
+    else if (ev.t === 'response') agPaint(ev.pending ? 'confirm' : 'done');
+  };
+  PRO.agentState = function (st) {
+    if (!agBusy) return;
+    if (st === 'THINKING' || st === 'EXECUTING') agPaint('think');
+    if (st === 'IDLE' || st === 'READY') { if (agBusy) agPaint('done'); }
+  };
+  PRO.bind('agent', function (el) {
+    var ph = phone(el, 'agent'); if (!ph) return;
+    var chip = $('#agChip', ph); if (chip && !agBusy) chip.textContent = 'ГОТОВ';
+    agResetSlots(ph);
+    var ok = $('#okbar', ph); if (ok && !agBusy) ok.style.display = 'none';
+    agUi = { ph: ph, chip: chip, sk: $$('.stage .sk', ph), ok: ok };
     var task = $('.task', ph);
     if (task && !task.dataset.real) {
       task.dataset.real = '1';
       task.innerHTML = '<div class="h"><span><b>ЗАДАЧА</b> · СДЕЛАЙ САМ</span><span>СПЕЦ. ВОЗМОЖНОСТИ</span></div>' +
-        '<div class="t" style="font-size:13px;color:var(--text2,#adaab2)">Напиши, что сделать на телефоне — агент сам нажмёт нужные кнопки. Деньги и сообщения — только после твоего «ок».</div>' +
-        '<div style="display:flex;gap:8px;margin-top:10px"><input id="agIn" placeholder="Например: закажи такси домой" style="flex:1;min-width:0;padding:10px 12px;border-radius:12px;border:1px solid rgba(196,156,255,.35);background:rgba(0,0,0,.25);color:var(--text,#F1F0F3);font-size:13px">' +
-        '<button id="agGo" style="padding:0 14px;border-radius:12px;border:0;background:var(--gold,#C49CFF);color:#120c1a;font-weight:700;font-size:13px">Сделай сам</button></div>';
+        '<div class="t" style="font-size:13px;color:var(--text2,#aab)">Напиши, что сделать на телефоне — агент сам нажмёт нужные кнопки. Деньги и сообщения — только после твоего «ок».</div>' +
+        '<div style="display:flex;gap:8px;margin-top:10px"><input id="agIn" placeholder="Например: закажи такси домой" style="flex:1;min-width:0;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,196,107,.35);background:rgba(0,0,0,.25);color:var(--text,#eef1f6);font-size:13px">' +
+        '<button id="agGo" style="padding:0 14px;border-radius:12px;border:0;background:var(--gold,#FFC46B);color:#1a1206;font-weight:700;font-size:13px">Сделай сам</button></div>';
       var inp = $('#agIn', task);
       var go = function () {
         var t = inp.value.trim(); if (!t) { inp.focus(); return; }
-        PRO.send(t); inp.value = ''; if (chip) chip.textContent = '1 / 5 В РАБОТЕ'; PRO.toast('Агент взялся: ' + t);
+        PRO.send(t); inp.value = ''; agPaint('start'); PRO.toast('Агент взялся: ' + t);
       };
       $('#agGo', task).onclick = go;
       inp.onkeydown = function (e) { if (e.key === 'Enter') go(); };
@@ -230,7 +343,7 @@
     var rows = $('.rows', ph);
     if (rows) {
       rows.innerHTML = TIPS.map(function (t, i) { return '<div class="row2" data-i="' + i + '" style="cursor:pointer"><b>›</b>' + E(t) + '<em>ПУСК</em></div>'; }).join('');
-      $$('.row2', rows).forEach(function (r) { r.onclick = function () { var t = TIPS[+r.dataset.i]; PRO.send(t); if (chip) chip.textContent = '1 / 5 В РАБОТЕ'; PRO.toast('Агент взялся: ' + t); }; });
+      $$('.row2', rows).forEach(function (r) { r.onclick = function () { var t = TIPS[+r.dataset.i]; PRO.send(t); agPaint('start'); PRO.toast('Агент взялся: ' + t); }; });
     }
   });
 })();
@@ -280,7 +393,7 @@
   }
   function done(it) { // выполнено / удалить
     var p = it.kind === 'rem' ? PRO.q('reminderDel', { id: it.id }) : PRO.q('noteDel', { list: 'дела', item: it.text });
-    return p.then(function (j) { PRO.toast(j && j.ok !== false ? 'Готово: ' + it.text : 'Не получилось'); PRO.refresh(); });
+    return p.then(function (j) { PRO.toast(j && j.ok && j.removed !== false ? 'Готово: ' + it.text : 'Не получилось'); PRO.refresh(); });
   }
 
   // ================= s16 · ДЕНЬ =================
@@ -657,15 +770,28 @@
   var E = PRO.esc;
   function $1(sel) { return document.querySelector(sel); }
   function empty(el, title, hint) { el.innerHTML = '<div class="real-empty"><b>' + E(title) + '</b><span>' + E(hint) + '</span></div>'; }
-  var GR = ['#6d5bff,#3a2fb8', '#ff9d6b,#c4513a', '#3fe0b0,#13866a', '#b492ff,#6760cd', '#E2CCFF,#2a7a96', '#2f6bff,#1b3fa8', '#ff7a1a,#c74a00', '#21a038,#126b22'];
+  var GR = ['#6d5bff,#3a2fb8', '#ff9d6b,#c4513a', '#3fe0b0,#13866a', '#ffb34d,#c46a12', '#7fe8ff,#2a7a96', '#2f6bff,#1b3fa8', '#ff7a1a,#c74a00', '#21a038,#126b22'];
   function grad(s) { var h = 0; s = String(s || '?'); for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return 'linear-gradient(135deg,' + GR[Math.abs(h) % GR.length] + ')'; }
   function ini(s) { s = String(s || '?').trim(); return (s[0] || '?').toUpperCase(); }
   function plural(n, a, b, c) { var m = n % 10, k = n % 100; return m === 1 && k !== 11 ? a : m >= 2 && m <= 4 && (k < 10 || k >= 20) ? b : c; }
   function toast(t) { PRO.toast(t); }
   function arr(j) { return j && j.items && j.items.length ? j.items : []; }
+  /** Контент между шапкой и нижней панелью — в прокрутку, чтобы nav не закрывал кнопки. */
+  function phoneScroll(ph) {
+    var ui = ph && ph.querySelector('.ui'); if (!ui) return;
+    if (ui.querySelector(':scope > .real-scroll')) return;
+    var box = document.createElement('div'); box.className = 'real-scroll';
+    var nav = ui.querySelector('.navw');
+    [].slice.call(ui.children).forEach(function (k) {
+      if (k.classList.contains('sb') || k.classList.contains('navw') || k.classList.contains('tbar') || k.classList.contains('vign') || k.classList.contains('real-scroll')) return;
+      box.appendChild(k);
+    });
+    if (nav) ui.insertBefore(box, nav); else ui.appendChild(box);
+  }
 
   // ---------- Брифинг ----------
   PRO.bind('brief', function () {
+    phoneScroll($1('#brief'));
     try { ++bRun; } catch (e) {}
     var t0 = new Date(), sod = new Date(t0); sod.setHours(0, 0, 0, 0);
     var eod = sod.getTime() + 864e5;
@@ -725,45 +851,136 @@
       BR.m.len = BR.e.len = 'ПО ДАННЫМ';
       bK = h >= 17 || h < 4 ? 'e' : 'm';
       document.querySelectorAll('#bSeg span').forEach(function (x) { x.classList.toggle('on', x.dataset.k === bK); });
-      bDraw(); bPlay();
+      bDraw();
       document.querySelectorAll('#bList .bc').forEach(function (c, i) {
         if (BR[bK].items[i] && BR[bK].items[i][3] === 'ОТВЕТЫ') { c.style.cursor = 'pointer'; c.onclick = function () { location.hash = 'reply'; }; }
       });
+      function speakBrief() {
+        var b = BR[bK], lines = [b.hi].concat((b.items || []).map(function (x) { return x[4] || x[1]; }));
+        var text = lines.filter(Boolean).join(' ');
+        var st = $1('#bState'), line = $1('#bLine'), bar = $1('#bBar');
+        if (st) { st.textContent = 'ГОВОРЮ'; st.style.color = 'var(--gold)'; }
+        if (line) line.textContent = b.hi;
+        if (bar) { bar.style.transition = 'none'; bar.style.width = '0'; setTimeout(function () { bar.style.transition = 'width 2s linear'; bar.style.width = '100%'; }, 30); }
+        var say = text.length > 500 ? text.slice(0, 498) + '…' : text;
+        try { JarvisNative.speak(say); } catch (e) { PRO.send(say); }
+        setTimeout(function () {
+          if (st) { st.textContent = 'ГОТОВО'; st.style.color = 'var(--ok)'; }
+          if (line) line.textContent = bK === 'm' ? 'Хорошего дня. Если что — я рядом.' : 'Спокойной ночи, сэр.';
+        }, Math.min(12000, 1800 + say.length * 40));
+      }
       var again = $1('#bAgain');
-      if (again) again.onclick = function () { PRO.send('что сегодня'); bDraw(); bPlay(); };
+      if (again) again.onclick = function () { bDraw(); speakBrief(); };
+      var only = $1('#bText');
+      if (only) only.onclick = function () {
+        var st = $1('#bState'), line = $1('#bLine'), bar = $1('#bBar');
+        if (st) { st.textContent = 'ТЕКСТОМ'; st.style.color = 'var(--text2)'; }
+        if (line) line.textContent = 'Всё на карточках ниже.';
+        if (bar) bar.style.width = '100%';
+        document.querySelectorAll('#bList .bc').forEach(function (c) { c.classList.remove('on'); c.classList.add('done'); });
+      };
+      document.querySelectorAll('#bSeg span').forEach(function (s) {
+        s.onclick = function () {
+          bK = s.dataset.k;
+          document.querySelectorAll('#bSeg span').forEach(function (x) { x.classList.toggle('on', x === s); });
+          bDraw();
+        };
+      });
+      // расписание утро/вечер
+      var host = $1('#brief .btn2') || $1('#brief');
+      if (host && !document.getElementById('bSched')) {
+        var box = document.createElement('div');
+        box.id = 'bSched';
+        box.className = 'b-sched';
+        box.innerHTML = '<div class="bs-h"><b>Расписание брифинга</b><label class="bs-tog"><input id="bOn" type="checkbox"> Авто</label></div>' +
+          '<div class="bs-row"><label class="bs-t">УТРО<input id="bM" type="time" value="08:00"></label>' +
+          '<label class="bs-t">ВЕЧЕР<input id="bE" type="time" value="21:00"></label></div>' +
+          '<button type="button" class="bs-save" id="bSave">Сохранить</button><div class="bs-msg" id="bSchedMsg"></div>';
+        host.parentNode.insertBefore(box, host.nextSibling);
+        PRO.q('briefGet').then(function (j) {
+          if (!j || !j.ok) return;
+          var on = document.getElementById('bOn'), m = document.getElementById('bM'), e = document.getElementById('bE');
+          if (on) on.checked = !!j.on;
+          if (m && j.morning) m.value = j.morning;
+          if (e && j.evening) e.value = j.evening;
+        });
+        document.getElementById('bSave').onclick = function () {
+          var on = document.getElementById('bOn').checked;
+          var m = document.getElementById('bM').value || '08:00';
+          var e = document.getElementById('bE').value || '21:00';
+          PRO.q('briefSet', { on: on, morning: m, evening: e }).then(function (r) {
+            var msg = document.getElementById('bSchedMsg');
+            if (msg) msg.textContent = r && r.ok ? (on ? 'Буду говорить в ' + m + ' и ' + e : 'Авто-брифинг выключен') : 'Не сохранилось';
+          });
+        };
+      }
+      // не автопроигрываем анимацию — только по кнопке
+      var st0 = $1('#bState'); if (st0) { st0.textContent = 'ГОТОВ'; st0.style.color = ''; }
     });
   });
 
   // ---------- Ответы ----------
   var TPL = ['Перезвоню позже', 'Ок, понял', 'Скоро буду'];
   PRO.bind('reply', function () {
+    phoneScroll($1('#rpl'));
     var rl = $1('#rpl .rl'); if (!rl) return;
     var sub = $1('#rpl .jhead span'), chip = $1('#rpl .tbar .chip');
     PRO.q('notifs').then(function (j) {
       if (PRO.need(rl, j)) return;
       var it = arr(j).filter(function (x) { return x.canReply; });
       if (chip) chip.innerHTML = '<i></i>' + (it.length ? it.length + ' ЖДУТ' : 'ВСЁ ТИХО');
-      if (sub) sub.textContent = it.length ? 'Ждут ответа: ' + it.length + '. Выбери вариант и нажми «Отправить».' : 'Новых сообщений нет.';
+      if (sub) sub.textContent = it.length ? 'Ждут ответа: ' + it.length + '. Шаблон, свой текст или «Сгенерировать» — потом «Отправить».' : 'Новых сообщений нет.';
       if (!it.length) { empty(rl, 'Никто не ждёт ответа', 'Сообщения из мессенджеров с кнопкой «Ответить» появятся здесь.'); return; }
       rl.innerHTML = it.map(function (x, i) {
         return '<div class="rc" data-n="' + i + '"><div class="h"><div class="av" style="background:' + grad(x.title) + '">' + E(ini(x.title)) + '</div><div><b>' + E(x.title || x.app) + '</b><small>' +
           E(String(x.app || '').toUpperCase() + ' · ' + PRO.ago(x.time).toUpperCase()) + '</small></div><span class="tagj c">ЖДЁТ</span></div>' +
-          '<div class="in">' + E(x.text) + '</div><div class="dr"><small>ОТВЕТ ДЖАРВИСА</small><span class="tx">' + TPL[0] + '</span></div>' +
-          '<div class="alt">' + TPL.map(function (t, k) { return '<span' + (k ? '' : ' class="on"') + ' data-t="' + t + '">' + t + '</span>'; }).join('') + '</div>' +
+          '<div class="in">' + E(x.text) + '</div><div class="dr"><small>ТВОЙ ОТВЕТ</small>' +
+          '<textarea class="tx" rows="2" style="width:100%;margin-top:6px;padding:10px 12px;border-radius:12px;border:1px solid var(--line,rgba(255,255,255,.18));background:rgba(0,0,0,.28);color:var(--text,#eef1f6);font:inherit;font-size:13.5px;line-height:1.4;resize:vertical;outline:0">' + E(TPL[0]) + '</textarea></div>' +
+          '<div class="alt">' + TPL.map(function (t, k) { return '<span' + (k ? '' : ' class="on"') + ' data-t="' + t + '">' + t + '</span>'; }).join('') +
+            '<span data-gen style="opacity:.85">Сгенерировать</span></div>' +
           '<div class="btn2"><button class="sk">Позже</button><button class="g go">Отправить</button></div></div>';
       }).join('');
       rl.querySelectorAll('.rc').forEach(function (rc) {
         var x = it[+rc.dataset.n];
+        var tx = rc.querySelector('.tx');
+        function setText(t) {
+          if (!tx) return;
+          tx.value = t;
+          rc.querySelectorAll('.alt span').forEach(function (y) { y.classList.toggle('on', y.dataset.t === t); });
+        }
+        tx && tx.addEventListener('input', function () {
+          rc.querySelectorAll('.alt span').forEach(function (y) { y.classList.remove('on'); });
+        });
         rc.querySelectorAll('.alt span').forEach(function (s) {
-          s.onclick = function () { if (rc.classList.contains('sent')) return; rc.querySelectorAll('.alt span').forEach(function (y) { y.classList.toggle('on', y === s); }); rc.querySelector('.tx').textContent = s.dataset.t; };
+          s.onclick = function () {
+            if (rc.classList.contains('sent')) return;
+            if (s.hasAttribute('data-gen')) {
+              if (tx) tx.value = 'Думаю…';
+              var from = x.title || x.app || 'собеседник';
+              var msg = x.text || '';
+              var q = 'Напиши короткий ответ от первого лица (я / мне), как будто я сам пишу в мессенджер. Без кавычек, без пояснений, без «Джарвис», без «могу ответить». Только текст сообщения. Собеседник: ' + from + '. Их сообщение: «' + msg + '»';
+              PRO.q('tool', { id: 'web.answer', args: { query: q } }).then(function (r) {
+                var ans = (r && r.msg) ? String(r.msg).replace(/\s+/g, ' ').trim() : TPL[0];
+                ans = ans.replace(/^["«]|["»]$/g, '').replace(/^(вот|ответ|можно так)[:\s-]*/i, '').trim().slice(0, 160);
+                if (!ans) ans = TPL[0];
+                setText(ans);
+                rc.querySelectorAll('.alt span').forEach(function (y) { y.classList.toggle('on', y === s); });
+              });
+              return;
+            }
+            setText(s.dataset.t);
+          };
         });
         rc.querySelector('.go').onclick = function () {
           if (rc.classList.contains('sent')) return;
+          var text = (tx && tx.value || '').trim();
+          if (!text) { if (tx) tx.focus(); toast('Напиши ответ'); return; }
           var b = this; b.textContent = '…';
-          PRO.q('notifReply', { key: x.key, text: rc.querySelector('.tx').textContent }).then(function (r) {
-            if (r && r.ok && r.sent !== false) {
+          PRO.q('notifReply', { key: x.key, text: text }).then(function (r) {
+            if (r && r.ok && r.sent === true) {
               rc.classList.add('sent'); rc.querySelector('.dr small').textContent = 'ОТПРАВЛЕНО · СЕЙЧАС';
               var t = rc.querySelector('.h .tagj'); t.textContent = 'ОТВЕТИЛ'; t.className = 'tagj k';
+              if (tx) { tx.disabled = true; }
               rc.querySelector('.btn2').innerHTML = '<button class="ok">✓ Отправлено</button>'; var a = rc.querySelector('.alt'); if (a) a.remove();
             } else { b.textContent = 'Не ушло · ещё раз'; toast('Не удалось отправить'); }
           });
@@ -783,6 +1000,7 @@
     return 0;
   }
   PRO.bind('important', function () {
+    phoneScroll($1('#imp'));
     var il = $1('#imp .il'); if (!il) return;
     var n = $1('#imp .sum .n'), sp = $1('#imp .sum > span');
     PRO.q('notifs').then(function (j) {
@@ -825,7 +1043,7 @@
     var ph = $1('#chn'); if (ph) ph.onShow = null;
     var chip = $1('#chChip'), tx = $1('#chTxt'), say = $1('#chSay small'), one = $1('#chOne'), all = $1('#chAll');
     if (say) say.textContent = 'МОИ КОМАНДЫ';
-    if (one) { one.style.display = ''; one.textContent = 'Добавить'; one.onclick = function () { try { JarvisNative.open('section:Мои команды'); } catch (e) {} }; }
+    if (one) { one.style.display = ''; one.textContent = 'Добавить'; one.onclick = function () { var ed = ph.querySelector('.real-editor, .real-pack'); if (ed) ed.scrollIntoView({ block: 'nearest' }); }; }
     PRO.q('routines').then(function (j) {
       var it = arr(j), sel = 0;
       if (chip) chip.textContent = it.length ? it.length + ' ' + plural(it.length, 'КОМАНДА', 'КОМАНДЫ', 'КОМАНД') : 'НЕТ КОМАНД';
@@ -845,9 +1063,25 @@
       els.forEach(function (e, i) { e.style.cursor = 'pointer'; e.onclick = function () { pick(i); }; });
       pick(0);
       if (all) all.onclick = function () {
-        var e = els[sel]; PRO.send(it[sel].name);
-        e.classList.remove('wait'); e.classList.add('ok'); var t = e.querySelector('.tagj'); t.textContent = 'ЗАПУЩЕНО'; t.className = 'tagj k';
-        all.textContent = '✓ Запущено'; all.className = 'ok';
+        var e = els[sel], name = it[sel].name;
+        PRO.send(name);
+        e.classList.remove('ok'); e.classList.add('wait');
+        var t = e.querySelector('.tagj'); t.textContent = 'В РАБОТЕ'; t.className = 'tagj w';
+        all.textContent = 'Жду ответ…'; all.className = 'g'; all.disabled = true;
+        var doneOnce = false;
+        function finish(ok, label) {
+          if (doneOnce) return; doneOnce = true; PRO._chainWait = null;
+          e.classList.remove('wait'); e.classList.toggle('ok', !!ok);
+          t.textContent = label; t.className = 'tagj ' + (ok ? 'k' : 'w');
+          all.textContent = ok ? '✓ ' + label : label; all.className = ok ? 'ok' : 'g'; all.disabled = false;
+        }
+        PRO._chainWait = function (ev) {
+          if (!ev || doneOnce) return;
+          if (ev.t === 'response') finish(true, 'ГОТОВО');
+          else if (ev.t === 'tool' && ev.failed) finish(false, 'СБОЙ');
+          else if (ev.t === 'tool' && ev.pending) { t.textContent = 'ЖДУ «ОК»'; t.className = 'tagj w'; all.textContent = 'Нужно подтверждение'; }
+        };
+        setTimeout(function () { if (!doneOnce) finish(false, 'НЕТ ОТВЕТА'); }, 45000);
       };
     });
   });
@@ -895,8 +1129,14 @@
           var g = $1('#pTip .g'), s = $1('#pTip .btn2 button:not(.g)');
           if (!p.phone) { if (g) g.onclick = function () { toast('У контакта нет номера'); }; return; }
           if (g) g.onclick = function () {
-            if (p.near) PRO.q('smsTo', { phone: p.phone, text: p.msg }); else PRO.q('dial', { phone: p.phone });
-            g.textContent = '✓ Открыл'; g.className = 'ok';
+            if (p.near) {
+              PRO.q('smsTo', { phone: p.phone, text: p.msg });
+              g.textContent = '✓ Черновик SMS'; g.className = 'ok';
+              PRO.toast('Открыл черновик поздравления — отправь сам');
+            } else {
+              PRO.q('dial', { phone: p.phone });
+              g.textContent = '✓ Открыл'; g.className = 'ok';
+            }
           };
           if (s) s.onclick = function () { if (p.near) PRO.q('dial', { phone: p.phone }); else PRO.q('smsTo', { phone: p.phone, text: '' }); };
         };
@@ -914,9 +1154,9 @@
   function QA(el, s) { return el ? [].slice.call(el.querySelectorAll(s)) : []; }
   function hide(el) { if (el) el.style.display = 'none'; }
   function chip(ph, t) { var c = Q(ph, '.tbar .chip'); if (c) c.innerHTML = '<i></i>' + E(t); }
-  var INP = 'flex:1;min-width:0;padding:9px 12px;border-radius:12px;border:1px solid var(--line,rgba(255,255,255,.14));background:rgba(255,255,255,.05);color:var(--text,#F1F0F3);font:inherit;font-size:13px;outline:0';
-  var BTN = 'padding:9px 14px;border-radius:12px;border:0;background:var(--gold,#C49CFF);color:#120c1a;font-weight:700;font-size:13px';
-  var BTN2 = 'padding:9px 12px;border-radius:12px;border:1px solid var(--line,rgba(255,255,255,.14));background:transparent;color:var(--text,#F1F0F3);font-size:12.5px;text-align:left';
+  var INP = 'flex:1;min-width:0;padding:9px 12px;border-radius:12px;border:1px solid var(--line,rgba(255,255,255,.14));background:rgba(255,255,255,.05);color:var(--text,#eef1f6);font:inherit;font-size:13px;outline:0';
+  var BTN = 'padding:9px 14px;border-radius:12px;border:0;background:var(--gold,#FFC46B);color:#1a1206;font-weight:700;font-size:13px';
+  var BTN2 = 'padding:9px 12px;border-radius:12px;border:1px solid var(--line,rgba(255,255,255,.14));background:transparent;color:var(--text,#eef1f6);font-size:12.5px;text-align:left';
 
   // ---------- Режимы ----------
   var ICF = '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/>';
@@ -926,7 +1166,7 @@
     { m: 'sleep', k: 'sleep', n: 'Сон', t: '«НЕ БЕСПОКОИТЬ» · ТИШИНА', a: ['Не беспокоить', 'Тихие уведомления'] },
     { m: 'work', k: 'work', n: 'Работа', t: 'ВИБРАЦИЯ · БЕЗ ЗВУКА', a: ['Вибрация вместо звонка'] },
     { m: 'drive', k: 'car', n: 'Дорога', t: 'ЗВУК · ОТВЕТЫ ГОЛОСОМ', a: ['Звук включён', 'Говори «Джарвис…» без рук'] },
-    { m: 'focus', k: 'focus', n: 'Фокус', t: '«НЕ БЕСПОКОИТЬ» · БЕЗ ОТВЛЕЧЕНИЙ', a: ['Не беспокоить', 'Только важное'] }
+    { m: 'focus', k: 'focus', n: 'Фокус', t: 'ПРИОРИТЕТ · ТОЛЬКО ВАЖНОЕ', a: ['Режим приоритета', 'Звонки и отмеченные'] }
   ];
   var RING = ['тихо', 'вибро', 'звук'];
   PRO.bind('modes', function (ph) {
@@ -969,64 +1209,83 @@
 
   // ---------- Цены ----------
   var SHOPS = [
-    ['Ozon', 'OZ', '#005bff,#652970', 'ru.ozon.app.android', 'https://www.ozon.ru/search/?text='],
+    ['Ozon', 'OZ', '#005bff,#0039a6', 'ru.ozon.app.android', 'https://www.ozon.ru/search/?text='],
     ['Wildberries', 'WB', '#cb11ab,#7d0a6a', 'com.wildberries.ru', 'https://www.wildberries.ru/catalog/0/search.aspx?search='],
-    ['Яндекс Маркет', 'ЯМ', '#ffcc00,#ad68d0', 'ru.beru.android', 'https://market.yandex.ru/search?text=']
+    ['Яндекс Маркет', 'ЯМ', '#ffcc00,#c79a00', 'ru.beru.android', 'https://market.yandex.ru/search?text=']
   ];
-  var pLast = '', pAns = '';
   PRO.bind('prices', function (ph) {
     var hot = Q(ph, '.hot'), pl = Q(ph, '.pl'), add = Q(ph, '.addp');
-    chip(ph, 'ПОИСК ЦЕН');
-    if (add) add.innerHTML = '<b>Голосом:</b> «Джарвис, сколько стоит PlayStation 5?»';
-    hot.innerHTML = '<small>ДЖАРВИС · НАЙДУ ЦЕНУ</small>' +
-      '<div style="display:flex;gap:8px;margin-top:8px"><input id="rpQ" placeholder="Что ищем? Например, наушники Sony" style="' + INP + '"><button id="rpGo" style="' + BTN + '">Найти</button></div>' +
-      '<div id="rpHints" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>' +
-      '<div id="rpA" style="margin-top:10px;font-size:12.5px;line-height:1.45;color:var(--text2,#adaab2);white-space:pre-wrap"></div>';
-    var inp = Q(hot, '#rpQ'), out = Q(hot, '#rpA'), hints = Q(hot, '#rpHints');
-    inp.value = pLast;
-    hints.innerHTML = ['iPhone 15', 'PlayStation 5', 'Робот-пылесос', 'Кроссовки Nike'].map(function (h) {
-      return '<span style="' + BTN2 + ';padding:6px 10px;font-size:11.5px;cursor:pointer">' + E(h) + '</span>';
-    }).join('');
-    function shops() {
-      var t = inp.value.trim();
-      pl.innerHTML = SHOPS.map(function (s, i) {
-        return '<div class="pi" data-i="' + i + '" style="cursor:pointer"><div class="ap" style="background:linear-gradient(135deg,' + s[2] + ')">' + s[1] + '</div><div><b>Открыть ' + E(s[0]) + '</b><span>' + (t ? 'Поиск: ' + E(t) : 'Введи товар выше') + '</span></div><div class="v"><em>›</em></div></div>';
+    chip(ph, 'СЛЕЖУ');
+    if (add) add.innerHTML = '<b>Локальный список:</b> без API магазинов — проверю по запросу и напомню, когда цена около цели.';
+    hot.innerHTML = '<small>WATCHLIST · НА ТЕЛЕФОНЕ</small>' +
+      '<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">' +
+      '<input id="rpName" placeholder="Товар" style="' + INP + '">' +
+      '<div style="display:flex;gap:8px"><input id="rpTarget" type="number" placeholder="Цель ₽" style="' + INP + '"><button id="rpAdd" style="' + BTN + '">Следить</button></div>' +
+      '<button id="rpCheck" style="' + BTN2 + '">Проверить сейчас</button></div>' +
+      '<div id="rpList" style="margin-top:10px"></div>';
+    function drawWatch(items) {
+      var box = Q(hot, '#rpList');
+      if (!items || !items.length) {
+        box.innerHTML = '<div class="real-empty">Пока пусто. Добавь товар и целевую цену — проверю раз в несколько часов.</div>';
+        return;
+      }
+      box.innerHTML = items.map(function (x) {
+        var price = x.lastPrice != null ? Math.round(x.lastPrice) + ' ₽' : 'ещё не проверял';
+        return '<div class="pi" data-id="' + E(x.id) + '"><div class="ap" style="background:linear-gradient(135deg,var(--gold,#ffc46b),#a67c3a)">₽</div>' +
+          '<div><b>' + E(x.name) + '</b><span>Цель ' + Math.round(x.target) + ' ₽ · сейчас ' + E(price) + (x.hit ? ' · ЦЕЛЬ' : '') + '</span></div>' +
+          '<button data-del="' + E(x.id) + '" style="padding:6px 10px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--text2)">✕</button></div>';
       }).join('');
-      QA(pl, '.pi').forEach(function (d) {
-        d.onclick = function (e) {
+      QA(box, '[data-del]').forEach(function (b) {
+        b.onclick = function (e) {
           e.stopPropagation();
-          var s = SHOPS[+d.getAttribute('data-i')], q = inp.value.trim();
-          PRO.q('openApp', { pkg: s[3], url: s[4] + encodeURIComponent(q) });
+          PRO.q('pricesDel', { id: b.getAttribute('data-del') }).then(function () { PRO.refresh(); });
         };
       });
     }
-    function show() { out.innerHTML = pAns ? '<b style="color:var(--text,#F1F0F3)">' + E(pLast) + '</b>\n' + E(pAns) : '<div class="real-empty">Напиши товар или нажми подсказку — Джарвис поищет цены в интернете.</div>'; }
-    function go() {
-      var t = inp.value.trim(); if (!t) return;
-      pLast = t; shops(); out.innerHTML = '<span>Ищу цену…</span>';
-      PRO.q('tool', { id: 'web.answer', args: { query: 'сколько стоит ' + t + ' в российских магазинах, цены в рублях' } }).then(function (r) {
-        pAns = (r && r.msg) ? String(r.msg) : 'Не получилось найти. Проверь интернет и попробуй ещё раз.';
-        if (PRO.cur === 'prices') show();
-      });
+    function reload() {
+      PRO.q('pricesWatch').then(function (j) { drawWatch((j && j.items) || []); });
     }
-    Q(hot, '#rpGo').onclick = function (e) { e.stopPropagation(); go(); };
-    inp.onkeydown = function (e) { if (e.key === 'Enter') go(); };
-    inp.oninput = shops;
-    QA(hints, 'span').forEach(function (s) { s.onclick = function (e) { e.stopPropagation(); inp.value = s.textContent; go(); }; });
-    shops(); show();
+    Q(hot, '#rpAdd').onclick = function (e) {
+      e.stopPropagation();
+      var name = Q(hot, '#rpName').value.trim(), target = +Q(hot, '#rpTarget').value;
+      PRO.q('pricesAdd', { name: name, query: name, target: target }).then(function (r) {
+        if (r && r.ok) { Q(hot, '#rpName').value = ''; Q(hot, '#rpTarget').value = ''; reload(); PRO.toast('Слежу за «' + name + '»'); }
+        else PRO.toast((r && r.err) || 'Не добавилось');
+      });
+    };
+    Q(hot, '#rpCheck').onclick = function (e) {
+      e.stopPropagation();
+      Q(hot, '#rpCheck').textContent = 'Проверяю…';
+      PRO.q('pricesCheck').then(function (r) {
+        Q(hot, '#rpCheck').textContent = 'Проверить сейчас';
+        drawWatch((r && r.items) || []);
+        PRO.toast(r && r.ok ? ('Проверил: ' + (r.checked || 0)) : 'Не удалось проверить');
+      });
+    };
+    pl.innerHTML = SHOPS.map(function (s, i) {
+      return '<div class="pi" data-i="' + i + '" style="cursor:pointer"><div class="ap" style="background:linear-gradient(135deg,' + s[2] + ')">' + s[1] + '</div><div><b>Открыть ' + E(s[0]) + '</b><span>Поиск вручную в магазине</span></div><div class="v"><em>›</em></div></div>';
+    }).join('');
+    QA(pl, '.pi').forEach(function (d) {
+      d.onclick = function (e) {
+        e.stopPropagation();
+        var s = SHOPS[+d.getAttribute('data-i')], q = (Q(hot, '#rpName').value || '').trim();
+        PRO.q('openApp', { pkg: s[3], url: s[4] + encodeURIComponent(q) });
+      };
+    });
+    reload();
   });
 
   // ---------- Госуслуги ----------
   var GL = [
-    ['ГИ', '#2f6bff,#1b3fa8', 'Штрафы ГИБДД', 'Проверить и оплатить на сайте', 'https://www.gosuslugi.ru/pay?categories=fine'],
-    ['₽', '#2f6bff,#1b3fa8', 'Налоги', 'Задолженность и уведомления ФНС', 'https://www.gosuslugi.ru/pay?categories=tax'],
-    ['✚', '#21a038,#126b22', 'Запись к врачу', 'Выбрать поликлинику и время', 'https://www.gosuslugi.ru/10700/1']
+    ['ГИ', '#2f6bff,#1b3fa8', 'Штрафы ГИБДД', 'Открою сайт — оплату и долги сам не вижу', 'https://www.gosuslugi.ru/pay?categories=fine'],
+    ['₽', '#2f6bff,#1b3fa8', 'Налоги', 'Ссылка на раздел ФНС, без доступа к счёту', 'https://www.gosuslugi.ru/pay?categories=tax'],
+    ['✚', '#21a038,#126b22', 'Запись к врачу', 'Открою запись — документы из аккаунта не читаю', 'https://www.gosuslugi.ru/10700/1']
   ];
   PRO.bind('gos', function (ph) {
     var head = Q(ph, '.jhead span'), gl = Q(ph, '.gl'), sub = Q(ph, '.sub2'), docs = Q(ph, '.docs');
     var hb = Q(ph, '.jhead b'); if (hb) hb.textContent = 'ОТКРОЮ И НАПОМНЮ';
-    if (head) head.textContent = 'Данные Госуслуг Джарвис не видит: открытого доступа к ним нет. Он откроет нужный раздел и напомнит о сроке.';
-    chip(ph, 'БЫСТРЫЕ ССЫЛКИ');
+    if (head) head.textContent = 'Джарвис не заходит в твой аккаунт Госуслуг: только открывает приложение/сайт и ставит локальные напоминания.';
+    chip(ph, 'ССЫЛКИ · НАПОМИНАНИЯ');
     gl.innerHTML = '<div class="ic3 j"><div class="ap" style="background:linear-gradient(135deg,#2f6bff,#1b3fa8)">ГУ</div><div><b>Открыть Госуслуги</b><span>Приложение, а если его нет — сайт</span></div><button class="g" data-a="app">Открыть</button></div>' +
       GL.map(function (g, i) {
         return '<div class="ic3"><div class="ap" style="background:linear-gradient(135deg,' + g[1] + ')">' + g[0] + '</div><div><b>' + E(g[2]) + '</b><span>' + E(g[3]) + '</span></div><button data-u="' + i + '">Открыть</button></div>';
@@ -1034,7 +1293,7 @@
     QA(gl, 'button').forEach(function (b) {
       b.onclick = function (e) {
         e.stopPropagation();
-        if (b.getAttribute('data-a') === 'app') PRO.q('openApp', { pkg: 'ru.rostel', url: 'https://www.gosuslugi.ru' });
+        if (b.getAttribute('data-a') === 'app') PRO.q('openApp', { pkg: 'ru.gosuslugi.mobile,ru.rostel,ru.gosuslugi', url: 'https://www.gosuslugi.ru' });
         else PRO.q('web', { url: GL[+b.getAttribute('data-u')][4] });
       };
     });
@@ -1043,7 +1302,7 @@
       var d = new Date(Date.now() + 864e5), ds = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
       docs.style.display = 'block';
       docs.innerHTML = '<div style="display:flex;flex-direction:column;gap:8px;width:100%"><input id="rgT" placeholder="Что? Например, оплатить налог" style="' + INP + '">' +
-        '<div style="display:flex;gap:8px"><input id="rgD" type="date" value="' + ds + '" style="' + INP + '"><button id="rgOk" style="' + BTN + '">Напомнить</button></div><span id="rgM" style="font-size:11.5px;color:var(--text2,#adaab2)">Напомню в 10:00 в выбранный день.</span></div>';
+        '<div style="display:flex;gap:8px"><input id="rgD" type="date" value="' + ds + '" style="' + INP + '"><button id="rgOk" style="' + BTN + '">Напомнить</button></div><span id="rgM" style="font-size:11.5px;color:var(--text2,#aab)">Напомню в 10:00 в выбранный день.</span></div>';
       Q(docs, '#rgOk').onclick = function (e) {
         e.stopPropagation();
         var t = Q(docs, '#rgT').value.trim(), v = Q(docs, '#rgD').value, m = Q(docs, '#rgM');
@@ -1069,7 +1328,7 @@
       var L = (j && j.lists) || {}, total = 0;
       list.innerHTML = NL.map(function (n) {
         var it = L[n[0]] || []; total += it.length;
-        return '<div style="margin:10px 2px 4px;display:flex;justify-content:space-between;align-items:center"><span class="tagj ' + n[2] + '">' + n[1] + '</span><span style="font-size:11px;color:var(--text2,#adaab2)">' + it.length + '</span></div>' +
+        return '<div style="margin:10px 2px 4px;display:flex;justify-content:space-between;align-items:center"><span class="tagj ' + n[2] + '">' + n[1] + '</span><span style="font-size:11px;color:var(--text2,#aab)">' + it.length + '</span></div>' +
           (it.length ? it.map(function (x) {
             return '<div class="nt" data-l="' + E(n[0]) + '" data-v="' + E(x) + '" style="cursor:pointer"><div><b>' + E(x) + '</b><span>НАЖМИ — ВЫЧЕРКНУТЬ</span></div><span class="tagj">✓</span></div>';
           }).join('') : '<div class="real-empty" style="padding:8px 6px">Пока пусто</div>') +
@@ -1092,12 +1351,12 @@
   });
 
   // ---------- Расходы ----------
-  var WC = ['var(--gold,#C49CFF)', '#E2CCFF', '#ff8a6b', '#c89bff', '#3fe0b0', '#A4A1A9'];
+  var WC = ['var(--gold,#ffc46b)', '#7fe8ff', '#ff8a6b', '#c89bff', '#3fe0b0', '#9aa3b2'];
   PRO.bind('spend', function (ph) {
     var tot = Q(ph, '.tot'), cats = Q(ph, '#sCats'), tip = Q(ph, '.tip'), sub = Q(ph, '.sub2'), subs = Q(ph, '.subs'), priv = Q(ph, '.priv');
     var M = ['ЯНВАРЬ', 'ФЕВРАЛЬ', 'МАРТ', 'АПРЕЛЬ', 'МАЙ', 'ИЮНЬ', 'ИЮЛЬ', 'АВГУСТ', 'СЕНТЯБРЬ', 'ОКТЯБРЬ', 'НОЯБРЬ', 'ДЕКАБРЬ'];
-    chip(ph, '30 ДНЕЙ');
-    if (priv) priv.lastChild.textContent = 'Считаю по SMS банков, только на телефоне. В банк не захожу.';
+    chip(ph, 'ПО НЕДЕЛЯМ');
+    if (priv) priv.lastChild.textContent = 'Считаю по SMS банков за 30 дней, группы — по неделям. В банк не захожу.';
     PRO.q('spend', { days: 30 }).then(function (j) {
       if (j && j.need) {
         tot.style.display = 'none'; hide(tip); hide(sub); hide(subs);
@@ -1169,4 +1428,537 @@
       if (m && PRO.cur === 'devices') p.textContent = m.title + ': «' + String(m.text).slice(0, 60) + '» — скажи «Джарвис, ответь…»';
     });
   });
+})();
+
+// Разделы, которые раньше открывались чужой страницей, живут внутри тех же экранов Pro.
+(function () {
+  if (!window.PRO || !PRO.on) return;
+  var E = PRO.esc;
+  function phone(el, id) { return (el && (el.id === id ? el : el.querySelector('#' + id))) || document.getElementById(id); }
+  function scrollOf(ph) {
+    var ui = ph.querySelector('.ui'); if (!ui) return ph;
+    var box = ui.querySelector(':scope > .real-scroll');
+    if (box) return box;
+    box = document.createElement('div'); box.className = 'real-scroll';
+    var nav = ui.querySelector('.navw');
+    [].slice.call(ui.children).forEach(function (k) {
+      if (k.classList.contains('sb') || k.classList.contains('navw') || k.classList.contains('tbar') || k.classList.contains('vign') || k.classList.contains('hero-core') || k.classList.contains('dyn-core') || k.classList.contains('real-scroll')) return;
+      box.appendChild(k);
+    });
+    if (nav) ui.insertBefore(box, nav); else ui.appendChild(box);
+    return box;
+  }
+  function setKey(key, value) {
+    return PRO.q('panelSet', { key: key, value: value }).then(function (r) {
+      if (r && r.err) { PRO.toast(r.err); return false; }
+      if (r && r.restart) PRO.toast('Слух перезапускается');
+      return true;
+    });
+  }
+  function group(parent, title) {
+    var s = document.createElement('div'); s.className = 'sub2'; s.textContent = title;
+    var g = document.createElement('div'); g.className = 'grp';
+    parent.appendChild(s); parent.appendChild(g); return g;
+  }
+  function row(g, title, sub) {
+    var d = document.createElement('div'); d.className = 'row3';
+    d.innerHTML = '<div>' + E(title) + (sub ? '<small>' + E(sub) + '</small>' : '') + '</div>';
+    g.appendChild(d); return d;
+  }
+  function toggle(g, title, sub, on, key, invert) {
+    var d = row(g, title, sub);
+    var shown = invert ? !on : !!on;
+    var i = document.createElement('i'); i.className = 'tg' + (shown ? ' on' : '');
+    i.onclick = function (e) {
+      e.stopPropagation();
+      var wantShown = !i.classList.contains('on');
+      var stored = invert ? !wantShown : wantShown;
+      setKey(key, stored).then(function (ok) { if (ok) i.classList.toggle('on', wantShown); });
+    };
+    d.appendChild(i);
+  }
+  function labelOf(choices, value) {
+    var v = String(value == null ? '' : value);
+    for (var i = 0; i < choices.length; i++) if (String(choices[i][0]) === v) return choices[i][1];
+    return choices[0] ? choices[0][1] : '';
+  }
+  function openSheet(title, choices, value, onPick) {
+    var old = document.getElementById('pickSheet'); if (old) old.remove();
+    var wrap = document.createElement('div');
+    wrap.id = 'pickSheet'; wrap.className = 'pick-sheet appui';
+    wrap.innerHTML = '<div class="pick-bg"></div><div class="pick-card"><div class="pick-h"></div><div class="pick-list"></div><button type="button" class="pick-x">Отмена</button></div>';
+    wrap.querySelector('.pick-h').textContent = title;
+    var list = wrap.querySelector('.pick-list');
+    var cur = String(value == null ? (choices[0] && choices[0][0]) : value);
+    choices.forEach(function (c) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'pick-opt' + (String(c[0]) === cur ? ' on' : '');
+      b.innerHTML = '<span></span><i></i>';
+      b.querySelector('span').textContent = c[1];
+      b.onclick = function (e) {
+        e.stopPropagation();
+        wrap.classList.remove('on');
+        setTimeout(function () { wrap.remove(); }, 220);
+        onPick(String(c[0]), c[1]);
+      };
+      list.appendChild(b);
+    });
+    function close() { wrap.classList.remove('on'); setTimeout(function () { wrap.remove(); }, 220); }
+    wrap.querySelector('.pick-bg').onclick = close;
+    wrap.querySelector('.pick-x').onclick = close;
+    document.body.appendChild(wrap);
+    requestAnimationFrame(function () { wrap.classList.add('on'); });
+  }
+  function makePick(title, choices, value, onChange) {
+    var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'real-pick';
+    var v = String(value == null ? (choices[0] && choices[0][0]) : value);
+    btn.innerHTML = '<span></span><svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5"/></svg>';
+    btn.querySelector('span').textContent = labelOf(choices, v);
+    btn.setAttribute('data-v', v);
+    btn.onclick = function (e) {
+      e.stopPropagation();
+      openSheet(title, choices, btn.getAttribute('data-v'), function (nv, lab) {
+        var prev = btn.getAttribute('data-v');
+        onChange(nv, function (ok) {
+          if (!ok) return;
+          btn.setAttribute('data-v', nv);
+          btn.querySelector('span').textContent = lab;
+        }, prev);
+      });
+    };
+    return btn;
+  }
+  function pick(g, title, sub, key, value, choices) {
+    var d = row(g, title, sub); d.classList.add('col');
+    d.appendChild(makePick(title, choices, value, function (nv, done) {
+      setKey(key, nv).then(function (ok) { done(ok); });
+    }));
+  }
+  function text(g, title, key, value) {
+    var d = row(g, title, ''); d.classList.add('col');
+    var input = document.createElement('input'); input.className = 'real-in'; input.value = value || '';
+    input.onchange = function () { setKey(key, input.value); };
+    d.appendChild(input);
+  }
+  function goBtn(d, label, primary, fn) {
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'real-go' + (primary ? ' fill' : ''); b.textContent = label;
+    b.onclick = function (e) { e.stopPropagation(); fn(b); };
+    d.appendChild(b); return b;
+  }
+  function findRow(ph, start) {
+    var rows = ph.querySelectorAll('.row3');
+    for (var i = 0; i < rows.length; i++) {
+      var div = rows[i].querySelector(':scope > div');
+      var t = div && div.childNodes[0] ? String(div.childNodes[0].textContent || '').trim() : '';
+      if (t.indexOf(start) === 0) return rows[i];
+    }
+    return null;
+  }
+  function ownToggle(rowEl, on, key, invert) {
+    var tg = rowEl.querySelector('.tg'); if (!tg) return;
+    var n = tg.cloneNode(true); tg.replaceWith(n);
+    var shown = invert ? !on : !!on;
+    n.classList.toggle('on', shown);
+    n.addEventListener('click', function (e) {
+      e.stopPropagation(); e.preventDefault();
+      var wantShown = !n.classList.contains('on');
+      setKey(key, invert ? !wantShown : wantShown).then(function (ok) { if (ok) n.classList.toggle('on', wantShown); });
+    });
+  }
+  function chain(route, id, fn) {
+    var prev = PRO.binds[route];
+    PRO.bind(route, function (el) {
+      if (prev) prev(el);
+      var ph = id ? (phone(el, id) || el) : el;
+      if (ph) fn(ph);
+    });
+  }
+  function fresh(ph) {
+    var old = ph.querySelector('.real-extra'); if (old) old.remove();
+    var box = document.createElement('div'); box.className = 'real-extra';
+    scrollOf(ph).appendChild(box); return box;
+  }
+
+  chain('memory', 'mem', function (ph) {
+    var box = fresh(ph);
+    PRO.q('panelSettings').then(function (j) {
+      var s = (j && j.items) || {};
+      var g = group(box, 'БЕЗОПАСНОСТЬ');
+      toggle(g, 'Запоминать факты', 'Долгосрочная память на телефоне', s.memory, 'memory');
+      toggle(g, 'Подтверждать важное', 'Звонки, сообщения и удаление', s.confirmSensitive, 'confirmSensitive');
+      var facts = group(box, 'СОХРАНЁННЫЕ ФАКТЫ');
+      PRO.q('panelMemoryFacts').then(function (mf) {
+        var n = (mf && mf.count) || 0;
+        var list = (mf && mf.items) || [];
+        if (!list.length) row(facts, 'Пока пусто', 'Скажи: «запомни, что…»');
+        else list.slice(0, 12).forEach(function (f) { row(facts, f.text || 'Факт', f.category || ''); });
+        if (n > 12) row(facts, 'Ещё факты', 'Всего ' + n);
+      });
+      var d = row(g, 'Очистить память', 'Удалит все сохранённые факты');
+      goBtn(d, 'Очистить', false, function (b) {
+        if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = 'Точно очистить?'; setTimeout(function () { b.dataset.sure = ''; b.textContent = 'Очистить'; }, 2500); return; }
+        PRO.q('panelMemoryClear').then(function (r) { if (r && r.err) PRO.toast(r.err); else { PRO.toast('Память очищена'); PRO.refresh(); } });
+      });
+    });
+  });
+
+  chain('voices', 'vox', function (ph) {
+    var box = fresh(ph); box.id = 'vOwn';
+    PRO.q('panelSettings').then(function (st) {
+      var s = (st && st.items) || {};
+      return PRO.q('panelVoice').then(function (v) {
+        var g = group(box, 'СЛУХ');
+        toggle(g, 'Слово «Джарвис»', 'Команда начинается с обращения', s.wake, 'wake');
+        pick(g, 'Чувствительность', 'Чем выше, тем чаще срабатывает', 'sensitivity', s.sensitivity, [['0', 'Низкая'], ['1', 'Средняя'], ['2', 'Высокая']]);
+        toggle(g, 'Сигнал активации', 'Короткий звук после обращения', s.chime, 'chime');
+        var detail = !v.ready ? 'Скачайте модель узнавания в настройках, блок «ИИ»' : !v.enrolled ? 'Запишите «Джарвис»: ' + (v.wordSamples || 0) + ' из ' + (v.wordNeeded || 10) : !v.phrases ? 'Прочитайте: «' + (v.nextPhrase || 'фразу') + '»' : 'Образец записан. Выучено: ' + (v.learned || 0);
+        var own = row(g, 'Образец владельца', detail);
+        if (v.ready && !v.enrolled) goBtn(own, 'Записать «Джарвис»', true, function () { record('word'); });
+        else if (v.ready && !v.phrases) goBtn(own, 'Записать фразу', true, function () { record('phrase'); });
+        else if (v.ready) goBtn(own, 'Записать заново', false, function (b) {
+          if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = 'Стереть образец?'; setTimeout(function () { b.dataset.sure = ''; b.textContent = 'Записать заново'; }, 2500); return; }
+          PRO.q('panelVoiceForget').then(function (r) { if (r && r.err) PRO.toast(r.err); else PRO.refresh(); });
+        });
+        toggle(g, 'Только мой голос', v.ready ? 'Чужое «Джарвис» не принимается' : 'Модель узнавания не загружена', s.voiceLock, 'voiceLock');
+        var secDetail = !v.secondReady
+          ? 'Скачайте ERes2Net в блоке «ИИ» (~68 МБ) — точнее отсекает чужие голоса'
+          : !v.enrolled
+            ? 'Сначала запишите образец владельца'
+            : 'Выучено: ваших «Джарвис» ' + (v.secondOwn || 0) + ', чужих ' + (v.secondImp || 0);
+        var sec = row(g, 'Точная проверка голоса', secDetail);
+        if (!v.secondReady) goBtn(sec, 'Модели', false, function () { if (window.proOpen) window.proOpen('settings'); });
+        var vol = row(g, 'Громкость голоса', String(s.volume == null ? 100 : s.volume)); vol.classList.add('col');
+        var range = document.createElement('input'); range.className = 'real-in'; range.type = 'range'; range.min = '10'; range.max = '100'; range.value = s.volume || 100;
+        range.oninput = function () { var sm = vol.querySelector('small'); if (sm) sm.textContent = range.value; };
+        range.onchange = function () { setKey('volume', range.value).then(function (ok) { if (ok) try { JarvisNative.previewVoice(); } catch (e) {} }); };
+        vol.appendChild(range);
+        toggle(g, 'Громкость как у музыки', '', s.followMedia, 'followMedia');
+        var talk = group(box, 'РАЗГОВОР И РАСПОЗНАВАНИЕ');
+        toggle(talk, 'Продолжать разговор', 'Без повторного обращения', s.conversation, 'conversation');
+        toggle(talk, 'Подстраивать слух', '', s.adaptive, 'adaptive');
+        toggle(talk, 'Беречь батарею ниже 20%', '', s.lowPower, 'lowPower');
+        pick(talk, 'Распознавание', '', 'asrMode', s.asrMode, [['AUTO', 'Авто'], ['CLOUD_PREFERRED', 'Облако'], ['LOCAL_ONLY', 'Локально']]);
+        text(talk, 'Адрес сервера распознавания', 'asrUrl', s.asrUrl);
+        pick(talk, 'Синтез', '', 'ttsMode', s.ttsMode, [['AUTO', 'Авто'], ['CLOUD_PREFERRED', 'Облако'], ['LOCAL_ONLY', 'Локально']]);
+        text(talk, 'Адрес сервера синтеза', 'ttsUrl', s.ttsUrl);
+      });
+    });
+    function record(type) {
+      PRO.toast('Говорите. Не закрывайте экран.');
+      PRO.q('panelRecord', { type: type }).then(function (r) { if (r && r.err) PRO.toast(r.err); else { PRO.toast((r && r.msg) || 'Запись сохранена'); PRO.refresh(); } });
+    }
+  });
+
+  function stripSection(ph, title) {
+    var subs = ph.querySelectorAll('.sub2');
+    for (var i = 0; i < subs.length; i++) {
+      if (String(subs[i].textContent || '').trim() !== title) continue;
+      var g = subs[i].nextElementSibling;
+      subs[i].remove();
+      if (g && g.classList.contains('grp')) g.remove();
+      return true;
+    }
+    return false;
+  }
+
+  chain('settings', 'set', function (ph) {
+    scrollOf(ph);
+    // Голос и слух живут во вкладке «Голос»; память и подтверждения — в «Память».
+    stripSection(ph, 'ГОЛОС И СЛУХ');
+    var memRow = findRow(ph, 'Память только'); if (memRow) memRow.remove();
+    var themeRow = findRow(ph, 'Тема');
+    if (themeRow && !themeRow.dataset.jump) {
+      themeRow.dataset.jump = '1';
+      themeRow.addEventListener('click', function (e) {
+        if (e.target.closest('[data-th]')) return;
+        if (window.proOpen) window.proOpen('themes');
+      });
+    }
+    PRO.q('panelSettings').then(function (j) {
+      var s = (j && j.items) || {};
+      var net = findRow(ph, 'Интернет');
+      if (net) {
+        var netTitle = net.querySelector(':scope > div');
+        if (netTitle && netTitle.childNodes[0]) netTitle.childNodes[0].textContent = 'Предпочитать облако';
+        var netSmall = net.querySelector('small');
+        if (netSmall) netSmall.textContent = 'Есть сеть и ключ — облако, иначе локально';
+        ownToggle(net, s.preferCloud, 'preferCloud', false);
+      }
+      var seg = ph.querySelector('#mdl');
+      if (seg) {
+        var map = { 'Быстро': 'FAST', 'Баланс': 'BALANCED', 'Качество': 'QUALITY' };
+        [].slice.call(seg.querySelectorAll('span')).forEach(function (sp) {
+          if (sp.dataset.wired) return; sp.dataset.wired = '1';
+          var n = sp.cloneNode(true); sp.replaceWith(n); n.dataset.wired = '1';
+          n.classList.toggle('on', map[n.textContent.trim()] === s.chatProfile);
+          n.onclick = function (e) {
+            e.stopPropagation();
+            setKey('chatProfile', map[n.textContent.trim()]).then(function (ok) {
+              if (!ok) return;
+              [].forEach.call(seg.querySelectorAll('span'), function (x) { x.classList.toggle('on', x === n); });
+              var hint = ph.querySelector('#mdlHint'); if (hint) hint.textContent = n.dataset.h || '';
+            });
+          };
+        });
+      }
+      var box = fresh(ph);
+      var jump = group(box, 'ГОЛОС И СЛУХ');
+      var openV = row(jump, 'Голос, слово и слух', 'Выбор голоса, образец владельца, распознавание');
+      goBtn(openV, 'Открыть', true, function () { if (window.proOpen) window.proOpen('voices'); });
+      var openM = row(jump, 'Память и подтверждения', 'Факты, безопасность, очистка');
+      goBtn(openM, 'Открыть', false, function () { if (window.proOpen) window.proOpen('memory'); });
+      var who = group(box, 'ХАРАКТЕР');
+      pick(who, 'Персона', '', 'persona', s.persona, [['CLASSIC', 'Джарвис'], ['FRIENDLY', 'Друг'], ['MINIMAL', 'Кратко'], ['DEVELOPER', 'Инженер']]);
+      var conf = row(who, 'Порог уверенности', String(Math.round((+s.confidence || 0.55) * 100)) + '%'); conf.classList.add('col');
+      var cr = document.createElement('input'); cr.className = 'real-in'; cr.type = 'range'; cr.min = '30'; cr.max = '90'; cr.step = '5'; cr.value = Math.round((+s.confidence || 0.55) * 100);
+      cr.oninput = function () { var sm = conf.querySelector('small'); if (sm) sm.textContent = cr.value + '%'; };
+      cr.onchange = function () { setKey('confidence', (cr.value / 100).toFixed(2)); };
+      conf.appendChild(cr);
+      var look = group(box, 'ОФОРМЛЕНИЕ');
+      toggle(look, 'Звуки интерфейса', 'Сигнал активации и эффекты', s.hudSfx, 'hudSfx');
+      toggle(look, 'Орб прилипает к краю', 'Плавающая кнопка поверх приложений', s.orbSnap, 'orbSnap');
+      var mind = group(box, 'ИИ И МОДЕЛИ');
+      pick(mind, 'Где думать', '', 'router', s.router, [['HYBRID', 'Гибрид'], ['LOCAL', 'Локально'], ['CLOUD', 'Облако']]);
+      toggle(mind, 'Использовать ИИ-модель', '', s.llm, 'llm');
+      toggle(mind, 'Предзагрузка в память', 'Модель готова до первой фразы', s.preload, 'preload');
+      text(mind, 'Адрес своего сервера', 'cloudUrl', s.cloudUrl);
+      if (s.llamaOff) {
+        var llama = row(mind, 'Локальная модель отключена', 'Ранее она уронила приложение. Без неё работают команды и облако.');
+        goBtn(llama, 'Включить снова', false, function () {
+          PRO.q('panelLlamaReset').then(function (r) { if (r && r.err) PRO.toast(r.err); else { PRO.toast('Локальная модель включена'); PRO.refresh(); } });
+        });
+      }
+      keys(mind);
+      models(box);
+      var here = group(box, 'ПРИСУТСТВИЕ');
+      text(here, 'Город по умолчанию', 'city', s.city);
+      toggle(here, 'Проактивность', '', s.proactive, 'proactive');
+      toggle(here, 'Фоновые уведомления', '', s.bgNotify, 'bgNotify');
+      toggle(here, 'Тихие часы', '23:00–07:00', s.quiet, 'quiet');
+      toggle(here, 'Объявлять звонки', '', s.announceCalls, 'announceCalls');
+      toggle(here, 'Объявлять сообщения', '', s.announceMessages, 'announceMessages');
+      toggle(here, 'Встречи и сводка дня', 'За 15 минут и после будильника', s.announceHints, 'announceHints');
+      var usage = row(here, 'Статистика приложений', 'Системный доступ для присутствия');
+      goBtn(usage, 'Открыть', false, function () { try { JarvisNative.perm('usage'); } catch (e) {} });
+      var apps = group(box, 'ПРИЛОЖЕНИЯ');
+      aliases(apps);
+    });
+  });
+
+  function keys(g) {
+    PRO.q('panelKeys').then(function (j) {
+      if (!j || j.err) return;
+      var names = { groq: 'Groq', gemini: 'Gemini', gigachat: 'GigaChat', safev: 'SafeV · Nemotron', custom: 'Свой сервер', custom_asr: 'Ключ распознавания', custom_tts: 'Ключ синтеза' };
+      Object.keys(names).forEach(function (id) {
+        var hint = id === 'gigachat'
+          ? (j.items && j.items[id] ? 'Ключ сохранён' : 'developers.sber.ru → Сбер ID → GigaChat API')
+          : (j.items && j.items[id] ? 'Ключ сохранён' : 'Ключ не задан');
+        var d = row(g, names[id], hint); d.classList.add('col');
+        var input = document.createElement('input'); input.className = 'real-in'; input.type = 'password'; input.placeholder = 'Вставьте ключ';
+        d.appendChild(input);
+        goBtn(d, 'Сохранить', true, function () {
+          PRO.q('panelKey', { id: id, action: 'save', key: input.value }).then(function (r) {
+            input.value = ''; if (r && r.err) PRO.toast(r.err); else PRO.toast(r && r.saved ? 'Сохранено' : 'Не сохранилось');
+          });
+        });
+      });
+    });
+  }
+  function models(parent) {
+    var g = group(parent, 'ЛОКАЛЬНЫЕ МОДЕЛИ');
+    function draw() {
+      PRO.q('panelModels').then(function (j) {
+        g.querySelectorAll('.row3').forEach(function (n) { n.remove(); });
+        ((j && j.items) || []).forEach(function (m) {
+          var d = row(g, m.title, m.about + ' · ' + m.mb + ' МБ · ' + m.state);
+          if (m.state === 'DOWNLOADING') goBtn(d, 'Отменить', false, function () { PRO.q('panelModel', { id: m.id, action: 'cancel' }).then(draw); });
+          else if (m.state !== 'READY') goBtn(d, 'Скачать', true, function () { PRO.q('panelModel', { id: m.id, action: 'download' }).then(function () { PRO.toast('Загрузка началась'); draw(); }); });
+        });
+      });
+    }
+    draw();
+  }
+  function aliases(g) {
+    PRO.q('panelAliases').then(function (j) {
+      if (!j || j.err) { if (j && j.err) PRO.toast(j.err); return; }
+      (j.items || []).forEach(function (x) {
+        var d = row(g, x.alias, '→ ' + x.app);
+        goBtn(d, 'Удалить', false, function (b) {
+          if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = 'Точно?'; setTimeout(function () { b.dataset.sure = ''; b.textContent = 'Удалить'; }, 2000); return; }
+          PRO.q('panelAlias', { action: 'delete', alias: x.alias }).then(function () { PRO.refresh(); });
+        });
+      });
+      var d = row(g, 'Новый синоним', 'Слово, которым открывать приложение'); d.classList.add('col');
+      var apps = (j.apps || []).map(function (a) { return [a.pkg, a.name]; });
+      var pkg = apps[0] ? apps[0][0] : '';
+      var appPick = makePick('Приложение', apps.length ? apps : [['', 'Нет приложений']], pkg, function (nv, done) { pkg = nv; done(true); });
+      var input = document.createElement('input'); input.className = 'real-in'; input.placeholder = 'Например: телега';
+      d.appendChild(appPick); d.appendChild(input);
+      goBtn(d, 'Сохранить', true, function () {
+        PRO.q('panelAlias', { action: 'add', alias: input.value, pkg: pkg }).then(function (r) { if (r && r.err) PRO.toast(r.err); else PRO.refresh(); });
+      });
+    });
+  }
+
+  window.proScenEdit = function (ph, r) {
+    var pack = ph.querySelector('.real-pack');
+    if (!pack && window.proScenMore) window.proScenMore(ph, []);
+    pack = ph.querySelector('.real-pack');
+    if (!pack) return;
+    var name = pack.querySelector('input.real-in');
+    var body = pack.querySelector('textarea.real-in');
+    if (name) name.value = r.name || '';
+    if (body) body.value = (r.steps && r.steps.length) ? r.steps.join('\n') : (r.body || '');
+    pack.dataset.editOld = r.name || '';
+    if (pack.scrollIntoView) pack.scrollIntoView({ block: 'nearest' });
+    PRO.toast('Редактирование «' + (r.name || '') + '»');
+  };
+
+  window.proScenMore = function (ph, items) {
+    scrollOf(ph);
+    var old = ph.querySelector('.real-pack'); if (old) old.remove();
+    var pack = document.createElement('div'); pack.className = 'real-pack';
+    var anchor = ph.querySelector('.addsc'); if (anchor) anchor.after(pack); else scrollOf(ph).appendChild(pack);
+    var g = group(pack, 'ГОТОВЫЕ ЦЕПОЧКИ');
+    [['Режим сна', 'режим сна'], ['Режим кино', 'режим кино'], ['Режим работы', 'режим работы'], ['Я ухожу', 'я ухожу'], ['Я проснулся', 'я проснулся']].forEach(function (x) {
+      var d = row(g, x[0], 'Встроенная фраза');
+      goBtn(d, 'Пуск', false, function () { PRO.send(x[1]); PRO.toast('Команда отправлена'); });
+    });
+    var ed = group(pack, 'СВОЯ КОМАНДА');
+    var form = row(ed, 'Новая фраза', 'Каждый шаг с новой строки. Уже сохранённые — карточками выше, «ИЗМ» — правка.'); form.classList.add('col');
+    var name = document.createElement('input'); name.className = 'real-in'; name.placeholder = 'Например: я дома';
+    var modeVal = 'CHAIN';
+    var modePick = makePick('Тип команды', [['CHAIN', 'Цепочка'], ['AGENT', 'Задание агенту']], modeVal, function (nv, done) { modeVal = nv; done(true); });
+    var body = document.createElement('textarea'); body.className = 'real-in'; body.placeholder = 'Включи свет\nВключи музыку';
+    form.appendChild(name); form.appendChild(modePick); form.appendChild(body);
+    PRO.q('panelRoutines').then(function (j) {
+      var templates = (j && j.templates) || [];
+      if (!templates.length) return;
+      var choices = [['', 'Готовый шаг…']].concat(templates.map(function (t) { return [t, t]; }));
+      form.appendChild(makePick('Готовый шаг', choices, '', function (nv, done) {
+        if (nv) body.value += (body.value.trim() ? '\n' : '') + nv;
+        done(false);
+      }));
+    });
+    goBtn(form, 'Сохранить', true, function () {
+      var oldName = pack.dataset.editOld || '';
+      PRO.q('panelRoutine', { action: 'save', old: oldName, name: name.value, mode: modeVal, body: body.value }).then(function (r) {
+        if (r && r.err) PRO.toast(r.err); else { pack.dataset.editOld = ''; PRO.toast('Команда сохранена'); PRO.refresh(); }
+      });
+    });
+    var ev = group(pack, 'ПО СОБЫТИЯМ');
+    PRO.q('panelEvents').then(function (j) {
+      ((j && j.items) || []).forEach(function (x) {
+        var d = row(ev, x.title + (x.arg ? ' · ' + x.arg : ''), x.hasSteps ? 'Команда: «' + x.name + '»' : 'Нет шагов');
+        goBtn(d, 'Удалить', false, function () {
+          PRO.q('panelEvent', { action: 'delete', trigger: x.trigger, arg: x.arg || '' }).then(function () { PRO.refresh(); });
+        });
+      });
+      var formE = row(ev, 'Новое событие', 'Запуск без голоса'); formE.classList.add('col');
+      var trig = (j && j.triggers && j.triggers[0] && j.triggers[0].id) || 'HEADPHONES_ON';
+      var trigChoices = ((j && j.triggers) || []).map(function (t) { return [t.id, t.title]; });
+      if (!trigChoices.length) trigChoices = [['HEADPHONES_ON', 'подключены наушники']];
+      formE.appendChild(makePick('Событие', trigChoices, trig, function (nv, done) { trig = nv; done(true); }));
+      var argIn = document.createElement('input'); argIn.className = 'real-in'; argIn.placeholder = 'Приложение (только для «открыто приложение»)';
+      var stepsIn = document.createElement('textarea'); stepsIn.className = 'real-in'; stepsIn.placeholder = 'Шаги с новой строки';
+      formE.appendChild(argIn); formE.appendChild(stepsIn);
+      goBtn(formE, 'Сохранить', true, function () {
+        PRO.q('panelEvent', { action: 'save', trigger: trig, arg: argIn.value, body: stepsIn.value }).then(function (r) {
+          if (r && r.err) PRO.toast(r.err); else { PRO.toast('Событие сохранено'); PRO.refresh(); }
+        });
+      });
+    });
+  };
+
+  chain('skills', '', function (ph) {
+    var box = ph.querySelector('.real-scroll'); if (!box) return;
+    box.innerHTML = '';
+    PRO.q('panelSkills').then(function (j) {
+      var groups = {};
+      ((j && j.items) || []).forEach(function (x) { (groups[x.category] || (groups[x.category] = [])).push(x); });
+      Object.keys(groups).forEach(function (name) {
+        var g = group(box, name.toUpperCase());
+        groups[name].forEach(function (x) {
+          var d = row(g, x.title, x.description + (x.example ? ' · «' + x.example + '»' : ''));
+          if (x.example && (x.risk === 'SAFE' || x.risk === 'ONLINE')) goBtn(d, 'Попробовать', false, function () { PRO.send(x.example); if (window.proOpen) window.proOpen('dialog'); });
+        });
+      });
+    });
+  });
+
+  chain('system', '', function (ph) { fillSystem(ph, false); });
+  chain('setup', '', function (ph) { fillSystem(ph, true); });
+  function fillSystem(ph, setup) {
+    var box = ph.querySelector('.real-scroll'); if (!box) return;
+    box.innerHTML = '';
+    function ring(pct, label) {
+      var p = Math.max(0, Math.min(100, +pct || 0));
+      var C = 2 * Math.PI * 42;
+      var off = C * (1 - p / 100);
+      return '<div class="sys-ring"><svg viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="42"/><circle class="fg" cx="50" cy="50" r="42" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '"/></svg><b>' + p + '%</b><small>' + label + '</small></div>';
+    }
+    function bar(label, value, pct) {
+      var p = Math.max(0, Math.min(100, +pct || 0));
+      return '<div class="sys-bar"><div class="hb"><span>' + label + '</span><b>' + value + '</b></div><div class="track"><i style="width:' + p + '%"></i></div></div>';
+    }
+    PRO.q('panelSettings').then(function (st) {
+      var s = (st && st.items) || {};
+      if (setup) {
+        var p = group(box, 'НАЧАЛО РАБОТЫ');
+        var mic = row(p, 'Микрофон', s.micGranted ? 'Разрешён' : 'Нужен, чтобы слышать вас');
+        goBtn(mic, s.micGranted ? 'Готово' : 'Разрешить', true, function () { try { JarvisNative.perm('setup'); } catch (e) {} });
+        var note = row(p, 'Уведомления', s.notificationsGranted ? 'Разрешены' : 'Нужны для голосовой службы');
+        goBtn(note, s.notificationsGranted ? 'Готово' : 'Разрешить', true, function () { try { JarvisNative.perm('postNotifications'); } catch (e) {} });
+        var go = row(p, 'Запустить Джарвиса', 'После микрофона и уведомлений');
+        goBtn(go, 'Начать', true, function () { try { JarvisNative.finishSetup(); } catch (e) {} });
+      }
+      PRO.q('panelSystem').then(function (j) {
+        if (!j || j.err) return;
+        var g = group(box, 'СОСТОЯНИЕ');
+        var viz = document.createElement('div');
+        viz.className = 'sys-grid';
+        viz.innerHTML = ring(j.battery, 'ЗАРЯД') + ring(j.cpu, 'CPU') + ring(j.ram, 'ПАМЯТЬ') + ring(Math.min(100, Math.round((+j.temperature || 0) * 2)), 'ТЕМП');
+        g.appendChild(viz);
+        var tb = document.createElement('div');
+        tb.innerHTML = bar('Температура', (+j.temperature || 0) + '°C', Math.min(100, Math.round((+j.temperature || 0) * 2))) +
+          bar('Свободно', (+j.storage || 0) + ' ГБ', Math.min(100, Math.max(8, 100 - (+j.storage || 0) * 2)));
+        g.appendChild(tb);
+        var meta = group(box, 'СТАТУС');
+        [['Сеть', j.network || '—'], ['Голосовая служба', j.voice ? 'работает' : 'выключена'], ['Live', j.live ? 'включён' : 'выключен']].forEach(function (x) { row(meta, x[0], String(x[1])); });
+        var lat = group(box, 'ЗАДЕРЖКА ОТВЕТА');
+        ((j.latency) || []).slice(0, 6).forEach(function (line) { row(lat, 'Метрика', String(line)); });
+        if (!(j.latency || []).length) row(lat, 'Пока нет замеров', 'Появятся после голосовых команд');
+        var sit = group(box, 'ТЕКУЩАЯ СИТУАЦИЯ');
+        var sitRow = row(sit, 'Погода, календарь, уведомления', 'Как на экране «Анализ»');
+        goBtn(sitRow, 'Обновить', true, function () {
+          PRO.q('panelScan').then(function (sc) {
+            if (!sc || sc.err) { PRO.toast((sc && sc.err) || 'Не удалось'); return; }
+            sit.querySelectorAll('.row3').forEach(function (n) { if (n !== sitRow) n.remove(); });
+            row(sit, 'Погода', sc.temp ? (sc.temp + '°') : (sc.weather || 'нет данных'));
+            row(sit, 'Календарь', sc.calendarEmpty ? 'свободно' : (sc.calendar || 'есть события'));
+            row(sit, 'Уведомления', String(sc.notifs || 0) + ' новых');
+            var brief = row(sit, 'Сводка дня голосом', 'Прочитать вслух');
+            goBtn(brief, 'Сказать', false, function () { PRO.send('сводка на день'); if (window.proOpen) window.proOpen('dialog'); });
+          });
+        });
+        var a = group(box, 'РАЗРЕШЕНИЯ');
+        [['Микрофон', 'setup'], ['Уведомления (служба)', 'postNotifications'], ['Чтение уведомлений', 'notifications'], ['Статистика приложений', 'usage'], ['Спец. возможности', 'accessibility'], ['Поверх других приложений', 'overlay'], ['Изменение настроек', 'write'], ['Цифровой помощник', 'assistant'], ['Автозапуск', 'autostart'], ['Работа в фоне', 'battery']].forEach(function (x) {
+          var d = row(a, x[0], 'Системный доступ');
+          goBtn(d, 'Открыть', false, function () { try { JarvisNative.perm(x[1]); } catch (e) {} });
+        });
+        var h = group(box, 'ПОМОЩЬ');
+        var guide = row(h, 'Как пользоваться', 'Короткий гид');
+        goBtn(guide, 'Открыть', false, function () { try { JarvisNative.openGuide(); } catch (e) { if (window.proOpen) window.proOpen('tourAgain'); } });
+        var rep = row(h, 'Отчёт об ошибке', 'Модель телефона и техническая часть, без ваших команд');
+        goBtn(rep, 'Поделиться', true, function () { try { JarvisNative.shareReport(); } catch (e) {} });
+        var tour = row(h, 'Экскурсия', 'Как устроен Pro');
+        goBtn(tour, 'Открыть', false, function () { if (window.proOpen) window.proOpen('tourAgain'); });
+        var isDebug = false;
+        try { isDebug = !!(JarvisNative.debug && JarvisNative.debug()); } catch (e) {}
+        if (isDebug) {
+          var cons = row(h, 'Консоль', 'Проверка команд · только debug');
+          goBtn(cons, 'Открыть', false, function () { try { JarvisNative.openConsole(); } catch (e) { PRO.toast('Консоль недоступна'); } });
+        }
+      });
+    });
+  }
 })();
