@@ -180,7 +180,11 @@ class VoiceService : Service() {
                         if (streamed.replyText.isNotBlank()) JarvisEvents.publish(com.jarvis.core.event.AssistantEvent.ResponseGenerated(streamed.replyText))
                         // Модель сказала фразу и вызвала инструмент: результат озвучиваем следом.
                         if (streamed.toolResult != null) {
-                            VoiceController.enqueueStreamSpeak(text = streamed.replyText, streamGeneration = streamGen)
+                            VoiceController.enqueueStreamSpeak(
+                                text = streamed.replyText,
+                                streamGeneration = streamGen,
+                                hint = cinemaHint(streamed),
+                            )
                         }
                         VoiceController.endStreamSpeak {
                             if (generationGate.isStale(gen)) return@endStreamSpeak
@@ -222,6 +226,15 @@ class VoiceService : Service() {
         }
     }
 
+    /** Что сделал ассистент: голос «из фильма» заменяет по этому ответ записями. */
+    private fun cinemaHint(response: com.jarvis.core.common.model.AssistantResponse) =
+        com.jarvis.core.nlp.CinemaPhrases.Hint(
+            toolId = response.toolResult?.toolId,
+            toolOk = response.toolResult?.status?.let { it == com.jarvis.core.common.model.ToolResultStatus.SUCCESS },
+            needsConfirmation = response.status == AssistantResponseStatus.NEEDS_CONFIRMATION,
+            needsClarification = response.status == AssistantResponseStatus.NEEDS_CLARIFICATION,
+        )
+
     private fun speakFull(
         text: String,
         gen: Long,
@@ -245,6 +258,7 @@ class VoiceService : Service() {
         lat?.ttsStartAt = SystemClock.elapsedRealtime()
         VoiceController.speak(
             text,
+            hint = response?.let(::cinemaHint),
             onComplete = {
                 if (generationGate.isStale(gen)) return@speak
                 lat?.ttsCompleteAt = SystemClock.elapsedRealtime()

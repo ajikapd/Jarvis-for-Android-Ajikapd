@@ -865,8 +865,9 @@ class VoiceEngine(
         text: String,
         streamGeneration: Int,
         onFirstAudio: ((Long) -> Unit)? = null,
+        hint: com.jarvis.core.nlp.CinemaPhrases.Hint? = null,
     ) {
-        speaker?.enqueueSpeak(text, streamGeneration, onFirstAudio)
+        speaker?.enqueueSpeak(text, streamGeneration, onFirstAudio, hint = hint)
     }
 
     fun endStreamSpeak(onComplete: () -> Unit = {}) {
@@ -874,7 +875,12 @@ class VoiceEngine(
             ?: onComplete()
     }
 
-    fun speak(text: String, onComplete: (() -> Unit)? = null, onFirstAudio: ((Long) -> Unit)? = null) {
+    fun speak(
+        text: String,
+        onComplete: (() -> Unit)? = null,
+        onFirstAudio: ((Long) -> Unit)? = null,
+        hint: com.jarvis.core.nlp.CinemaPhrases.Hint? = null,
+    ) {
         scope.launch {
             var ready = speaker
             var waited = 0
@@ -897,6 +903,7 @@ class VoiceEngine(
                     onComplete?.invoke()
                 },
                 onFirstAudio = onFirstAudio,
+                hint = hint,
             )
         }
     }
@@ -1165,8 +1172,9 @@ object VoiceController {
         text: String,
         onComplete: (() -> Unit)? = null,
         onFirstAudio: ((Long) -> Unit)? = null,
+        hint: com.jarvis.core.nlp.CinemaPhrases.Hint? = null,
     ) {
-        activeEngine?.speak(text, onComplete, onFirstAudio) ?: run {
+        activeEngine?.speak(text, onComplete, onFirstAudio, hint) ?: run {
             onFirstAudio?.invoke(0L)
             onComplete?.invoke()
         }
@@ -1185,8 +1193,9 @@ object VoiceController {
         text: String,
         streamGeneration: Int,
         onFirstAudio: ((Long) -> Unit)? = null,
+        hint: com.jarvis.core.nlp.CinemaPhrases.Hint? = null,
     ) {
-        activeEngine?.enqueueStreamSpeak(text, streamGeneration, onFirstAudio)
+        activeEngine?.enqueueStreamSpeak(text, streamGeneration, onFirstAudio, hint)
     }
 
     fun endStreamSpeak(onComplete: () -> Unit = {}) {
