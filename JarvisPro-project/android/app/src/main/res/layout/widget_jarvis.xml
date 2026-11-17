@@ -1,17 +1,113 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/widgetRoot" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/bg_widget_reactor" android:gravity="center_vertical" android:orientation="horizontal" android:padding="10dp">
-    <ImageView android:id="@+id/widgetCore" android:layout_width="88dp" android:layout_height="88dp" android:layout_marginEnd="10dp" android:contentDescription="Включить или выключить ассистента" android:src="@drawable/ic_launcher_fg_full" />
-    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-        <TextView android:id="@+id/widgetBrand" android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFamily="@font/michroma" android:letterSpacing="0.12" android:text="J.A.R.V.I.S." android:textColor="#ECF4FF" android:textSize="11sp" />
-        <TextView android:id="@+id/widgetStatus" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:maxLines="1" android:ellipsize="end" android:text="Слушает «Джарвис»" android:textColor="#3FE59B" android:textSize="12sp" />
-        <TextView android:id="@+id/widgetNext" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:maxLines="1" android:ellipsize="end" android:text="Напоминаний нет" android:textColor="#ECF4FF" android:textSize="14sp" android:textStyle="bold" />
-        <TextView android:id="@+id/widgetSub" android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="1" android:ellipsize="end" android:textColor="#8FA8C6" android:textSize="12sp" />
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:orientation="horizontal">
-            <LinearLayout android:id="@+id/widgetListen" android:layout_width="0dp" android:layout_height="32dp" android:layout_weight="1" android:background="@drawable/bg_widget_main_reactor" android:gravity="center" android:orientation="horizontal">
-                <ImageView android:id="@+id/widgetMicIcon" android:layout_width="16dp" android:layout_height="16dp" android:layout_marginEnd="5dp" android:src="@drawable/ic_fui_mic" android:contentDescription="Говорить" />
-                <TextView android:id="@+id/widgetListenText" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Говорить" android:textColor="#ECF4FF" android:textSize="12sp" />
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widgetRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_widget_pro_gold"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:padding="12dp">
+
+    <ImageView
+        android:id="@+id/widgetCore"
+        android:layout_width="88dp"
+        android:layout_height="88dp"
+        android:layout_marginEnd="12dp"
+        android:contentDescription="Включить или выключить ассистента"
+        android:src="@drawable/ic_launcher_fg_full" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/widgetBrand"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/michroma"
+            android:letterSpacing="0.16"
+            android:text="ДЖАРВИС PRO"
+            android:textColor="#FFC46B"
+            android:textSize="10sp" />
+
+        <TextView
+            android:id="@+id/widgetStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="Слушает «Джарвис»"
+            android:textColor="#3FE59B"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/widgetNext"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="Напоминаний нет"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/widgetSub"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#9AA3B2"
+            android:textSize="11sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:id="@+id/widgetListen"
+                android:layout_width="0dp"
+                android:layout_height="34dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_widget_main_pro_gold"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:id="@+id/widgetMicIcon"
+                    android:layout_width="15dp"
+                    android:layout_height="15dp"
+                    android:layout_marginEnd="5dp"
+                    android:contentDescription="Говорить"
+                    android:src="@drawable/ic_fui_mic" />
+
+                <TextView
+                    android:id="@+id/widgetListenText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Говорить"
+                    android:textColor="#17110A"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
             </LinearLayout>
-            <TextView android:id="@+id/widgetBrief" android:layout_width="0dp" android:layout_height="32dp" android:layout_marginStart="6dp" android:layout_weight="1" android:background="@drawable/bg_widget_btn" android:gravity="center" android:text="Сводка" android:textColor="#ECF4FF" android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/widgetBrief"
+                android:layout_width="0dp"
+                android:layout_height="34dp"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_widget_pro_btn"
+                android:gravity="center"
+                android:text="Сводка"
+                android:textColor="#EEF1F6"
+                android:textSize="12sp" />
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>
