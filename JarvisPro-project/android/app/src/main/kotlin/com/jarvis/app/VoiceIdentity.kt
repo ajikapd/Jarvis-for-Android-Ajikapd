@@ -90,15 +90,19 @@ object VoiceIdentity {
 
     /** Отпечаток записи для образца или null, если речи мало. */
     @Synchronized
-    fun embedSample(context: Context, pcm: FloatArray): FloatArray? = embed(context, pcm)
+    fun embedSample(context: Context, pcm: FloatArray): FloatArray? {
+        VoiceClips.save(context, "enroll_word", pcm)
+        return embed(context, pcm)?.also { VoiceSecondCheck.keepEnrollment(context, "word", pcm) }
+    }
 
     /** Отпечатки кусков записанной фразы. */
     @Synchronized
     fun embedPhrase(context: Context, pcm: FloatArray): List<FloatArray> {
+        VoiceClips.save(context, "enroll_phrase", pcm)
         val engine = loadEmbedder(context) ?: return emptyList()
         return VoiceTrim.windows(VoiceTrim.speech(pcm)).mapNotNull { piece ->
             runCatching { engine.embed(piece) }.getOrNull()
-        }
+        }.also { if (it.isNotEmpty()) VoiceSecondCheck.keepEnrollment(context, "phrase", pcm) }
     }
 
     @Synchronized
@@ -119,6 +123,7 @@ object VoiceIdentity {
 
     @Synchronized
     fun forget(context: Context) {
+        VoiceSecondCheck.forget(context)
         printFile(context).delete()
         phraseFile(context).delete()
         File(context.filesDir, WORD_MEMORY_FILE).delete()
@@ -136,6 +141,7 @@ object VoiceIdentity {
     @Synchronized
     fun warm(context: Context) {
         if (JarvisSettings.voiceLock(context) && currentPrint(context) != null) loadEmbedder(context)
+        VoiceSecondCheck.warm(context)
     }
 
     /** Сколько образцов выучено на ваших командах. */
