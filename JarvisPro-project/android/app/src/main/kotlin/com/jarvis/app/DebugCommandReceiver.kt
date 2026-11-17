@@ -470,23 +470,33 @@ class DebugCommandReceiver : BroadcastReceiver() {
     private fun handleWidgets(context: Context) {
         val app = context.applicationContext
         android.os.Handler(android.os.Looper.getMainLooper()).post {
-            listOf(
-                Triple("large", JarvisWidgetProvider(), 340 to 140),
-                Triple("square", JarvisWidgetSquare(), 160 to 160),
-                Triple("strip", JarvisWidgetStrip(), 340 to 66),
-            ).forEach { (name, provider, size) ->
+            val shots = listOf(
+                Triple("core", { JarvisWidgetProvider().views(app) }, 340 to 140),
+                Triple("square", { JarvisWidgetSquare().views(app) }, 160 to 160),
+                Triple("strip", { JarvisWidgetStrip().views(app) }, 340 to 66),
+                Triple("notifs", { JarvisWidgetNotifs().build(app) }, 340 to 160),
+                Triple("weather", { JarvisWidgetWeather().build(app) }, 160 to 160),
+                Triple("battery", { JarvisWidgetBattery().build(app) }, 160 to 160),
+                Triple("next", { JarvisWidgetNext().build(app) }, 340 to 70),
+                Triple("tasks", { JarvisWidgetTasks().build(app) }, 340 to 160),
+                Triple("music", { JarvisWidgetMusic().build(app) }, 340 to 80),
+            )
+            shots.forEach { (name, build, size) ->
                 runCatching {
                     val d = app.resources.displayMetrics.density
                     val w = (size.first * d).toInt()
                     val h = (size.second * d).toInt()
-                    val view = provider.views(app).apply(app, android.widget.FrameLayout(app))
-                    view.measure(android.view.View.MeasureSpec.makeMeasureSpec(w, android.view.View.MeasureSpec.EXACTLY), android.view.View.MeasureSpec.makeMeasureSpec(h, android.view.View.MeasureSpec.EXACTLY))
+                    val view = build().apply(app, android.widget.FrameLayout(app))
+                    view.measure(
+                        android.view.View.MeasureSpec.makeMeasureSpec(w, android.view.View.MeasureSpec.EXACTLY),
+                        android.view.View.MeasureSpec.makeMeasureSpec(h, android.view.View.MeasureSpec.EXACTLY),
+                    )
                     view.layout(0, 0, w, h)
                     val bmp = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
                     view.draw(android.graphics.Canvas(bmp))
                     File(app.cacheDir, "widget_$name.png").outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
                     Log.d(TAG, "widget $name ok")
-                }.onFailure { Log.e(TAG, "widget $name failed: ${it.message}") }
+                }.onFailure { Log.e(TAG, "widget $name failed: ${it.message}", it) }
             }
         }
     }

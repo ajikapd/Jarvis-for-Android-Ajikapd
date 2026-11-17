@@ -2,9 +2,14 @@
 // показывает один экран во весь экран, связывает вкладки и меню, «Назад», окно «Что нового».
 (function () {
   'use strict';
-  var VERSION = '1.3';
-  // тема этой страницы (подставляет сборщик): gold, az, am, ru, em; цвета тем не перекрашиваются
+  var VERSION = '1.5.1';
+  // тема этой страницы: gold / az / am / ru / em. В app-*.js подставляется имя файла; иначе — из src скрипта.
   var THEME = 'em';
+  try {
+    var _src = (document.currentScript && document.currentScript.src) || '';
+    var _tm = _src.match(/app-(az|am|ru|em)\.js/);
+    if (_tm) THEME = _tm[1];
+  } catch (_e) {}
   /*NOMAP*/var TH = {"gold": {"n": "Золото", "c": "#FFC46B", "s": "КАК В ПЕРВЫЙ ДЕНЬ", "p": "Классика, сэр. Как в первый день."}, "az": {"n": "Лазурь", "c": "#52B4FF", "s": "ХОЛОДНЫЙ, СПОКОЙНЫЙ", "p": "Лазурь. Холодный расчёт — мне идёт."}, "am": {"n": "Аметист", "c": "#C49CFF", "s": "ТАИНСТВЕННЫЙ, НОЧНОЙ", "p": "Аметист. Немного магии не повредит."}, "ru": {"n": "Рубин", "c": "#FF5E62", "s": "ГОРЯЧИЙ, СМЕЛЫЙ", "p": "Рубин. Боевой режим, сэр."}, "em": {"n": "Изумруд", "c": "#45EB9C", "s": "СВЕЖИЙ, ЖИВОЙ", "p": "Изумруд. Свежо, как утро после дождя."}};/*/NOMAP*/
   var TORDER = ['gold', 'az', 'am', 'ru', 'em'];
   function sufOf(t) { return t === 'gold' ? '' : '-' + t; }
@@ -23,8 +28,10 @@
     appw: ['s15', 0], appw2: ['s15', 1],
     brief: ['s17', 0], reply: ['s17', 1], important: ['s17', 2], chain: ['s17', 3], people: ['s17', 4],
     modes: ['s18', 0], prices: ['s18', 1], gos: ['s18', 2], notes: ['s18', 3], spend: ['s18', 4],
-    voices: ['s19', 0], themes: ['s19', 1], devices: ['s19', 2]
+    voices: ['s19', 0], themes: ['s19', 1], devices: ['s19', 2],
+    skills: ['s13', -1], system: ['s13', -1], setup: ['s13', -1]
   };
+  var DYN = { skills: 'НАВЫКИ', system: 'СИСТЕМА', setup: 'РАЗРЕШЕНИЯ' };
   var TABS = { 'Главная': 'main', 'Диалог': 'dialog', 'Агент': 'agent', 'Ещё': 'more' };
   var MENU = { m_plans: 'plans', m_mem: 'memory', m_scen: 'scen', m_over: 'overlay', m_voice: 'voices',
     m_tour: 'tourAgain', m_set: 'settings', m_mod: 'modes', m_prc: 'prices', m_gos: 'gos', m_nts: 'notes', m_spd: 'spend', m_thm: 'themes', m_dev: 'devices', m_rem: 'remind', m_appw: 'appw', m_wn: 'wn',
@@ -50,8 +57,26 @@
   try { ST = window.JarvisNative && JarvisNative.insetTop ? (+JarvisNative.insetTop() || 0) : 0; } catch (e) {}
   D.style.setProperty('--st', ST + 'px');
   // у каждого видео — обложка-картинка (первый кадр, v/*.jpg): пока видео грузится, видно Джарвиса, а не серое окно
+  function hideBadVideo(v) {
+    if (!v || v.tagName !== 'VIDEO') return;
+    try { v.pause(); } catch (e) {}
+    v.removeAttribute('src');
+    try { v.load(); } catch (e) {}
+    v.style.display = 'none';
+    v.style.opacity = '0';
+    v.style.visibility = 'hidden';
+    v.style.pointerEvents = 'none';
+    // нативный оверлей «Не удалось воспроизвести» закрывает весь экран — убираем узел
+    if (v.parentNode) try { v.parentNode.removeChild(v); } catch (e) {}
+  }
   function poster(v) {
-    if (!v || v.tagName !== 'VIDEO' || v.getAttribute('poster')) return;
+    if (!v || v.tagName !== 'VIDEO') return;
+    if (!v.dataset.errBound) {
+      v.dataset.errBound = '1';
+      v.addEventListener('error', function () { hideBadVideo(v); });
+      v.addEventListener('abort', function () { if (v.error) hideBadVideo(v); });
+    }
+    if (v.getAttribute('poster')) return;
     var s = v.getAttribute('src') || '';
     if (/(^|\/)v\/[0-9a-f]{10}(-[a-z]{2})?\.mp4$/.test(s)) v.setAttribute('poster', s.replace(/\.mp4$/, '.jpg'));
   }
@@ -81,7 +106,13 @@
   function autoTheme() { var h = new Date().getHours(); return h >= 6 && h < 11 ? 'em' : h >= 11 && h < 17 ? 'az' : h >= 17 && h < 22 ? 'gold' : 'am'; }
   function wantTheme() { if (store.get('auto') === '1') return autoTheme(); var t = store.get('theme'); return TH[t] ? t : 'gold'; }
   var want = wantTheme();
-  if (want !== THEME) { location.replace(page + sufOf(want) + '.html' + location.hash); return; }
+  if (want !== THEME) {
+    var next = page + sufOf(want) + '.html' + location.hash;
+    // не зацикливаться: если уже на нужном файле, а THEME в JS ошибочен — просто продолжаем с want
+    var here = (location.pathname.split('/').pop() || '');
+    if (here.indexOf(page + sufOf(want)) !== 0) { location.replace(next); return; }
+    THEME = want; SUF = sufOf(THEME); SPRITE = spr(THEME); window.APP_THEME = THEME;
+  }
   function iconSync() { var w = store.get('icon') === '1' ? THEME : 'gold'; if (store.get('iconWant') !== w) store.set('iconWant', w); }
   iconSync();
 
@@ -116,17 +147,100 @@
     host.style.transform = 'translate(' + ((W - 370 * k) / 2).toFixed(1) + 'px,' + ty.toFixed(1) + 'px) scale(' + k.toFixed(4) + ')';
   }
 
+  function park(old) {
+    if (!old) return;
+    var i = phones.indexOf(old);
+    if (i >= 0) homes[i].appendChild(old);
+    else {
+      var dock = document.getElementById('dynDock');
+      if (!dock) { dock = document.createElement('div'); dock.id = 'dynDock'; dock.hidden = true; document.body.appendChild(dock); }
+      dock.appendChild(old);
+    }
+  }
+  function mountDyn(r) {
+    var ph = document.getElementById('dyn' + r);
+    if (!ph) {
+      var nav = document.querySelector('.phone .navw');
+      ph = document.createElement('div');
+      ph.className = 'phone dyn';
+      ph.id = 'dyn' + r;
+      ph.innerHTML = '<div class="vign"></div><div class="ui"><div class="sb"></div><div class="tbar"><span class="ttl">' + DYN[r] + '</span><div class="chip"><i></i>PRO</div></div><div class="real-scroll"></div></div>';
+      if (nav) {
+        var copy = nav.cloneNode(true);
+        [].forEach.call(copy.querySelectorAll('.it'), function (it) {
+          it.classList.toggle('on', it.textContent.trim() === 'Ещё');
+        });
+        ph.querySelector('.ui').appendChild(copy);
+      }
+    }
+    if (host.firstChild && host.firstChild !== ph) park(host.firstChild);
+    if (ph.parentNode !== host) host.appendChild(ph);
+    markNav(ph, r);
+    ensureBack(ph, r);
+    try { document.dispatchEvent(new CustomEvent('proshow', { detail: { r: r, el: ph } })); } catch (e) {}
+  }
+  function markNav(ph, r) {
+    if (!ph) return;
+    var tab = 'Ещё';
+    if (r === 'main' || r === 'boot' || r === 'tour' || r === 'tourAgain') tab = 'Главная';
+    else if (r === 'dialog') tab = 'Диалог';
+    else if (r === 'agent') tab = 'Агент';
+    else if (r === 'more') tab = 'Ещё';
+    [].forEach.call(ph.querySelectorAll('.nav .it'), function (it) {
+      it.classList.toggle('on', it.textContent.trim() === tab);
+    });
+  }
+  function rememberMoreScroll() {
+    var menu = document.querySelector('#more .menu.app-scroll') || document.querySelector('#more .menu');
+    if (menu) ss.set('moreScroll', String(menu.scrollTop || 0));
+  }
+  function restoreMoreScroll() {
+    var menu = document.querySelector('#more .menu.app-scroll') || document.querySelector('#more .menu');
+    if (!menu) return;
+    var y = parseInt(ss.get('moreScroll') || '0', 10) || 0;
+    requestAnimationFrame(function () {
+      menu.scrollTop = y;
+      setTimeout(function () { menu.scrollTop = y; }, 40);
+    });
+  }
+  function ensureBack(ph, r) {
+    if (!ph) return;
+    var roots = { main: 1, dialog: 1, agent: 1, more: 1, boot: 1 };
+    var tbar = ph.querySelector('.tbar'); if (!tbar) return;
+    var old = tbar.querySelector('.back'); if (old) old.remove();
+    var left = tbar.querySelector('.tbar-l');
+    if (roots[r]) {
+      if (left) {
+        var ttl0 = left.querySelector('.ttl');
+        if (ttl0) tbar.insertBefore(ttl0, left);
+        left.remove();
+      }
+      return;
+    }
+    var ttl = tbar.querySelector('.ttl'); if (!ttl) return;
+    if (!left) {
+      left = document.createElement('div'); left.className = 'tbar-l';
+      tbar.insertBefore(left, ttl);
+      left.appendChild(ttl);
+    }
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'back'; b.setAttribute('aria-label', 'Назад');
+    b.innerHTML = '<svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg>';
+    b.onclick = function (e) { e.stopPropagation(); e.preventDefault(); if (window.appBack) window.appBack(); };
+    left.insertBefore(b, left.firstChild);
+  }
   function show(r) {
     cur = r;
     if (nativeHost) return;
+    if (DYN[r]) { mountDyn(r); return; }
     var ph = phones[ROUTES[r][1]];
-    if (host.firstChild && host.firstChild !== ph) {
-      var old = host.firstChild, i = phones.indexOf(old);
-      if (i >= 0) homes[i].appendChild(old);
-    }
+    if (host.firstChild && host.firstChild !== ph) park(host.firstChild);
     if (ph && ph.parentNode !== host) host.appendChild(ph);
     decorate(r);
+    markNav(ph, r);
+    ensureBack(ph, r);
     exUI(r);
+    if (r === 'more') restoreMoreScroll();
     if (REAL && r === 'dialog') dlgSetup();
     if (REAL) { try { document.dispatchEvent(new CustomEvent('proshow', { detail: { r: r, el: phones[ROUTES[r][1]] } })); } catch (e) {} }
   }
@@ -139,6 +253,7 @@
   function go(r, mode) {
     if (r === 'wn') { openWN(true); return; }
     if (!ROUTES[r]) return;
+    if (cur === 'more' && r !== 'more') rememberMoreScroll();
     if (mode === 'push' && cur !== r) stack.push(cur);
     if (mode === 'tab') stack = [];
     save();
@@ -157,6 +272,8 @@
   }
 
   window.appBack = function () {
+    var sheet = document.getElementById('pickSheet');
+    if (sheet) { sheet.classList.remove('on'); setTimeout(function () { sheet.remove(); }, 220); return true; }
     if (wnEl) { closeWN(); return true; }
     if (cfEl) { window.proConfirm(null); try { JarvisNative.dismissConfirm(); } catch (e) {} return true; }
     if (cur === 'boot') return false;
@@ -250,16 +367,15 @@
       ss.set('talk', '1'); go('main', 'tab'); return;
     }
     var mi = t.closest('.mi[data-t]');
-    if (mi && mi.dataset.real) { stop(e); JarvisNative.open(mi.dataset.real); return; }
-    if (mi && MENU[mi.dataset.t]) { stop(e); go(MENU[mi.dataset.t], 'push'); return; }
-    if (REAL && cur === 'settings') {
-      var row = t.closest('.row3');
-      if (row && !row.querySelector('.sw')) {
-        var g = row.closest('.grp'), h = g && g.previousElementSibling, sec = h ? h.textContent.trim().toUpperCase() : '';
-        var map = { 'ГОЛОС И СЛУХ': 'Голос и слух', 'УМ': 'ИИ и модели', 'ПРИВАТНОСТЬ': 'Память и безопасность' };
-        if (map[sec]) { stop(e); JarvisNative.open('section:' + map[sec]); return; }
-      }
+    if (mi && mi.dataset.t === 'm_wpin') {
+      stop(e);
+      if (window.PRO && PRO.q) PRO.q('pinWidget').then(function (r) {
+        toast((r && (r.msg || r.err)) || (r && r.ok ? 'Добавь виджет на рабочий стол' : 'Не получилось'));
+      });
+      else toast('Удержи рабочий стол → Виджеты → «Джарвис Pro»');
+      return;
     }
+    if (mi && MENU[mi.dataset.t]) { stop(e); go(MENU[mi.dataset.t], 'push'); return; }
     if (cur === 'boot' && t.closest('.btnP,.btnS')) { stop(e); go('tour', 'tab'); return; }
     if (cur === 'buy' && t.closest('.btnP')) {
       stop(e); toast('Это демо: пробные 7 дней включены, оплаты нет');
@@ -325,42 +441,36 @@
           ['m_mod', ICON.mode, 'Режимы', 'Дом, машина, зал, работа, сон', 'НОВОЕ'],
           ['m_reply', ICON.reply, 'Ответит Джарвис', 'Ответы на сообщения за тебя', 'НОВОЕ'],
           ['m_chain', ICON.chain, 'Цепочки дел', 'Одна фраза — несколько дел', 'НОВОЕ'],
-          ['m_prc', ICON.tag, 'Слежу за ценами', 'Скажу, когда подешевеет', 'НОВОЕ'],
-          ['m_gos', ICON.doc, 'Госуслуги', 'Штрафы, налоги, записи, документы', 'НОВОЕ'],
+          ['m_prc', ICON.tag, 'Слежу за ценами', 'Локальный список и напоминание о цели', 'НОВОЕ'],
+          ['m_gos', ICON.doc, 'Госуслуги', 'Открою сайт и напомню о сроке', 'НОВОЕ'],
           ['m_ppl', ICON.people, 'Люди', 'Дни рождения, договорённости', 'НОВОЕ'],
           ['m_nts', ICON.note, 'Заметки голосом', '«Запомни…» — и потом спроси', 'НОВОЕ'],
           ['m_spd', ICON.coin, 'Расходы', 'Траты по разделам и подписки', 'НОВОЕ'],
           ['m_thm', ICON.core, 'Тема', 'Золото, лазурь, аметист, рубин, изумруд', '1.3'],
           ['m_dev', ICON.watch, 'Часы и машина', 'Wear OS и Android Auto', 'НОВОЕ'],
-          ['m_rem', ICON.bell, 'Напоминания', 'Виджеты, уведомления, плашка снизу', 'ПРИМЕР'],
-          ['m_appw', ICON.grid, 'Виджеты приложений', 'MAX, Ozon, Госуслуги, банки, такси', 'ПРИМЕР'],
+          ['m_rem', ICON.bell, 'Напоминания', 'Как выглядят вне приложения — живые данные', 'ВНЕ'],
+          ['m_appw', ICON.grid, 'Сводка на экране', 'Уведомления, погода и дела в Pro', 'ВНЕ'],
+          ['m_wpin', ICON.grid, 'Виджет на рабочий стол', 'Джарвис Pro · дела / ядро / полоска', 'НОВОЕ'],
           ['m_wn', ICON.star, 'Что нового', 'Версия ' + VERSION + ' — что появилось', '']
         ];
         add.forEach(function (x) { have[x[0]] = mk(x[0], x[1], x[2], x[3], x[4]); });
-        var realItems = [];
         if (REAL) {
-          [['n_voice', ICON.note, 'Голос и слух', 'Слово «Джарвис», распознавание, голос', 'section:Голос и слух'],
-           ['n_ai', ICON.core, 'ИИ и модели', 'Облако, ключи, локальные модели', 'section:ИИ и модели'],
-           ['n_char', ICON.people, 'Характер и ответы', 'Личность, скорость, уверенность', 'section:Характер и ответы'],
-           ['n_live', ICON.reply, 'Live-разговор', 'Говорить без слова «Джарвис»', 'live'],
-           ['n_mem', ICON.doc, 'Настоящая память', 'Факты, которые Джарвис запомнил', 'screen:memory'],
-           ['n_cmd', ICON.chain, 'Мои команды', 'Своя фраза — цепочка действий', 'section:Мои команды'],
-           ['n_skill', ICON.grid, 'Навыки', 'Что Джарвис умеет на телефоне', 'screen:skills'],
-           ['n_rout', ICON.sun, 'Рутины', 'Сценарии и дела по расписанию', 'screen:routines'],
-           ['n_apps', ICON.grid, 'Приложения', 'Синонимы для открытия голосом', 'section:Приложения'],
-           ['n_pres', ICON.bell, 'Присутствие', 'Подсказки, объявления, тихие часы', 'section:Присутствие'],
-           ['n_safe', ICON.flag, 'Память и безопасность', 'Подтверждения, данные', 'section:Память и безопасность'],
-           ['n_sys', ICON.mode, 'Система', 'Службы, нагрузка, состояние', 'screen:status'],
-           ['n_perm', ICON.star, 'Разрешения', 'Микрофон, уведомления, спец. возможности', 'setup'],
-           ['n_help', ICON.watch, 'Помощь и диагностика', 'Консоль, отчёты об ошибках', 'section:Помощь и диагностика']
-          ].forEach(function (x) { var d = mk(x[0], x[1], x[2], x[3], ''); d.dataset.real = x[4]; have[x[0]] = d; realItems.push(x[0]); });
+          [['m_skill', ICON.grid, 'Навыки', 'Что Джарвис умеет на телефоне', ''],
+           ['m_sys', ICON.mode, 'Система', 'Состояние, разрешения и отчёт', '']
+          ].forEach(function (x) { have[x[0]] = mk(x[0], x[1], x[2], x[3], x[4]); });
+          MENU.m_skill = 'skills'; MENU.m_sys = 'system'; MENU.m_chain = 'scen';
         }
-        if (have.m_voice) { have.m_voice.querySelector('b').textContent = 'Голос'; have.m_voice.querySelector('span').textContent = 'Голоса, персонажи, свой голос'; var e0 = have.m_voice.querySelector('em'); if (e0) e0.textContent = 'НОВОЕ'; else have.m_voice.insertAdjacentHTML('beforeend', '<em>НОВОЕ</em>'); }
-        var SECT = (REAL ? [['НАСТОЯЩИЙ ДЖАРВИС', realItems]] : []).concat([['ДЕНЬ', ['m_plans', 'm_brief', 'm_imp', 'm_mod']],
+        if (have.m_voice) { have.m_voice.querySelector('b').textContent = 'Голос'; have.m_voice.querySelector('span').textContent = 'Слово, слух и голос Джарвиса'; }
+        if (have.m_mem) have.m_mem.querySelector('span').textContent = 'Факты и подтверждения';
+        if (have.m_scen) have.m_scen.querySelector('span').textContent = 'Цепочки и свои команды';
+        if (have.m_set) have.m_set.querySelector('span').textContent = 'Ум, ключи, характер, приложения';
+        if (have.m_over) have.m_over.querySelector('span').textContent = 'Шар и разговор без слова';
+        if (have.m_chain && REAL) { have.m_chain.querySelector('b').textContent = 'Цепочки и сценарии'; have.m_chain.querySelector('span').textContent = 'Готовые цепочки и свои команды'; }
+        var SECT = [['ДЕНЬ', ['m_plans', 'm_brief', 'm_imp', 'm_mod']],
           ['ДЕЛАЕТ ЗА ТЕБЯ', ['m_reply', 'm_chain', 'm_prc', 'm_gos']],
-          ['ПОМНИТ', ['m_mem', 'm_ppl', 'm_nts', 'm_spd', 'm_scen']],
-          ['ДЖАРВИС', ['m_voice', 'm_thm', 'm_over', 'm_dev', 'm_tour', 'm_wn', 'm_set']],
-          ['ПРИМЕРЫ ВНЕ ПРИЛОЖЕНИЯ', ['m_rem', 'm_appw']]]);
+          ['ПОМНИТ', ['m_mem', 'm_ppl', 'm_nts', 'm_spd'].concat(REAL ? [] : ['m_scen'])],
+          ['ДЖАРВИС', ['m_voice', 'm_thm', 'm_over', 'm_dev', 'm_skill', 'm_sys', 'm_tour', 'm_wn', 'm_set']],
+          ['КАК ВЫГЛЯДИТ ВНЕ ПРИЛОЖЕНИЯ', ['m_rem', 'm_appw', 'm_wpin']]];
         menu.textContent = '';
         SECT.forEach(function (sec) {
           var h = document.createElement('div'); h.className = 'app-sec'; h.textContent = sec[0]; menu.appendChild(h);
@@ -370,6 +480,12 @@
       }
     }
     if (r === 'settings') {
+      var setBar = document.querySelector('#set .tbar');
+      if (setBar && !setBar.querySelector('.chip')) {
+        var chip = document.createElement('div');
+        chip.className = 'chip'; chip.innerHTML = '<i></i>PRO';
+        setBar.appendChild(chip);
+      }
       [].slice.call(document.querySelectorAll('.row3')).forEach(function (row) {
         var sw = row.querySelector('.sw');
         if (!sw) return;
@@ -421,12 +537,13 @@
   var exEls = [], exT = null, exList = null, exI = 0;
   function exUI(r) {
     exEls.forEach(function (e) { e.remove(); }); exEls = []; clearTimeout(exT); exList = null;
+    if (REAL && r === 'overlay') return;
     for (var g = 0; g < EXG.length; g++) if (EXG[g].indexOf(r) >= 0) { exList = EXG[g]; exI = EXG[g].indexOf(r); }
     if (!exList) return;
     var cap = document.createElement('div');
     cap.className = 'ex-cap appui';
-    cap.innerHTML = '<small>ПРИМЕР' + (exList.length > 1 ? ' · ' + (exI + 1) + ' / ' + exList.length : '') + '</small><b>' + EXCAP[r] + '</b><span>' +
-      (exList.length > 1 ? 'Листай стрелками или свайпом · ' : '') + '«Назад» — вернуться в Джарвис</span>';
+    cap.innerHTML = '<small>ВНЕ ПРИЛОЖЕНИЯ' + (exList.length > 1 ? ' · ' + (exI + 1) + ' / ' + exList.length : '') + '</small><b>' + EXCAP[r] + '</b><span>' +
+      (exList.length > 1 ? 'Листай стрелками или свайпом · ' : '') + 'Действия меняют реальные данные · «Назад» — в меню</span>';
     document.body.appendChild(cap); exEls.push(cap);
     exT = setTimeout(function () { exEls.forEach(function (e) { e.classList.add('off'); }); }, 2600);
     if (exList.length > 1) {
@@ -466,7 +583,7 @@
     [TH.am.c, SVG.app, 'Значок в цвет', 'Иконка на рабочем столе тоже перекрашивается под тему. Включается в «Теме».', 'themes'],
     [TH.ru.c, SVG.wave, 'Смена цвета волной', 'Джарвис впитывает новый цвет — волна проходит по всему экрану.', ''],
     [TH.gold.c, SVG.hand, 'Секрет', 'На главной удержи палец на Джарвисе — он сменит цвет.', ''],
-    ['#6A7977', SVG.info, 'И ещё', 'Голоса, режимы, цены, госуслуги и расходы — из версии 1.2. Всё в «Ещё».', '']
+    ['#6C7483', SVG.info, 'И ещё', 'Голоса, режимы, цены, госуслуги и расходы — из версии 1.2. Всё в «Ещё».', '']
   ];
   var wnEl = null, wnManual = false;
   function openWN(manual) {
@@ -574,6 +691,7 @@
       if ($('lat')) $('lat').textContent = rLat ? rLat.toFixed(2) + ' s' : '—';
     }
     if (cur === 'dialog') dlgState();
+    try { if (window.PRO && typeof PRO.agentState === 'function') PRO.agentState(st); } catch (e) {}
   };
   window.proEvent = function (ev) {
     if (!ev) return;
@@ -586,6 +704,9 @@
       if (page === 'main' && $('trans') && window.say) window.say(rAnswer, Math.min(6, 1 + rAnswer.length / 22));
     }
     if (ev.t === 'request' || ev.t === 'response' || ev.t === 'history' || ev.t === 'tool') { if (cur === 'dialog') { dlgRender(); dlgState(); } if (page === 'main') { feedRender(); tiles(); } }
+    try { if (window.PRO && typeof PRO.agentTick === 'function') PRO.agentTick(ev); } catch (e) {}
+    try { if (window.PRO && typeof PRO._chainWait === 'function') PRO._chainWait(ev); } catch (e) {}
+    try { if (window.PRO && typeof PRO._scenWait === 'function') PRO._scenWait(ev); } catch (e) {}
   };
   function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 
@@ -706,6 +827,18 @@
     }
   }
 
+  window.proSetupDone = function () { go('main', 'tab'); };
+  window.proOpen = function (target) {
+    var map = {
+      'section:Голос и слух': 'voices', 'section:ИИ и модели': 'settings', 'section:Характер и ответы': 'settings',
+      'section:Память и безопасность': 'memory', 'screen:memory': 'memory', 'section:Мои команды': 'scen',
+      'screen:routines': 'scen', chain: 'scen', 'section:Приложения': 'settings', 'section:Присутствие': 'settings',
+      live: 'overlay', 'screen:skills': 'skills', 'screen:status': 'system',
+      'section:Помощь и диагностика': 'system', setup: 'setup'
+    };
+    var r = map[target] || target;
+    if (ROUTES[r]) go(r, 'push');
+  };
   function start() {
     if (!nativeHost) {
       host = document.createElement('div');

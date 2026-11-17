@@ -113,8 +113,8 @@ html,body{height:100%;overflow:hidden;background:#04010a;color:var(--text);font-
 .hudsvg .lead{animation-duration:8s}
 #tapfs{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:99;font:500 11px var(--mono);letter-spacing:.12em;color:#A4A1A9;background:#0f0a17e0;border:1px solid #ffffff22;border-radius:14px;padding:7px 12px;transition:opacity .6s}
 </style>
-<link rel="stylesheet" href="app-am.css?1794840632">
-<script src="app-am.js?1794840632"></script>
+<link rel="stylesheet" href="app-am.css?1794879000">
+<script src="app-am.js?1794879000"></script>
 </head>
 <body>
 <div id="host">
@@ -264,6 +264,6 @@ function frame(now){if(document.hidden){animating=false;return}if(state==='idle'
   if(state==='think'&&!window.REAL_LAT){const d=DLG[dlg%DLG.length];latEl.textContent=Math.min(d.lat,(now-tThink)/1000*d.lat/2.5).toFixed(2)+' s'}}
 setState('idle');requestAnimationFrame(frame);if(window.APP_TALK)setTimeout(()=>runDialog(false),700);
 </script>
-<script src="real-am.js?1794840632"></script>
+<script src="real-am.js?1794879000"></script>
 </body>
 </html>

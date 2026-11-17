@@ -940,8 +940,12 @@ class DashboardActivity : AppCompatActivity() {
         }
         apply(activityFilter)
         updateJournalStats()
-        screen.findViewById<TextView>(R.id.btnOpenTestConsole)?.setOnClickListener {
-            startActivity(Intent(this, TestConsoleActivity::class.java))
+        screen.findViewById<TextView>(R.id.btnOpenTestConsole)?.let { btn ->
+            if (BuildConfig.DEBUG) {
+                btn.setOnClickListener { startActivity(Intent(this, TestConsoleActivity::class.java)) }
+            } else {
+                btn.visibility = android.view.View.GONE
+            }
         }
         val cpuGauge = screen.findViewById<GaugeView>(R.id.gaugeCpu)
         val ramGauge = screen.findViewById<GaugeView>(R.id.gaugeRam)
@@ -1183,8 +1187,12 @@ class DashboardActivity : AppCompatActivity() {
         screen.findViewById<View>(R.id.tileAutomations)?.setOnClickListener { openControlSecondary("automations") }
         screen.findViewById<View>(R.id.tileCompanion)?.setOnClickListener { openControlSecondary("companion") }
         screen.findViewById<View>(R.id.tileModels)?.setOnClickListener { openControlSecondary("models") }
-        screen.findViewById<View>(R.id.tileDeveloper)?.setOnClickListener {
-            startActivity(Intent(this, TestConsoleActivity::class.java))
+        screen.findViewById<View>(R.id.tileDeveloper)?.let { tile ->
+            if (BuildConfig.DEBUG) {
+                tile.setOnClickListener { startActivity(Intent(this, TestConsoleActivity::class.java)) }
+            } else {
+                tile.visibility = View.GONE
+            }
         }
         screen.findViewById<TextView>(R.id.btnOpenAdvancedSettings)?.setOnClickListener {
             openControlSecondary("advanced")

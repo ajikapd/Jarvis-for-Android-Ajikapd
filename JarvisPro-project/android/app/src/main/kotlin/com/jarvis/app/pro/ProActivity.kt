@@ -5,7 +5,7 @@ import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.content.res.AssetManager
+import android.content.res.AssetFileDescriptor
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -30,12 +30,17 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.jarvis.app.ActivityFeed
+import com.jarvis.app.AndroidReminderBook
+import com.jarvis.app.BriefingSchedule
+import com.jarvis.app.BuildConfig
 import com.jarvis.app.ConversationStore
 import com.jarvis.app.CrashReports
 import com.jarvis.app.JarvisSettings
+import com.jarvis.app.JarvisWidgetProvider
 import com.jarvis.app.NativeGuard
 import com.jarvis.app.OnboardingActivity
 import com.jarvis.app.OverlayOrbService
+import com.jarvis.app.PriceWatch
 import com.jarvis.app.UiMode
 import com.jarvis.app.UsageGuideActivity
 import com.jarvis.app.VoiceController
@@ -53,6 +58,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
+import java.io.ByteArrayInputStream
+import java.io.InputStream
 import org.json.JSONObject
 
 /**
@@ -126,21 +133,7 @@ class ProActivity : AppCompatActivity() {
             override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
                 pageReady = false
             }
-            override fun shouldInterceptRequest(v: WebView, r: WebResourceRequest): WebResourceResponse {
-                val u = r.url
-                if (HOST != u.host) return WebResourceResponse("text/plain", "utf-8", 403, "Offline", null, null)
-                var path = u.path
-                if (path.isNullOrEmpty() || path == "/") path = "/index.html"
-                return try {
-                    val input = assets.open("pro$path", AssetManager.ACCESS_STREAMING)
-                    val mime = mime(path)
-                    WebResourceResponse(mime, if (mime.startsWith("text/") || mime.endsWith("javascript")) "utf-8" else null, input).apply {
-                        responseHeaders = mapOf("Cache-Control" to "no-cache", "Access-Control-Allow-Origin" to "*")
-                    }
-                } catch (e: Exception) {
-                    WebResourceResponse("text/plain", "utf-8", 404, "Not found", null, null)
-                }
-            }
+            override fun shouldInterceptRequest(v: WebView, r: WebResourceRequest): WebResourceResponse = assetResponse(r)
 
             override fun shouldOverrideUrlLoading(v: WebView, r: WebResourceRequest): Boolean = HOST != r.url.host
 
@@ -212,6 +205,11 @@ class ProActivity : AppCompatActivity() {
         intent ?: return
         if (intent.action == Intent.ACTION_ASSIST) wakeWhenReady()
         else if (intent.action == JarvisActivity.ACTION_POWER_ON) powerOn()
+        val open = intent.getStringExtra(EXTRA_OPEN)
+        if (!open.isNullOrBlank()) {
+            root.postDelayed({ openNative(open) }, 500)
+            intent.removeExtra(EXTRA_OPEN)
+        }
     }
 
     private var wakeJob: Job? = null
@@ -235,6 +233,14 @@ class ProActivity : AppCompatActivity() {
     override fun onStart() {
         super.onStart()
         if (needsSetup()) return
+        // Будильники — в фоне: на главном потоке rearm + overdue fire давали чёрный экран при старте.
+        Thread({
+            runCatching {
+                AndroidReminderBook(this).rearm()
+                BriefingSchedule.rearm(this)
+                PriceWatch.arm(this)
+            }
+        }, "jarvis-rearm").start()
         // Был включён до закрытия или обновления — поднимаем без лишнего нажатия (как в обычном Джарвисе).
         if (JarvisSettings.voiceWanted(this) && !VoiceController.isRunning && !NativeGuard.isOff(this, NativeGuard.VOICE_AUTOSTART)) {
             NativeGuard.begin(this, NativeGuard.VOICE_AUTOSTART)
@@ -290,7 +296,9 @@ class ProActivity : AppCompatActivity() {
     private fun needsSetup(): Boolean = prefs.getString("firstDone", "") == "1" && OnboardingActivity.needsOnboarding(this)
 
     private fun startSetup() {
-        web.loadUrl("https://$HOST/panel.html#setup")
+        val theme = prefs.getString("curTheme", null)?.ifBlank { null } ?: prefs.getString("theme", "gold") ?: "gold"
+        val suffix = if (theme.isBlank() || theme == "gold") "" else "-$theme"
+        web.loadUrl("https://$HOST/s13$suffix.html#setup")
     }
 
     fun powerOn() {
@@ -389,7 +397,15 @@ class ProActivity : AppCompatActivity() {
                     pendingConfirm = pending,
                     failed = failed,
                 )
-                event("tool", e.result.message.orEmpty())
+                js(
+                    "window.proEvent&&proEvent(${JSONObject()
+                        .put("t", "tool")
+                        .put("text", e.result.message.orEmpty())
+                        .put("tool", e.result.toolId)
+                        .put("status", e.result.status.name)
+                        .put("pending", pending)
+                        .put("failed", failed)})"
+                )
                 if (pending) confirm(e.result.message ?: "Подтвердите действие, сэр.")
             }
             AssistantEvent.WakeDetected -> {
@@ -422,17 +438,11 @@ class ProActivity : AppCompatActivity() {
 
     // ---------- настоящие разделы ----------
     private fun openNative(target: String) {
-        when {
-            target == "overlay" -> {
-                startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
-                return
-            }
-            target == "setup" || target == "live" || target.startsWith("section:") || target.startsWith("screen:") -> {
-                web.loadUrl("https://$HOST/panel.html#${Uri.encode(target)}")
-                return
-            }
-            else -> return
+        if (target == "overlay") {
+            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+            return
         }
+        js("window.proOpen&&proOpen(${JSONObject.quote(target)})")
     }
 
     private suspend fun recordOwner(type: String): JSONObject {
@@ -523,7 +533,10 @@ class ProActivity : AppCompatActivity() {
         @JavascriptInterface fun get(k: String): String = prefs.getString(k, "") ?: ""
         @JavascriptInterface fun set(k: String, v: String) {
             prefs.edit().putString(k, v).apply()
-            if (k == "theme" || k == "curTheme") runOnUiThread { Skins.set(this@ProActivity, "pro_" + (v.ifEmpty { "gold" })) }
+            if (k == "theme" || k == "curTheme") runOnUiThread {
+                Skins.set(this@ProActivity, "pro_" + (v.ifEmpty { "gold" }))
+                JarvisWidgetProvider.refresh(this@ProActivity)
+            }
             if (k == "firstDone" && v == "1") runOnUiThread { if (OnboardingActivity.needsOnboarding(this@ProActivity)) startSetup() }
         }
         @JavascriptInterface fun version(): String = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrDefault("") ?: ""
@@ -617,9 +630,26 @@ class ProActivity : AppCompatActivity() {
             }
         }
         @JavascriptInterface fun send(text: String) = runOnUiThread { this@ProActivity.send(text) }
+        @JavascriptInterface fun speak(text: String) = runOnUiThread {
+            val t = text.trim()
+            if (t.isEmpty()) return@runOnUiThread
+            if (!VoiceController.isRunning) powerOn()
+            root.postDelayed({ VoiceController.speak(t) }, if (VoiceController.isRunning) 0L else 900L)
+        }
         @JavascriptInterface fun answer(yes: Boolean) = runOnUiThread { this@ProActivity.answer(yes) }
         @JavascriptInterface fun open(target: String) = runOnUiThread { openNative(target) }
         @JavascriptInterface fun shareReport() = runOnUiThread { startActivity(CrashReports.shareIntent(this@ProActivity)) }
+        @JavascriptInterface fun openGuide() = runOnUiThread {
+            startActivity(Intent(this@ProActivity, UsageGuideActivity::class.java))
+        }
+        @JavascriptInterface fun debug(): Boolean = BuildConfig.DEBUG
+        @JavascriptInterface fun openConsole() = runOnUiThread {
+            if (!BuildConfig.DEBUG) {
+                js("window.proToast&&proToast('Консоль только в отладочной сборке')")
+                return@runOnUiThread
+            }
+            startActivity(Intent(this@ProActivity, com.jarvis.app.TestConsoleActivity::class.java))
+        }
         @JavascriptInterface fun previewVoice() = runOnUiThread {
             if (VoiceController.isRunning) VoiceController.speak("Так меня слышно, сэр.")
         }
@@ -652,9 +682,105 @@ class ProActivity : AppCompatActivity() {
         }
     }
 
+    /** Видео ядра проигрыватель читает кусками. Без длины и диапазона WebView пишет «не удалось воспроизвести». */
+    private fun assetResponse(r: WebResourceRequest): WebResourceResponse {
+        val u = r.url
+        if (HOST != u.host) return emptyResponse(403, "Offline")
+        var path = u.path
+        if (path.isNullOrEmpty() || path == "/") path = "/index.html"
+        if (path.contains("..")) return emptyResponse(404, "Not found")
+        val asset = "pro$path"
+        val type = mime(path)
+        return try {
+            if (path.endsWith(".mp4", ignoreCase = true)) {
+                val range = r.requestHeaders.entries.firstOrNull { it.key.equals("Range", ignoreCase = true) }?.value
+                rangedAsset(asset, type, range)
+            } else {
+                val input = assets.open(asset)
+                WebResourceResponse(
+                    type,
+                    if (type.startsWith("text/") || type.endsWith("javascript")) "utf-8" else null,
+                    input,
+                ).apply {
+                    responseHeaders = mapOf("Cache-Control" to "no-cache", "Access-Control-Allow-Origin" to "*")
+                }
+            }
+        } catch (e: Exception) {
+            emptyResponse(404, "Not found")
+        }
+    }
+
+    private fun rangedAsset(asset: String, type: String, rangeHeader: String?): WebResourceResponse {
+        val descriptor = assets.openFd(asset)
+        val length = descriptor.length
+        val partial = rangeHeader?.startsWith("bytes=", ignoreCase = true) == true
+        var start = 0L
+        var end = (length - 1).coerceAtLeast(0)
+        if (partial && length > 0) {
+            val spec = rangeHeader!!.substringAfter('=').substringBefore(",")
+            val dash = spec.indexOf('-')
+            val left = spec.substring(0, dash.coerceAtLeast(0)).toLongOrNull()
+            val right = if (dash >= 0) spec.substring(dash + 1).toLongOrNull() else null
+            if (left == null && right != null) start = (length - right).coerceAtLeast(0)
+            else start = (left ?: 0L).coerceIn(0, (length - 1).coerceAtLeast(0))
+            end = (right ?: (length - 1)).coerceIn(start, (length - 1).coerceAtLeast(0))
+        }
+        // Надёжнее позиционировать через FileChannel: skip() у AssetInputStream на части телефонов врёт.
+        val raw = java.io.FileInputStream(descriptor.fileDescriptor)
+        raw.channel.position(descriptor.startOffset + start)
+        val count = (end - start + 1).coerceAtLeast(0)
+        val headers = linkedMapOf(
+            "Accept-Ranges" to "bytes",
+            "Content-Length" to count.toString(),
+            "Cache-Control" to "no-cache",
+            "Access-Control-Allow-Origin" to "*",
+        )
+        val status: Int
+        val reason: String
+        if (partial) {
+            headers["Content-Range"] = "bytes $start-$end/$length"
+            status = 206
+            reason = "Partial Content"
+        } else {
+            status = 200
+            reason = "OK"
+        }
+        return WebResourceResponse(type, null, status, reason, headers, ClosingStream(raw, descriptor, count))
+    }
+
+    private fun emptyResponse(status: Int, reason: String) =
+        WebResourceResponse("text/plain", "utf-8", status, reason, emptyMap(), ByteArrayInputStream(ByteArray(0)))
+
+    private class ClosingStream(
+        private val source: InputStream,
+        private val descriptor: AssetFileDescriptor,
+        private var left: Long,
+    ) : InputStream() {
+        override fun read(): Int {
+            if (left <= 0) return -1
+            val value = source.read()
+            if (value >= 0) left--
+            return value
+        }
+
+        override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+            if (left <= 0) return -1
+            val n = source.read(buffer, offset, minOf(length.toLong(), left).toInt())
+            if (n > 0) left -= n
+            return n
+        }
+
+        override fun close() {
+            runCatching { source.close() }
+            runCatching { descriptor.close() }
+        }
+    }
+
     companion object {
         const val HOST = "appassets.androidplatform.net"
         const val PREFS = "jarvis_pro"
+        const val EXTRA_OPEN = "pro_open"
+        const val ACTION_POWER_ON = "com.jarvis.assistant.PRO_POWER_ON"
         const val BG = 0xFF020304.toInt()
         val ICONS = listOf("gold" to "IconGold", "az" to "IconAz", "am" to "IconAm", "ru" to "IconRu", "em" to "IconEm")
         private const val STARTUP_POLLS = 40
