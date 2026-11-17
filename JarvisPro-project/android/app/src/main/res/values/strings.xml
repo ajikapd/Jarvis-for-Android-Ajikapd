@@ -41,4 +41,14 @@
     <string name="cloud_key_deleted">Ключ удалён</string>
     <string name="proactive_public_text">Jarvis: есть предложение</string>
 
+    <string name="widget_core_desc">Ядро Джарвиса: статус, ближайшее дело, говорить и сводка</string>
+    <string name="widget_square_desc">Квадрат: ядро и кнопка «Говорить»</string>
+    <string name="widget_strip_desc">Полоска: ближайшее дело и микрофон</string>
+    <string name="widget_notifs_desc">Сводка: последние уведомления</string>
+    <string name="widget_weather_desc">Сводка: погода</string>
+    <string name="widget_battery_desc">Сводка: заряд батареи</string>
+    <string name="widget_next_desc">Сводка: ближайшее дело</string>
+    <string name="widget_tasks_desc">Сводка: список дел</string>
+    <string name="widget_music_desc">Сводка: управление музыкой</string>
+
 </resources>

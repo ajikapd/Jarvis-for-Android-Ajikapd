@@ -308,7 +308,7 @@
         <receiver
             android:name=".JarvisWidgetProvider"
             android:exported="true"
-            android:label="Jarvis">
+            android:label="Джарвис Pro · ядро">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -320,7 +320,7 @@
         <receiver
             android:name=".JarvisWidgetSquare"
             android:exported="true"
-            android:label="Jarvis: ядро">
+            android:label="Джарвис Pro · квадрат">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -332,13 +332,85 @@
         <receiver
             android:name=".JarvisWidgetStrip"
             android:exported="true"
-            android:label="Jarvis: полоска">
+            android:label="Джарвис Pro · полоска">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_jarvis_strip_info" />
+        </receiver>
+
+        <receiver
+            android:name=".JarvisWidgetNotifs"
+            android:exported="true"
+            android:label="Джарвис Pro · уведомления">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_pro_notifs_info" />
+        </receiver>
+
+        <receiver
+            android:name=".JarvisWidgetWeather"
+            android:exported="true"
+            android:label="Джарвис Pro · погода">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_pro_weather_info" />
+        </receiver>
+
+        <receiver
+            android:name=".JarvisWidgetBattery"
+            android:exported="true"
+            android:label="Джарвис Pro · заряд">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_pro_battery_info" />
+        </receiver>
+
+        <receiver
+            android:name=".JarvisWidgetNext"
+            android:exported="true"
+            android:label="Джарвис Pro · ближайшее дело">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_pro_next_info" />
+        </receiver>
+
+        <receiver
+            android:name=".JarvisWidgetTasks"
+            android:exported="true"
+            android:label="Джарвис Pro · дела">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_pro_tasks_info" />
+        </receiver>
+
+        <receiver
+            android:name=".JarvisWidgetMusic"
+            android:exported="true"
+            android:label="Джарвис Pro · музыка">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_pro_music_info" />
         </receiver>
 
         <receiver

@@ -8,4 +8,5 @@
     android:targetCellHeight="1"
     android:targetCellWidth="4"
     android:updatePeriodMillis="1800000"
+    android:description="@string/widget_strip_desc"
     android:widgetCategory="home_screen" />
