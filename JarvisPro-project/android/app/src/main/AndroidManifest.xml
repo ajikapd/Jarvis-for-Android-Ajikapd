@@ -292,10 +292,6 @@
                 android:resource="@xml/recognition_service" />
         </service>
 
-        <activity
-            android:name=".TestConsoleActivity"
-            android:exported="false"
-            android:theme="@style/Theme.Jarvis" />
 
         <receiver
             android:name=".VoiceBootReceiver"

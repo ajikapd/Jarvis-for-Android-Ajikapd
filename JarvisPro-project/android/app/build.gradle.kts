@@ -1,3 +1,4 @@
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -12,15 +13,15 @@ android {
         applicationId = "com.jarvis.pro"
         minSdk = 29
         targetSdk = 34
-        versionCode = 19
-        versionName = "1.4.1-pro"
+        versionCode = 31
+        versionName = "1.6.0-pro"
         ndk {
             abiFilters += listOf("arm64-v8a")
         }
     }
 
     androidResources {
-        noCompress += listOf("onnx", "tflite", "bin")
+        noCompress += listOf("onnx", "tflite", "bin", "mp4")
     }
 
     packaging {
@@ -41,6 +42,41 @@ android {
     }
     buildFeatures {
         buildConfig = true
+    }
+
+    val keystorePropsFile = rootProject.file("keystore.properties")
+    val keystoreProps = Properties().apply {
+        if (keystorePropsFile.exists()) keystorePropsFile.inputStream().use { load(it) }
+    }
+    val hasReleaseKey = keystorePropsFile.exists() &&
+        keystoreProps.getProperty("storeFile")?.isNotBlank() == true
+
+    signingConfigs {
+        if (hasReleaseKey) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            isMinifyEnabled = false
+        }
+        release {
+            isMinifyEnabled = false
+            isShrinkResources = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
+            if (hasReleaseKey) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
     }
 }
 
